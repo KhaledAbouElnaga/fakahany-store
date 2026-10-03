@@ -37,7 +37,7 @@ export default function AdminPage(){
 
   useEffect(()=>{
     if(!authorized||!profile||!supabaseConfigured||!supabase||!can('orders.view'))return;
-    const channel=supabase.channel('admin-new-order-alerts').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{
+    const channel=supabase!.channel('admin-new-order-alerts').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{
       setNewOrderCount(v=>v+1);
       if(alertsEnabled){
         try{
@@ -53,7 +53,7 @@ export default function AdminPage(){
         }
       }
     }).subscribe();
-    return ()=>{void supabase.removeChannel(channel)};
+    return ()=>{void supabase!.removeChannel(channel)};
   },[authorized,profile,alertsEnabled]);
 
   useEffect(()=>{
