@@ -49,10 +49,27 @@ export function isStoreOpenNow(settings: Pick<ShopSettings,'store_status_mode'|'
   return open < close ? now >= open && now < close : now >= open || now < close;
 }
 
+const formatClock = (t:string) => {
+  const [h,m]=(t||'00:00').split(':').map(Number);
+  const d=new Date(); d.setHours(h||0,m||0,0,0);
+  return d.toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'});
+};
+
 export function storeStatusText(settings: ShopSettings) {
   if (settings.store_status_mode === 'open') return 'مفتوح الآن';
   if (settings.store_status_mode === 'closed') return 'مغلق الآن';
-  return isStoreOpenNow(settings) ? 'مفتوح الآن' : 'مغلق الآن';
+  if (isStoreOpenNow(settings)) return `مفتوح الآن — يغلق ${formatClock(settings.closing_time)}`;
+  const days=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const now=new Date();
+  for(let offset=0;offset<8;offset++){
+    const d=new Date(now); d.setDate(now.getDate()+offset);
+    const day=days[d.getDay()];
+    if(settings.working_days.includes(day)){
+      const label=offset===0?'اليوم':offset===1?'غدًا':day;
+      return `مغلق الآن — يفتح ${label} ${formatClock(settings.opening_time)}`;
+    }
+  }
+  return 'مغلق الآن';
 }
 
 export function productStockValue(product: Product): number | null {
@@ -91,6 +108,7 @@ export function orderTemplateValues(order: Order, settings: ShopSettings) {
     delivery_fee: delivery,
     total: moneyEn(order.total),
     notes: order.notes || 'لا يوجد',
+    requested_time: order.requested_time || 'في أقرب وقت',
     status: order.status,
   };
 }
@@ -156,6 +174,29 @@ const escapeHtml = (value: unknown) => String(value ?? '')
 export function printOrder(order: Order, settings: ShopSettings) {
   const w = window.open('','_blank','width=760,height=800'); if(!w) return;
   const items = order.items.map(i=>`<tr><td>${escapeHtml(i.product_name)}</td><td>${escapeHtml(i.option_name)}</td><td>${escapeHtml(i.quantity)}</td><td>${escapeHtml(moneyEn(i.line_total))}</td></tr>`).join('');
-  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طلب ${escapeHtml(order.order_number)}</title><style>body{font-family:Arial;padding:24px;color:#163523}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ddd;padding:8px;text-align:right}h1{margin-top:0}.total{font-size:20px;font-weight:bold}</style></head><body><h1>${escapeHtml(settings.store_name)}</h1><h2>طلب #${escapeHtml(order.order_number)}</h2><p>${escapeHtml(new Date(order.created_at).toLocaleString('ar-EG'))}</p><p><b>العميل:</b> ${escapeHtml(order.customer_name || '—')}<br><b>الهاتف:</b> ${escapeHtml(order.customer_phone || '—')}<br><b>العنوان:</b> ${escapeHtml(order.address || '—')}<br><b>المنطقة:</b> ${escapeHtml(order.area_name || '—')}</p><table><thead><tr><th>المنتج</th><th>الخيار</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${items}</tbody></table><p>إجمالي المنتجات: ${escapeHtml(moneyEn(order.product_subtotal))}</p>${settings.delivery_enabled?`<p>التوصيل: ${escapeHtml(moneyEn(order.delivery_fee))}</p>`:''}<p class="total">الإجمالي: ${escapeHtml(moneyEn(order.total))}</p><p><b>ملاحظات:</b> ${escapeHtml(order.notes || 'لا يوجد')}</p><script>window.onload=()=>window.print()</script></body></html>`);
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طلب ${escapeHtml(order.order_number)}</title><style>body{font-family:Arial;padding:24px;color:#163523}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ddd;padding:8px;text-align:right}h1{margin-top:0}.total{font-size:20px;font-weight:bold}</style></head><body><h1>${escapeHtml(settings.store_name)}</h1><h2>طلب #${escapeHtml(order.order_number)}</h2><p>${escapeHtml(new Date(order.created_at).toLocaleString('ar-EG'))}</p><p><b>العميل:</b> ${escapeHtml(order.customer_name || '—')}<br><b>الهاتف:</b> ${escapeHtml(order.customer_phone || '—')}<br><b>العنوان:</b> ${escapeHtml(order.address || '—')}<br><b>المنطقة:</b> ${escapeHtml(order.area_name || '—')}</p><table><thead><tr><th>المنتج</th><th>الخيار</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${items}</tbody></table><p>إجمالي المنتجات: ${escapeHtml(moneyEn(order.product_subtotal))}</p>${settings.delivery_enabled?`<p>التوصيل: ${escapeHtml(moneyEn(order.delivery_fee))}</p>`:''}<p class="total">الإجمالي: ${escapeHtml(moneyEn(order.total))}</p>${order.requested_time?`<p><b>الموعد المطلوب:</b> ${escapeHtml(order.requested_time)}</p>`:''}<p><b>ملاحظات:</b> ${escapeHtml(order.notes || 'لا يوجد')}</p><script>window.onload=()=>window.print()</script></body></html>`);
   w.document.close();
+}
+
+
+export function openWhatsApp(number:string,message:string,preopenedWindow?:Window|null){
+  const encoded=encodeURIComponent(message);
+  const mobile=/android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  const direct=`whatsapp://send?phone=${number}&text=${encoded}`;
+  const web=`https://wa.me/${number}?text=${encoded}`;
+  const target=preopenedWindow || window.open('about:blank','_blank');
+  if(mobile){
+    if(target) target.location.href=direct;
+    else window.location.href=direct;
+  }else{
+    if(target) target.location.href=web;
+    else window.location.href=web;
+  }
+}
+
+export function countryName(code:string){
+  if(!code||code==='غير معروف') return 'غير معروف';
+  try{
+    return new Intl.DisplayNames(['ar'],{type:'region'}).of(code.toUpperCase()) || code.toUpperCase();
+  }catch{return code.toUpperCase()}
 }

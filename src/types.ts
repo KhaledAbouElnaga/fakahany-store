@@ -68,6 +68,7 @@ export interface ShopSettings {
   manual_open: boolean; // backwards compatibility with older database
   store_status_mode: StoreStatusMode;
   low_stock_threshold: number;
+  scheduled_orders_enabled: boolean;
   show_search: boolean;
   show_categories: boolean;
   show_featured: boolean;
@@ -117,6 +118,7 @@ export interface Order {
   delivery_fee: number;
   total: number;
   notes: string;
+  requested_time: string;
   status: OrderStatus;
   items: OrderItem[];
 }
@@ -139,4 +141,13 @@ export interface StoreSnapshot {
   products: Product[];
   settings: ShopSettings;
   deliveryAreas: DeliveryArea[];
+}
+
+
+export interface SiteVisit {
+  id: string;
+  created_at: string;
+  country_code: string;
+  device_type: 'هاتف' | 'جهاز لوحي' | 'كمبيوتر';
+  referrer: string;
 }
