@@ -803,6 +803,61 @@ $$;
 revoke all on function public.edit_store_order(uuid,jsonb,jsonb) from public;
 grant execute on function public.edit_store_order(uuid,jsonb,jsonb) to authenticated;
 
+-- ---------- Compact visitor analytics: aggregate by day/country/device ----------
+create table if not exists public.site_visit_daily (
+  day date not null,
+  country_code text not null default 'غير معروف',
+  device_type text not null default 'كمبيوتر',
+  visits bigint not null default 0,
+  primary key(day,country_code,device_type)
+);
+
+insert into public.site_visit_daily(day,country_code,device_type,visits)
+select created_at::date,country_code,device_type,count(*)::bigint
+from public.site_visits
+group by created_at::date,country_code,device_type
+on conflict(day,country_code,device_type) do update
+set visits=public.site_visit_daily.visits+excluded.visits;
+
+truncate table public.site_visits;
+
+create or replace function public.record_store_visit(
+  country_input text,
+  device_input text,
+  referrer_input text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+begin
+  insert into public.site_visit_daily(day,country_code,device_type,visits)
+  values(
+    current_date,
+    left(coalesce(nullif(btrim(country_input),''),'غير معروف'),32),
+    case when device_input in ('هاتف','جهاز لوحي','كمبيوتر') then device_input else 'كمبيوتر' end,
+    1
+  )
+  on conflict(day,country_code,device_type) do update
+  set visits=public.site_visit_daily.visits+1;
+
+  delete from public.site_visit_daily where day<current_date-180;
+  return true;
+end;
+$;
+
+revoke all on function public.record_store_visit(text,text,text) from public;
+grant execute on function public.record_store_visit(text,text,text) to anon,authenticated;
+
+alter table public.site_visit_daily enable row level security;
+drop policy if exists "staff read daily visits" on public.site_visit_daily;
+create policy "staff read daily visits" on public.site_visit_daily
+for select using(public.has_permission('reports.view'));
+
+revoke all on public.site_visit_daily from anon,authenticated;
+grant select on public.site_visit_daily to authenticated;
+
 -- ---------- RLS ----------
 alter table public.staff_profiles enable row level security;
 alter table public.staff_invites enable row level security;
