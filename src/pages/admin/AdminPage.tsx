@@ -86,7 +86,7 @@ export default function AdminPage(){
     {can('settings.manage')&&<Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav>}
     {can('orders.view')&&<Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav>}
     {can('orders.manage')&&<Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav>}
-    {can('archive.manage')&&<Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav>}
+    {profile?.role==='owner'&&<Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav>}
     {can('inventory.manage')&&<Nav t="inventory" active={tab} set={setTab}>المخزون</Nav>}
     {can('prices.manage')&&<Nav t="prices" active={tab} set={setTab}>الأسعار المجدولة</Nav>}
     {can('reports.view')&&<Nav t="reports" active={tab} set={setTab}>التقارير</Nav>}
@@ -99,9 +99,9 @@ export default function AdminPage(){
     {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
     {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
     {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
-    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')}/>}
+    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')} canManage={can('orders.manage')}/>}
     {tab==='statuses'&&can('orders.manage')&&<OrderStatuses/>}
-    {tab==='archive'&&can('archive.manage')&&<ArchiveCleanup/>}
+    {tab==='archive'&&profile?.role==='owner'&&<ArchiveCleanup/>}
     {tab==='inventory'&&can('inventory.manage')&&<InventoryPanel/>}
     {tab==='prices'&&can('prices.manage')&&<ScheduledPrices/>}
     {tab==='reports'&&can('reports.view')&&<Reports/>}
