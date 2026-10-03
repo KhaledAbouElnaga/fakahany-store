@@ -123,6 +123,7 @@ as $
 declare user_email text;
 begin
   if auth.uid() is null then raise exception 'يجب تسجيل الدخول أولًا'; end if;
+  perform pg_advisory_xact_lock(hashtext('fakahany.claim_first_admin'));
 
   if exists(select 1 from public.admins) then
     if exists(select 1 from public.staff_profiles where user_id=auth.uid() and role='owner' and active=true) then return true; end if;
