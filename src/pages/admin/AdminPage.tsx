@@ -80,9 +80,34 @@ export default function AdminPage(){
   if(!authorized)return <AdminLogin onDone={()=>setAuthorized(true)}/>;
   if(error||!data)return <div className="center-state error-state"><p>{error||'تعذر تحميل البيانات'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
   const logout=async()=>{await signOutAdmin();setAuthorized(false);setProfile(null)};
-  return <div className="admin-shell"><aside className="admin-side"><div className="admin-brand"><b>{data.settings.store_name}</b><small>لوحة الإدارة</small></div><nav>
-    <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav><Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav><Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav><Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav><Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav><Nav t="reports" active={tab} set={setTab}>التقارير</Nav><Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>
-  </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">{!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}{tab==='home'&&<Dashboard/>}{tab==='products'&&<Products/>}{tab==='categories'&&<SimpleManager kind="categories"/>}{tab==='units'&&<SimpleManager kind="units"/>}{tab==='areas'&&<SimpleManager kind="areas"/>}{tab==='orders'&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')}/>}{tab==='statuses'&&<OrderStatuses/>}{tab==='archive'&&<ArchiveCleanup/>}{tab==='reports'&&<Reports/>}{tab==='settings'&&<StoreSettings data={data} refresh={refresh}/>}</main></div>;
+  return <div className="admin-shell"><aside className="admin-side"><div className="admin-brand"><b>{data.settings.store_name}</b><small>{profile?.display_name||profile?.email||'لوحة الإدارة'}</small></div><nav>
+    <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav>
+    {can('products.manage')&&<><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav></>}
+    {can('settings.manage')&&<Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav>}
+    {can('orders.view')&&<Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav>}
+    {can('orders.manage')&&<Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav>}
+    {can('archive.manage')&&<Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav>}
+    {can('inventory.manage')&&<Nav t="inventory" active={tab} set={setTab}>المخزون</Nav>}
+    {can('prices.manage')&&<Nav t="prices" active={tab} set={setTab}>الأسعار المجدولة</Nav>}
+    {can('reports.view')&&<Nav t="reports" active={tab} set={setTab}>التقارير</Nav>}
+    {profile?.role==='owner'&&<Nav t="staff" active={tab} set={setTab}>الموظفون والصلاحيات</Nav>}
+    {can('settings.manage')&&<Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>}
+  </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
+    {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
+    {tab==='home'&&<Dashboard/>}
+    {tab==='products'&&can('products.manage')&&<Products/>}
+    {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
+    {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
+    {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
+    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')}/>}
+    {tab==='statuses'&&can('orders.manage')&&<OrderStatuses/>}
+    {tab==='archive'&&can('archive.manage')&&<ArchiveCleanup/>}
+    {tab==='inventory'&&can('inventory.manage')&&<InventoryPanel/>}
+    {tab==='prices'&&can('prices.manage')&&<ScheduledPrices/>}
+    {tab==='reports'&&can('reports.view')&&<Reports/>}
+    {tab==='staff'&&profile?.role==='owner'&&<StaffManager/>}
+    {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh}/>}
+  </main></div>;
 
   function Dashboard(){
     const [orders,setOrders]=useState<Order[]|null>(null);
