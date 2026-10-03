@@ -69,6 +69,9 @@ export interface ShopSettings {
   store_status_mode: StoreStatusMode;
   low_stock_threshold: number;
   scheduled_orders_enabled: boolean;
+  delivery_capacity_enabled: boolean;
+  delivery_slot_minutes: number;
+  delivery_slot_capacity: number;
   show_search: boolean;
   show_categories: boolean;
   show_featured: boolean;
@@ -130,6 +133,9 @@ export interface Order {
   total: number;
   notes: string;
   requested_time: string;
+  requested_for?: string | null;
+  internal_note?: string;
+  client_token?: string;
   archived_at?: string | null;
   archived_by?: string | null;
   status: OrderStatus;
@@ -178,4 +184,63 @@ export interface OrderCleanupLog {
   orders_count: number;
   min_order_created_at: string | null;
   max_order_created_at: string | null;
+}
+
+
+export type StaffRole = 'owner' | 'manager' | 'orders' | 'inventory' | 'viewer';
+
+export interface StaffProfile {
+  user_id: string;
+  email: string;
+  display_name: string;
+  role: StaffRole;
+  active: boolean;
+  permissions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderEvent {
+  id: string;
+  order_id: string;
+  created_at: string;
+  actor_user_id: string | null;
+  event_type: string;
+  summary: string;
+}
+
+export interface InventoryAdjustment {
+  id: string;
+  created_at: string;
+  actor_user_id: string | null;
+  product_id: string | null;
+  product_name: string;
+  option_id: string | null;
+  option_name: string;
+  quantity_before: number | null;
+  quantity_after: number | null;
+  delta: number;
+  reason: string;
+}
+
+export interface ScheduledPrice {
+  id: string;
+  product_option_id: string;
+  product_name: string;
+  option_name: string;
+  price: number;
+  old_price: number | null;
+  starts_at: string;
+  created_at: string;
+}
+
+export interface DailyReport {
+  date: string;
+  orders: number;
+  completed: number;
+  cancelled: number;
+  sales: number;
+  delivery_fees: number;
+  average_order: number;
+  top_products: Array<{name:string;quantity:number;value:number}>;
 }
