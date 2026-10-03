@@ -6,8 +6,8 @@ import Reports from './Reports';
 import { changeAdminPassword, currentAdminEmail, isAdmin, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
-import type { Category, DeliveryArea, Order, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
-import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, loadOrders, newArea, newCategory, newProduct, newUnit, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
+import type { Category, DeliveryArea, Order, OrderCleanupLog, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
+import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
 import { supabaseConfigured } from '../../lib/supabase';
 
