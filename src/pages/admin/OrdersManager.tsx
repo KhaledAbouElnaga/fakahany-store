@@ -5,7 +5,7 @@ import type { Order, OrderStatusDefinition, ShopSettings } from '../../types';
 import OrderEditModal from './OrderEditModal';
 import OrderOperationsDetails from './OrderOperationsDetails';
 
-export default function OrdersManager({settings,onNewCount,onOpenStatuses,canManage}:{settings:ShopSettings,onNewCount:(n:number)=>void,onOpenStatuses:()=>void,canManage:boolean}){
+export default function OrdersManager({settings,onNewCount,onOpenStatuses,canManage,canConfigureStatuses}:{settings:ShopSettings,onNewCount:(n:number)=>void,onOpenStatuses:()=>void,canManage:boolean,canConfigureStatuses:boolean}){
   const [orders,setOrders]=useState<Order[]|null>(null);
   const [statuses,setStatuses]=useState<OrderStatusDefinition[]|null>(null);
   const [editing,setEditing]=useState<Order|null>(null);
@@ -57,7 +57,7 @@ export default function OrdersManager({settings,onNewCount,onOpenStatuses,canMan
   ]);
 
   return <>
-    <div className="page-title"><h1>الطلبات</h1><div className="page-actions">{canManage&&<button className="btn secondary" onClick={onOpenStatuses}>إدارة الحالات</button>}<button className="btn secondary" onClick={exportOrders}>تصدير النتائج</button></div></div>
+    <div className="page-title"><h1>الطلبات</h1><div className="page-actions">{canConfigureStatuses&&<button className="btn secondary" onClick={onOpenStatuses}>إدارة الحالات</button>}<button className="btn secondary" onClick={exportOrders}>تصدير النتائج</button></div></div>
     {msg&&<p className={msg.includes('تعذر')?'error-text':'success-text'}>{msg}</p>}
 
     <div className="order-filters">
