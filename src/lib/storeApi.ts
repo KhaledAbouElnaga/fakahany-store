@@ -119,7 +119,7 @@ export async function saveOrder(order: Order):Promise<Order>{
   const itemPayload=order.items.map(i=>({id:i.id,product_id:i.product_id,option_id:i.option_id,quantity:i.quantity}));
   const {data,error}=await supabase.rpc('create_store_order',{order_payload:payload,items_payload:itemPayload}); if(error)throw error;
   const result=(data||{}) as any;
-  return {...order,id:String(result.order_id??order.id),product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
+  return {...order,id:String(result.order_id??order.id),order_number:String(result.order_number??order.order_number),product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
 }
 
 export async function loadOrders(includeArchived=false):Promise<Order[]>{
