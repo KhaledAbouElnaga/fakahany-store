@@ -209,9 +209,20 @@ export async function recordVisit():Promise<void>{
 
 export async function loadVisits(limit=5000):Promise<SiteVisit[]>{
   if(!supabaseConfigured||!supabase) return [];
-  const {data,error}=await supabase.from('site_visits').select('*').order('created_at',{ascending:false}).limit(limit);
-  if(error) throw error;
-  return (data||[]) as SiteVisit[];
+  const daily=await supabase.from('site_visit_daily').select('*').order('day',{ascending:false}).limit(limit);
+  if(!daily.error){
+    return (daily.data||[]).map((x:any)=>({
+      id:String(x.day)+'-'+String(x.country_code)+'-'+String(x.device_type),
+      created_at:String(x.day)+'T00:00:00',
+      country_code:String(x.country_code),
+      device_type:x.device_type,
+      referrer:'',
+      visits:Number(x.visits||0)
+    })) as SiteVisit[];
+  }
+  const legacy=await supabase.from('site_visits').select('*').order('created_at',{ascending:false}).limit(limit);
+  if(legacy.error) throw legacy.error;
+  return (legacy.data||[]) as SiteVisit[];
 }
 
 
