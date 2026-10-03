@@ -1,22 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
 import Loading from '../../components/Loading';
-import { loadOrders, loadVisits } from '../../lib/storeApi';
+import { loadOrderStatuses, loadOrders, loadVisits } from '../../lib/storeApi';
 import { countryName, money } from '../../lib/utils';
-import type { Order, SiteVisit } from '../../types';
+import type { Order, OrderStatusDefinition, SiteVisit } from '../../types';
 
 export default function Reports(){
   const [orders,setOrders]=useState<Order[]|null>(null);
   const [visits,setVisits]=useState<SiteVisit[]|null>(null);
-  useEffect(()=>{void Promise.all([loadOrders(),loadVisits()]).then(([o,v])=>{setOrders(o);setVisits(v)}).catch(()=>{setOrders([]);setVisits([])})},[]);
+  const [statuses,setStatuses]=useState<OrderStatusDefinition[]|null>(null);
+  useEffect(()=>{void Promise.all([loadOrders(),loadVisits(),loadOrderStatuses()]).then(([o,v,s])=>{setOrders(o);setVisits(v);setStatuses(s)}).catch(()=>{setOrders([]);setVisits([]);setStatuses([])})},[]);
   const stats=useMemo(()=>{
-    if(!orders||!visits)return null;
+    if(!orders||!visits||!statuses)return null;
     const now=Date.now();
     const since=(days:number)=>new Date(now-days*86400000);
-    const completed=orders.filter(o=>o.status==='مكتمل');
+    const completedNames=new Set(statuses.filter(s=>s.is_completed).map(s=>s.name));
+    const cancelledNames=new Set(statuses.filter(s=>s.is_cancelled).map(s=>s.name));
+    const completed=orders.filter(o=>completedNames.has(o.status));
     const totalSince=(days:number)=>completed.filter(o=>new Date(o.created_at)>=since(days)).reduce((s,o)=>s+Number(o.total),0);
     const countSince=(days:number)=>orders.filter(o=>new Date(o.created_at)>=since(days)).length;
     const itemMap=new Map<string,{name:string,qty:number,value:number}>();
-    for(const o of orders.filter(x=>x.status!=='ملغي'))for(const i of o.items){
+    for(const o of orders.filter(x=>!cancelledNames.has(x.status)))for(const i of o.items){
       const key=i.product_id||i.product_name;
       const x=itemMap.get(key)||{name:i.product_name,qty:0,value:0};
       x.qty+=Number(i.quantity);x.value+=Number(i.line_total);itemMap.set(key,x);
@@ -32,7 +35,7 @@ export default function Reports(){
       devices:[...devices.entries()].sort((a,b)=>b[1]-a[1]),
       visitCount:visits.length
     };
-  },[orders,visits]);
+  },[orders,visits,statuses]);
 
   if(!stats)return <Loading/>;
   const maxTop=Math.max(1,...stats.top.map(x=>x.qty));
