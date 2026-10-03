@@ -103,7 +103,18 @@ export interface CartItem {
   quantity: number;
 }
 
-export type OrderStatus = 'جديد' | 'جاري التجهيز' | 'خرج للتوصيل' | 'مكتمل' | 'ملغي';
+export type OrderStatus = string;
+
+export interface OrderStatusDefinition {
+  id: ID;
+  name: string;
+  note: string;
+  display_order: number;
+  active: boolean;
+  is_new: boolean;
+  is_completed: boolean;
+  is_cancelled: boolean;
+}
 
 export interface Order {
   id: ID;
@@ -159,7 +170,7 @@ export interface OrderCleanupLog {
   id: string;
   created_at: string;
   admin_user_id: string | null;
-  action: 'archive' | 'delete' | 'restore';
+  action: 'archive' | 'delete' | 'restore' | 'password_change';
   filter_type: string;
   filter_label: string;
   date_from: string | null;
