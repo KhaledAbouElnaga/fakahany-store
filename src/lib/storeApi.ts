@@ -1,4 +1,4 @@
-import type { Category, DeliveryArea, Order, OrderCleanupLog, Product, ProductOption, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
+import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
 import { supabase, supabaseConfigured } from './supabase';
 import { getDemoOrders, getDemoSnapshot, setDemoOrders, setDemoSnapshot } from './demoData';
 import { compressImage, fileToDataUrl, uid } from './utils';
@@ -9,6 +9,15 @@ export const DEFAULT_ORDER_TEMPLATE = `طلب جديد\nرقم الطلب: #{{or
 export const DEFAULT_RECEIVED_TEMPLATE = `مرحبًا {{name}}، تم استلام طلبك رقم #{{order_number}} من {{store_name}} وسيتم مراجعته الآن.`;
 export const DEFAULT_PREPARING_TEMPLATE = `مرحبًا {{name}}، طلبك رقم #{{order_number}} جاري التجهيز الآن.`;
 export const DEFAULT_DELIVERY_TEMPLATE = `مرحبًا {{name}}، طلبك رقم #{{order_number}} خرج للتوصيل.`;
+
+
+export const DEFAULT_ORDER_STATUSES: OrderStatusDefinition[] = [
+  {id:'00000000-0000-0000-0000-000000000101',name:'جديد',note:'طلب جديد لم يبدأ التعامل معه بعد.',display_order:1,active:true,is_new:true,is_completed:false,is_cancelled:false},
+  {id:'00000000-0000-0000-0000-000000000102',name:'جاري التجهيز',note:'الطلب قيد التجهيز.',display_order:2,active:true,is_new:false,is_completed:false,is_cancelled:false},
+  {id:'00000000-0000-0000-0000-000000000103',name:'خرج للتوصيل',note:'تم تجهيز الطلب وخرج للتوصيل.',display_order:3,active:true,is_new:false,is_completed:false,is_cancelled:false},
+  {id:'00000000-0000-0000-0000-000000000104',name:'مكتمل',note:'تم إنهاء الطلب بنجاح.',display_order:4,active:true,is_new:false,is_completed:true,is_cancelled:false},
+  {id:'00000000-0000-0000-0000-000000000105',name:'ملغي',note:'تم إلغاء الطلب.',display_order:5,active:true,is_new:false,is_completed:false,is_cancelled:true},
+];
 
 function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): ShopSettings {
   const defaults: ShopSettings = {
@@ -92,7 +101,39 @@ export async function loadOrders(includeArchived=false):Promise<Order[]>{
   const mapped=(orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
   return includeArchived?mapped:mapped.filter(o=>!o.archived_at);
 }
-export async function updateOrderStatus(id:string,status:Order['status']){ if(!supabaseConfigured||!supabase){const orders=getDemoOrders();const i=orders.findIndex(o=>o.id===id);if(i>=0)orders[i].status=status;setDemoOrders(orders);return;} const {error}=await supabase.rpc('set_order_status',{order_id_input:id,new_status:status});if(error)throw error; }
+export async function loadOrderStatuses():Promise<OrderStatusDefinition[]>{
+  if(!supabaseConfigured||!supabase){
+    try{
+      const raw=localStorage.getItem('fakahany-demo-order-statuses');
+      if(raw)return JSON.parse(raw) as OrderStatusDefinition[];
+    }catch{}
+    return structuredClone(DEFAULT_ORDER_STATUSES);
+  }
+  const {data,error}=await supabase.from('order_statuses').select('*').order('display_order');
+  if(error)throw error;
+  return (data||[]) as OrderStatusDefinition[];
+}
+
+export async function saveOrderStatus(status:OrderStatusDefinition):Promise<OrderStatusDefinition>{
+  if(!status.name.trim())throw new Error('اكتب اسم الحالة.');
+  if(!supabaseConfigured||!supabase){
+    const list=await loadOrderStatuses();
+    const i=list.findIndex(x=>x.id===status.id);
+    if(i>=0)list[i]=status;else list.push(status);
+    localStorage.setItem('fakahany-demo-order-statuses',JSON.stringify(list));
+    return status;
+  }
+  const {data,error}=await supabase.from('order_statuses').upsert(status).select().single();
+  if(error)throw error;
+  return data as OrderStatusDefinition;
+}
+
+export async function updateOrderStatus(id:string,status:Order['status']){
+  if(!supabaseConfigured||!supabase){
+    const orders=getDemoOrders();const i=orders.findIndex(o=>o.id===id);if(i>=0)orders[i].status=status;setDemoOrders(orders);return;
+  }
+  const {error}=await supabase.rpc('set_order_status',{order_id_input:id,new_status:status});if(error)throw error;
+}
 
 export function newCategory(order=999):Category{return{id:uid(),name_ar:'',display_order:order,visible:true};}
 export function newUnit(order=999):SellingUnit{return{id:uid(),name_ar:'',display_order:order,active:true};}
@@ -138,10 +179,14 @@ export async function orderCleanupPasswordIsSet():Promise<boolean>{
   return Boolean(data);
 }
 
-export async function setOrderCleanupPassword(password:string):Promise<void>{
+export async function setOrderCleanupPassword(password:string,currentPassword=''):Promise<void>{
   if(password.length<8) throw new Error('كلمة مرور الحذف يجب أن تكون 8 أحرف على الأقل.');
-  if(!supabaseConfigured||!supabase){localStorage.setItem('fakahany-demo-cleanup-password',password);return;}
-  const {error}=await supabase.rpc('set_order_cleanup_password',{password_input:password});
+  if(!supabaseConfigured||!supabase){
+    const existing=localStorage.getItem('fakahany-demo-cleanup-password')||'';
+    if(existing&&existing!==currentPassword)throw new Error('كلمة مرور الحذف الحالية غير صحيحة.');
+    localStorage.setItem('fakahany-demo-cleanup-password',password);return;
+  }
+  const {error}=await supabase.rpc('set_order_cleanup_password',{password_input:password,current_password_input:currentPassword});
   if(error) throw error;
 }
 
@@ -160,13 +205,14 @@ export async function previewOrderCleanup(dateFrom:string,dateTo:string):Promise
 export async function executeOrderCleanup(input:{action:'archive'|'delete';dateFrom:string;dateTo:string;filterType:string;filterLabel:string;password?:string}):Promise<{count:number}>{
   if(!supabaseConfigured||!supabase){
     const from=new Date(input.dateFrom+'T00:00:00').getTime(),to=new Date(input.dateTo+'T23:59:59').getTime();
-    const all=getDemoOrders(); const matched=all.filter(o=>{const t=new Date(o.created_at).getTime();return t>=from&&t<=to});
+    const all=getDemoOrders();
+    const matched=all.filter(o=>{const t=new Date(o.created_at).getTime();return t>=from&&t<=to&&(input.action==='archive'?!o.archived_at:Boolean(o.archived_at))});
     if(input.action==='delete'){
       const saved=localStorage.getItem('fakahany-demo-cleanup-password')||'';
       if(!saved||saved!==input.password) throw new Error('كلمة مرور الحذف غير صحيحة.');
       setDemoOrders(all.filter(o=>!matched.some(m=>m.id===o.id)));
     }else{
-      const now=new Date().toISOString(); setDemoOrders(all.map(o=>matched.some(m=>m.id===o.id)&&!o.archived_at?{...o,archived_at:now}:o));
+      const now=new Date().toISOString(); setDemoOrders(all.map(o=>matched.some(m=>m.id===o.id)?{...o,archived_at:now}:o));
     }
     return {count:matched.length};
   }
