@@ -114,15 +114,69 @@ export default function AdminPage(){
     const [statuses,setStatuses]=useState<OrderStatusDefinition[]|null>(null);
     useEffect(()=>{void Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{setOrders(o);setStatuses(s)}).catch(()=>{setOrders([]);setStatuses([])})},[]);
     if(!orders||!statuses)return <Loading/>;
+
     const newNames=new Set(statuses.filter(s=>s.is_new).map(s=>s.name));
     const completedNames=new Set(statuses.filter(s=>s.is_completed).map(s=>s.name));
-    const today=new Date().toDateString();
-    const todayOrders=orders.filter(o=>new Date(o.created_at).toDateString()===today).length;
+    const cancelledNames=new Set(statuses.filter(s=>s.is_cancelled).map(s=>s.name));
+    const now=new Date();
+    const startToday=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const startYesterday=new Date(startToday);startYesterday.setDate(startYesterday.getDate()-1);
+    const startWeek=new Date(startToday);startWeek.setDate(startWeek.getDate()-6);
+    const prevWeekStart=new Date(startWeek);prevWeekStart.setDate(prevWeekStart.getDate()-7);
+
+    const inRange=(o:Order,a:Date,b:Date)=>{const t=new Date(o.created_at);return t>=a&&t<b};
+    const todayOrdersList=orders.filter(o=>inRange(o,startToday,new Date(startToday.getTime()+86400000)));
+    const yesterdayOrders=orders.filter(o=>inRange(o,startYesterday,startToday));
+    const weekOrders=orders.filter(o=>new Date(o.created_at)>=startWeek);
+    const prevWeekOrders=orders.filter(o=>inRange(o,prevWeekStart,startWeek));
     const completed=orders.filter(o=>completedNames.has(o.status));
     const revenue=completed.reduce((s,o)=>s+Number(o.total),0);
     const avg=orders.length?orders.reduce((s,o)=>s+Number(o.total),0)/orders.length:0;
     const low=data!.products.filter(p=>isLowStock(p,data!.settings.low_stock_threshold)).length;
-    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={()=>setTab('products')}>إضافة منتج</button><button className="btn" onClick={()=>setTab('orders')}>عرض الطلبات</button></div>}>الرئيسية</PageTitle><div className="stats-grid"><Stat label="طلبات اليوم" value={todayOrders}/><Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/><Stat label="إجمالي الطلبات" value={orders.length}/><Stat label="المنتجات المتاحة" value={data!.products.filter(p=>p.available&&!p.hidden).length}/><Stat label="غير المتاحة" value={data!.products.filter(p=>!p.available).length}/><Stat label="مخزون منخفض" value={low}/><Stat label="قيمة الطلبات المكتملة" value={money(revenue)}/><Stat label="متوسط قيمة الطلب" value={money(avg)}/><Stat label="عدد الأقسام" value={data!.categories.length}/></div>{low>0&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض. راجع قسم المنتجات.</p></div>}<div className="panel"><h3>حالة المتجر</h3><p>وضع الفتح الحالي: <b>{data!.settings.store_status_mode==='open'?'مفتوح يدويًا':data!.settings.store_status_mode==='closed'?'مغلق يدويًا':'تلقائي حسب المواعيد'}</b> · التوصيل: <b>{data!.settings.delivery_enabled?'مفعل':'غير مفعل'}</b></p></div></>;
+
+    const salesOf=(list:Order[])=>list.filter(o=>completedNames.has(o.status)).reduce((s,o)=>s+Number(o.total),0);
+    const todaySales=salesOf(todayOrdersList),yesterdaySales=salesOf(yesterdayOrders),weekSales=salesOf(weekOrders),prevWeekSales=salesOf(prevWeekOrders);
+    const percent=(a:number,b:number)=>b===0?(a>0?100:0):Math.round((a-b)/b*100);
+
+    const itemMap=new Map<string,{name:string,qty:number}>();
+    for(const o of orders.filter(x=>!cancelledNames.has(x.status)))for(const item of o.items){
+      const key=item.product_id||item.product_name;const x=itemMap.get(key)||{name:item.product_name,qty:0};x.qty+=Number(item.quantity);itemMap.set(key,x);
+    }
+    const topProduct=[...itemMap.values()].sort((a,b)=>b.qty-a.qty)[0];
+
+    const hours=new Map<number,number>();
+    for(const o of orders){const h=new Date(o.created_at).getHours();hours.set(h,(hours.get(h)||0)+1)}
+    const peak=[...hours.entries()].sort((a,b)=>b[1]-a[1])[0];
+
+    const customers=new Map<string,number>();
+    for(const o of orders){const p=(o.customer_phone||'').replace(/\D/g,'');if(p)customers.set(p,(customers.get(p)||0)+1)}
+    const repeat=[...customers.values()].filter(n=>n>1).length;
+    const cancelRate=orders.length?Math.round(orders.filter(o=>cancelledNames.has(o.status)).length/orders.length*100):0;
+
+    return <><PageTitle actions={<div className="page-actions">
+      {!alertsEnabled&&can('orders.view')&&<button className="btn secondary" onClick={()=>void enableAlerts()}>تفعيل تنبيهات الطلبات</button>}
+      {can('products.manage')&&<button className="btn secondary" onClick={()=>setTab('products')}>إضافة منتج</button>}
+      {can('orders.view')&&<button className="btn" onClick={()=>setTab('orders')}>عرض الطلبات</button>}
+    </div>}>الرئيسية</PageTitle>
+
+    <div className="stats-grid">
+      <Stat label="طلبات اليوم" value={todayOrdersList.length}/>
+      <Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>
+      <Stat label="مبيعات اليوم" value={money(todaySales)}/>
+      <Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/>
+      <Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/>
+      <Stat label="مقارنة بالأسبوع السابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/>
+      <Stat label="متوسط قيمة الطلب" value={money(avg)}/>
+      <Stat label="العملاء المتكررون" value={repeat}/>
+      <Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>
+      <Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>
+      <Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>
+      <Stat label="مخزون منخفض" value={low}/>
+    </div>
+
+    {low>0&&can('inventory.manage')&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض.</p><button className="btn secondary" onClick={()=>setTab('inventory')}>فتح المخزون</button></div>}
+    <div className="panel"><h3>حالة المتجر</h3><p>وضع الفتح الحالي: <b>{data!.settings.store_status_mode==='open'?'مفتوح يدويًا':data!.settings.store_status_mode==='closed'?'مغلق يدويًا':'تلقائي حسب المواعيد'}</b> · التوصيل: <b>{data!.settings.delivery_enabled?'مفعل':'غير مفعل'}</b> · تنبيهات الطلبات: <b>{alertsEnabled?'مفعلة':'غير مفعلة'}</b></p></div>
+    </>;
   }
 
   function Products(){
