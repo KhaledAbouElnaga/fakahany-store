@@ -6,5 +6,7 @@ dist
 *.log
 npm-debug.log*
 FINAL-BACKUP/
+backup-before-v4/
 patch/
+*.backup
 *.zip
