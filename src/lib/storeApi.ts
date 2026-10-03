@@ -94,7 +94,7 @@ export async function saveProduct(product: Product) {
 
   const logChange=async(optionId:string|null,before:number|null,after:number|null)=>{
     if(before===after)return;
-    try{await supabase.rpc('record_inventory_adjustment',{product_id_input:product.id,option_id_input:optionId,before_input:before,after_input:after,reason_input:'تعديل يدوي من لوحة الإدارة'});}catch{}
+    try{await supabase!.rpc('record_inventory_adjustment',{product_id_input:product.id,option_id_input:optionId,before_input:before,after_input:after,reason_input:'تعديل يدوي من لوحة الإدارة'});}catch{}
   };
   if(oldProduct && (oldProduct.track_stock||product.track_stock)){
     await logChange(null,oldProduct.stock_qty===null?null:Number(oldProduct.stock_qty),product.stock_qty===null?null:Number(product.stock_qty));
