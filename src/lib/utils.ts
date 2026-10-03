@@ -140,9 +140,16 @@ export function downloadCsv(filename: string, rows: unknown[][]) {
   downloadText(filename, rows.map(r=>r.map(csvEscape).join(',')).join('\n'),'text/csv;charset=utf-8');
 }
 
+const escapeHtml = (value: unknown) => String(value ?? '')
+  .replaceAll('&','&amp;')
+  .replaceAll('<','&lt;')
+  .replaceAll('>','&gt;')
+  .replaceAll('"','&quot;')
+  .replaceAll("'","&#039;");
+
 export function printOrder(order: Order, settings: ShopSettings) {
   const w = window.open('','_blank','width=760,height=800'); if(!w) return;
-  const items = order.items.map(i=>`<tr><td>${i.product_name}</td><td>${i.option_name}</td><td>${i.quantity}</td><td>${moneyEn(i.line_total)}</td></tr>`).join('');
-  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طلب ${order.order_number}</title><style>body{font-family:Arial;padding:24px;color:#163523}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ddd;padding:8px;text-align:right}h1{margin-top:0}.total{font-size:20px;font-weight:bold}</style></head><body><h1>${settings.store_name}</h1><h2>طلب #${order.order_number}</h2><p>${new Date(order.created_at).toLocaleString('ar-EG')}</p><p><b>العميل:</b> ${order.customer_name || '—'}<br><b>الهاتف:</b> ${order.customer_phone || '—'}<br><b>العنوان:</b> ${order.address || '—'}<br><b>المنطقة:</b> ${order.area_name || '—'}</p><table><thead><tr><th>المنتج</th><th>الخيار</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${items}</tbody></table><p>إجمالي المنتجات: ${moneyEn(order.product_subtotal)}</p>${settings.delivery_enabled?`<p>التوصيل: ${moneyEn(order.delivery_fee)}</p>`:''}<p class="total">الإجمالي: ${moneyEn(order.total)}</p><p><b>ملاحظات:</b> ${order.notes || 'لا يوجد'}</p><script>window.onload=()=>window.print()</script></body></html>`);
+  const items = order.items.map(i=>`<tr><td>${escapeHtml(i.product_name)}</td><td>${escapeHtml(i.option_name)}</td><td>${escapeHtml(i.quantity)}</td><td>${escapeHtml(moneyEn(i.line_total))}</td></tr>`).join('');
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>طلب ${escapeHtml(order.order_number)}</title><style>body{font-family:Arial;padding:24px;color:#163523}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{border:1px solid #ddd;padding:8px;text-align:right}h1{margin-top:0}.total{font-size:20px;font-weight:bold}</style></head><body><h1>${escapeHtml(settings.store_name)}</h1><h2>طلب #${escapeHtml(order.order_number)}</h2><p>${escapeHtml(new Date(order.created_at).toLocaleString('ar-EG'))}</p><p><b>العميل:</b> ${escapeHtml(order.customer_name || '—')}<br><b>الهاتف:</b> ${escapeHtml(order.customer_phone || '—')}<br><b>العنوان:</b> ${escapeHtml(order.address || '—')}<br><b>المنطقة:</b> ${escapeHtml(order.area_name || '—')}</p><table><thead><tr><th>المنتج</th><th>الخيار</th><th>الكمية</th><th>الإجمالي</th></tr></thead><tbody>${items}</tbody></table><p>إجمالي المنتجات: ${escapeHtml(moneyEn(order.product_subtotal))}</p>${settings.delivery_enabled?`<p>التوصيل: ${escapeHtml(moneyEn(order.delivery_fee))}</p>`:''}<p class="total">الإجمالي: ${escapeHtml(moneyEn(order.total))}</p><p><b>ملاحظات:</b> ${escapeHtml(order.notes || 'لا يوجد')}</p><script>window.onload=()=>window.print()</script></body></html>`);
   w.document.close();
 }
