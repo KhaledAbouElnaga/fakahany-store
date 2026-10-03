@@ -11,6 +11,7 @@ export default function OrderEditModal({order,onClose,onSaved}:{order:Order;onCl
   const [msg,setMsg]=useState('');
 
   const products=useMemo(()=>data?.products.filter(p=>!p.hidden)||[],[data]);
+  const localDateTime=(value:string)=>{const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const pad=(n:number)=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes())};
 
   if(!data)return null;
 
@@ -57,7 +58,7 @@ export default function OrderEditModal({order,onClose,onSaved}:{order:Order;onCl
       <label>رقم الهاتف<input value={draft.customer_phone} onChange={e=>patch('customer_phone',e.target.value)}/></label>
       <label className="full">العنوان<textarea value={draft.address} onChange={e=>patch('address',e.target.value)}/></label>
       {data.settings.delivery_enabled&&<label>منطقة التوصيل<select value={draft.area_id||''} onChange={e=>patch('area_id',e.target.value||null)}><option value="">بدون منطقة</option>{data.deliveryAreas.filter(a=>a.enabled).map(a=><option key={a.id} value={a.id}>{a.name_ar} — {money(a.fee)}</option>)}</select></label>}
-      <label>موعد الطلب<input type="datetime-local" value={draft.requested_for?new Date(draft.requested_for).toISOString().slice(0,16):''} onChange={e=>{patch('requested_for',e.target.value||null);patch('requested_time',e.target.value?new Date(e.target.value).toLocaleString('ar-EG'):'')}}/></label>
+      <label>موعد الطلب<input type="datetime-local" value={draft.requested_for?localDateTime(draft.requested_for):''} onChange={e=>{patch('requested_for',e.target.value||null);patch('requested_time',e.target.value?new Date(e.target.value).toLocaleString('ar-EG'):'')}}/></label>
       <label className="full">ملاحظات العميل<textarea value={draft.notes} onChange={e=>patch('notes',e.target.value)}/></label>
     </div>
 
