@@ -87,11 +87,10 @@ export async function loadOrders(includeArchived=false):Promise<Order[]>{
     const orders=getDemoOrders();
     return includeArchived?orders:orders.filter(o=>!o.archived_at);
   }
-  let query=supabase.from('orders').select('*').order('created_at',{ascending:false});
-  if(!includeArchived) query=query.is('archived_at',null);
-  const {data:orders,error}=await query;if(error)throw error;
+  const {data:orders,error}=await supabase.from('orders').select('*').order('created_at',{ascending:false});if(error)throw error;
   const {data:items,error:e2}=await supabase.from('order_items').select('*');if(e2)throw e2;
-  return (orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
+  const mapped=(orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
+  return includeArchived?mapped:mapped.filter(o=>!o.archived_at);
 }
 export async function updateOrderStatus(id:string,status:Order['status']){ if(!supabaseConfigured||!supabase){const orders=getDemoOrders();const i=orders.findIndex(o=>o.id===id);if(i>=0)orders[i].status=status;setDemoOrders(orders);return;} const {error}=await supabase.rpc('set_order_status',{order_id_input:id,new_status:status});if(error)throw error; }
 
