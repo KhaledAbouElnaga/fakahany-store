@@ -184,14 +184,16 @@ export function openWhatsApp(number:string,message:string,preopenedWindow?:Windo
   const mobile=/android|iphone|ipad|ipod/i.test(navigator.userAgent);
   const direct=`whatsapp://send?phone=${number}&text=${encoded}`;
   const web=`https://wa.me/${number}?text=${encoded}`;
-  const target=preopenedWindow || window.open('about:blank','_blank');
+
   if(mobile){
-    if(target) target.location.href=direct;
-    else window.location.href=direct;
-  }else{
-    if(target) target.location.href=web;
-    else window.location.href=web;
+    if(preopenedWindow && !preopenedWindow.closed) preopenedWindow.close();
+    window.location.href=direct;
+    return;
   }
+
+  const target=preopenedWindow || window.open(web,'_blank');
+  if(target) target.location.href=web;
+  else window.location.href=web;
 }
 
 export function countryName(code:string){
