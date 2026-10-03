@@ -3,27 +3,29 @@ import { Link } from 'react-router-dom';
 import AdminLogin from './AdminLogin';
 import ProductBulkTools from './ProductBulkTools';
 import Reports from './Reports';
+import ArchiveCleanup from './ArchiveCleanup';
+import OrderStatuses from './OrderStatuses';
 import { changeAdminPassword, currentAdminEmail, isAdmin, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
-import type { Category, DeliveryArea, Order, OrderCleanupLog, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
-import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
-import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
+import type { Category, DeliveryArea, Order, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
+import { DEFAULT_ORDER_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, loadOrders, loadOrderStatuses, newArea, newCategory, newProduct, newUnit, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
+import { downloadCsv, downloadText, isLowStock, money, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
 import { supabaseConfigured } from '../../lib/supabase';
 
-type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'reports'|'settings';
+type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'reports'|'settings';
 
 export default function AdminPage(){
   const [authorized,setAuthorized]=useState<boolean|null>(null); const [tab,setTab]=useState<Tab>('home'); const {data,loading,error,refresh}=useStore(); const [newOrderCount,setNewOrderCount]=useState(0);
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
-  useEffect(()=>{if(authorized)loadOrders().then(o=>setNewOrderCount(o.filter(x=>x.status==='جديد').length)).catch(()=>{});},[authorized,tab]);
+  useEffect(()=>{if(authorized)Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{const names=new Set(s.filter(x=>x.is_new).map(x=>x.name));setNewOrderCount(o.filter(x=>names.has(x.status)).length)}).catch(()=>{});},[authorized,tab]);
   if(authorized===null||loading)return <Loading text="جاري فتح لوحة الإدارة..."/>;
   if(!authorized)return <AdminLogin onDone={()=>setAuthorized(true)}/>;
   if(error||!data)return <div className="center-state error-state"><p>{error||'تعذر تحميل البيانات'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
   const logout=async()=>{await signOutAdmin();setAuthorized(false)};
   return <div className="admin-shell"><aside className="admin-side"><div className="admin-brand"><b>{data.settings.store_name}</b><small>لوحة الإدارة</small></div><nav>
-    <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav><Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav><Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav><Nav t="reports" active={tab} set={setTab}>التقارير</Nav><Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>
-  </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">{!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}{tab==='home'&&<Dashboard/>}{tab==='products'&&<Products/>}{tab==='categories'&&<SimpleManager kind="categories"/>}{tab==='units'&&<SimpleManager kind="units"/>}{tab==='areas'&&<SimpleManager kind="areas"/>}{tab==='orders'&&<Orders/>}{tab==='reports'&&<Reports/>}{tab==='settings'&&<Settings/>}</main></div>;
+    <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav><Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav><Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav><Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav><Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav><Nav t="reports" active={tab} set={setTab}>التقارير</Nav><Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>
+  </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">{!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}{tab==='home'&&<Dashboard/>}{tab==='products'&&<Products/>}{tab==='categories'&&<SimpleManager kind="categories"/>}{tab==='units'&&<SimpleManager kind="units"/>}{tab==='areas'&&<SimpleManager kind="areas"/>}{tab==='orders'&&<Orders/>}{tab==='statuses'&&<OrderStatuses/>}{tab==='archive'&&<ArchiveCleanup/>}{tab==='reports'&&<Reports/>}{tab==='settings'&&<Settings/>}</main></div>;
 
   function Dashboard(){
     const [orders,setOrders]=useState<Order[]|null>(null); useEffect(()=>{loadOrders().then(setOrders).catch(()=>setOrders([]));},[]); if(!orders)return <Loading/>;
