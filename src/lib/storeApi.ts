@@ -5,7 +5,7 @@ import { compressImage, fileToDataUrl, uid } from './utils';
 
 const demoWait = () => new Promise(r => setTimeout(r, 80));
 
-export const DEFAULT_ORDER_TEMPLATE = `طلب جديد\nرقم الطلب: #{{order_number}}\n\nالاسم: {{name}}\nرقم الهاتف: {{phone}}\nالعنوان: {{address}}\nالمنطقة: {{area}}\n\nالطلب:\n{{items}}\n\nإجمالي المنتجات: {{subtotal}}\nرسوم التوصيل: {{delivery_fee}}\nالإجمالي النهائي: {{total}}\n\nملاحظات: {{notes}}`;
+export const DEFAULT_ORDER_TEMPLATE = `طلب جديد\nرقم الطلب: #{{order_number}}\n\nالاسم: {{name}}\nرقم الهاتف: {{phone}}\nالعنوان: {{address}}\nالمنطقة: {{area}}\nموعد الطلب: {{requested_time}}\n\nالطلب:\n{{items}}\n\nإجمالي المنتجات: {{subtotal}}\nرسوم التوصيل: {{delivery_fee}}\nالإجمالي النهائي: {{total}}\n\nملاحظات: {{notes}}`;
 export const DEFAULT_RECEIVED_TEMPLATE = `مرحبًا {{name}}، تم استلام طلبك رقم #{{order_number}} من {{store_name}} وسيتم مراجعته الآن.`;
 export const DEFAULT_PREPARING_TEMPLATE = `مرحبًا {{name}}، طلبك رقم #{{order_number}} جاري التجهيز الآن.`;
 export const DEFAULT_DELIVERY_TEMPLATE = `مرحبًا {{name}}، طلبك رقم #{{order_number}} خرج للتوصيل.`;
