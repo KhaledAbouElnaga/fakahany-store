@@ -114,6 +114,34 @@ grant execute on function public.is_staff() to authenticated;
 grant execute on function public.has_permission(text) to authenticated;
 grant execute on function public.is_admin() to anon, authenticated;
 
+create or replace function public.claim_first_admin()
+returns boolean
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+declare user_email text;
+begin
+  if auth.uid() is null then raise exception 'يجب تسجيل الدخول أولًا'; end if;
+
+  if exists(select 1 from public.admins) then
+    if exists(select 1 from public.staff_profiles where user_id=auth.uid() and role='owner' and active=true) then return true; end if;
+    raise exception 'تم تعيين المدير الأول بالفعل';
+  end if;
+
+  select coalesce(email,'') into user_email from auth.users where id=auth.uid();
+  insert into public.admins(user_id) values(auth.uid()) on conflict do nothing;
+  insert into public.staff_profiles(user_id,email,display_name,role,active,permissions)
+  values(auth.uid(),user_email,coalesce(split_part(user_email,'@',1),'المالك'),'owner',true,array['*'])
+  on conflict(user_id) do update set role='owner',active=true,permissions=array['*'],updated_at=now();
+
+  return true;
+end;
+$;
+
+revoke all on function public.claim_first_admin() from public;
+grant execute on function public.claim_first_admin() to authenticated;
+
 create or replace function public.current_staff_profile()
 returns public.staff_profiles
 language sql
@@ -189,7 +217,7 @@ begin
   if lower(inv.email)<>current_email then raise exception 'الدعوة مخصصة لبريد إلكتروني مختلف'; end if;
 
   perms := case inv.role
-    when 'manager' then array['orders.view','orders.manage','products.manage','inventory.manage','prices.manage','reports.view','settings.manage','archive.manage']
+    when 'manager' then array['orders.view','orders.manage','products.manage','inventory.manage','prices.manage','reports.view','settings.manage']
     when 'orders' then array['orders.view','orders.manage','reports.view']
     when 'inventory' then array['products.manage','inventory.manage','prices.manage']
     else array['orders.view','reports.view']
@@ -234,7 +262,7 @@ begin
 
   perms := case role_input
     when 'owner' then array['*']
-    when 'manager' then array['orders.view','orders.manage','products.manage','inventory.manage','prices.manage','reports.view','settings.manage','archive.manage']
+    when 'manager' then array['orders.view','orders.manage','products.manage','inventory.manage','prices.manage','reports.view','settings.manage']
     when 'orders' then array['orders.view','orders.manage','reports.view']
     when 'inventory' then array['products.manage','inventory.manage','prices.manage']
     else array['orders.view','reports.view']
