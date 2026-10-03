@@ -48,7 +48,8 @@ export default function CheckoutPage(){
     if(form.timing==='scheduled'&&form.requestedTime&&new Date(form.requestedTime).getTime()<=Date.now())return setError('اختر موعدًا في المستقبل.');
     const wa=normalizeWhatsAppNumber(data.settings.whatsapp_number); if(!wa)return setError('رقم واتساب غير مضبوط من لوحة الإدارة.');
 
-    sending.current=true; setBusy(true); const win=window.open('about:blank','_blank');
+    const mobile=/android|iphone|ipad|ipod/i.test(navigator.userAgent);
+    sending.current=true; setBusy(true); const win=mobile?null:window.open('about:blank','_blank');
     try{
       await validateFreshCart();
       const orderId=uid(), orderNumber=makeOrderNumber();
@@ -61,7 +62,9 @@ export default function CheckoutPage(){
       if(!data.settings.scheduled_orders_enabled){message=message.split('\n').filter(line=>!line.startsWith('موعد الطلب:')).join('\n');}
       localStorage.setItem('fakahany-last-order',JSON.stringify(order));
       localStorage.setItem('fakahany-last-success',JSON.stringify({order,message}));
-      clear(); await refresh(); nav('/order-success'); openWhatsApp(wa,message,win);
+      clear(); await refresh(); nav('/order-success',{replace:true});
+      if(mobile) window.setTimeout(()=>openWhatsApp(wa,message),120);
+      else openWhatsApp(wa,message,win);
     }catch(e:any){
       if(win)win.close();
       setError(e?.message||'تعذر حفظ الطلب. حاول مرة أخرى.');
