@@ -1,15 +1,67 @@
-# تحديث متجر الفكهاني النهائي
+# متجر الفكهاني
 
-هذا التحديث لا يحذف المنتجات أو الطلبات أو حساب المدير أو ملف الاتصال `.env`.
+متجر عربي لبيع الفواكه والخضروات مع سلة، طلب عبر واتساب، لوحة إدارة، مخزون اختياري، مناطق توصيل اختيارية، وسجل طلبات.
 
-## الترتيب الصحيح
+## التشغيل على الكمبيوتر
 
-1. أغلق نافذة `START-STORE.bat` السوداء.
-2. افتح Supabase > SQL Editor > New query.
-3. افتح ملف `MIGRATION-FINAL.sql` الموجود مع هذا التحديث، وانسخ كل محتواه وشغله مرة واحدة. يجب أن تظهر نتيجة `FINAL MIGRATION SUCCESS`.
-4. فك ضغط هذا التحديث، ثم انسخ `APPLY-FINAL-UPDATE.bat` و`MIGRATION-FINAL.sql` ومجلد `patch` إلى داخل مجلد مشروع `fakahany-store` الأصلي، بجوار `START-STORE.bat`.
-5. شغل `APPLY-FINAL-UPDATE.bat`.
-6. بعد نجاحه، شغل `START-STORE.bat`.
-7. افتح المتجر ولوحة الإدارة واختبرهما.
+1. ثبّت Node.js LTS.
+2. أنشئ ملف `.env` من `.env.example`.
+3. ضع قيم Supabase:
+   - `VITE_SUPABASE_URL`
+   - `VITE_SUPABASE_ANON_KEY`
+4. شغّل `START-STORE.bat`.
 
-سيتم إنشاء مجلد `FINAL-BACKUP` تلقائيًا قبل استبدال ملفات الكود.
+المتجر:
+`http://localhost:5173`
+
+لوحة الإدارة:
+`http://localhost:5173/admin`
+
+## إعداد قاعدة بيانات جديدة
+
+في Supabase SQL Editor شغّل الملفات بهذا الترتيب:
+
+1. `supabase/schema.sql`
+2. `supabase/migrations/20261002_final_features.sql`
+3. `supabase/migrations/20261003_hardening.sql`
+
+لا تضع مفاتيح Supabase الحقيقية داخل GitHub. ملف `.env` مستبعد من Git.
+
+## فحص النسخة قبل النشر
+
+المشروع يحتوي على GitHub Actions تقوم تلقائيًا بـ:
+
+- تثبيت الحزم.
+- فحص TypeScript.
+- بناء نسخة الإنتاج.
+
+ويمكن الفحص محليًا عبر:
+
+```bash
+npm ci
+npm run typecheck
+npm run build
+```
+
+## النشر
+
+المشروع تطبيق Vite ثابت، ومجلد الإنتاج هو:
+
+`dist`
+
+يمكن نشره على Cloudflare Pages بإعدادات:
+
+- Build command: `npm run build`
+- Build output directory: `dist`
+- Environment variables:
+  - `VITE_SUPABASE_URL`
+  - `VITE_SUPABASE_ANON_KEY`
+
+ملف `public/_redirects` موجود حتى تعمل روابط مثل `/admin` مباشرة بعد النشر.
+
+## ملاحظات أمان
+
+- الدفع الإلكتروني غير مستخدم.
+- أسعار وإجماليات الطلب يتم التحقق منها داخل Supabase قبل حفظ الطلب.
+- صلاحيات الإدارة محمية بواسطة Supabase Auth وRLS.
+- لا تستخدم Service Role Key داخل الواجهة الأمامية.
