@@ -3,7 +3,7 @@ import { loadOrderEvents, setOrderInternalNote } from '../../lib/storeApi';
 import { money } from '../../lib/utils';
 import type { Order, OrderEvent } from '../../types';
 
-export default function OrderOperationsDetails({order,allOrders,onUpdated}:{order:Order;allOrders:Order[];onUpdated:()=>Promise<void>}){
+export default function OrderOperationsDetails({order,allOrders,onUpdated,canManage}:{order:Order;allOrders:Order[];onUpdated:()=>Promise<void>;canManage:boolean}){
   const [note,setNote]=useState(order.internal_note||'');
   const [events,setEvents]=useState<OrderEvent[]|null>(null);
   const [busy,setBusy]=useState(false);
@@ -34,10 +34,10 @@ export default function OrderOperationsDetails({order,allOrders,onUpdated}:{orde
       <span>{last?'آخر طلب سابق: #'+last.order_number+' — '+new Date(last.created_at).toLocaleDateString('ar-EG'):'أول طلب مسجل لهذا العميل'}</span>
     </div>
 
-    <label className="internal-note-field">ملاحظة داخلية — لا تظهر للعميل
+    {canManage?<><label className="internal-note-field">ملاحظة داخلية — لا تظهر للعميل
       <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="مثال: العميل يفضل الفاكهة المستوية"/>
     </label>
-    <button className="btn secondary small-admin-btn" disabled={busy||note===String(order.internal_note||'')} onClick={()=>void saveNote()}>حفظ الملاحظة الداخلية</button>
+    <button className="btn secondary small-admin-btn" disabled={busy||note===String(order.internal_note||'')} onClick={()=>void saveNote()}>حفظ الملاحظة الداخلية</button></>:order.internal_note&&<p><b>الملاحظة الداخلية:</b> {order.internal_note}</p>}
 
     <button className="text-btn timeline-toggle" disabled={busy} onClick={()=>void showTimeline()}>{events===null?'عرض سجل الطلب':'إخفاء سجل الطلب'}</button>
     {events!==null&&<div className="order-timeline">{events.length?events.map(e=><div className="timeline-event" key={e.id}><i/><div><b>{e.summary}</b><small>{new Date(e.created_at).toLocaleString('ar-EG')}</small></div></div>):<p className="muted">لا توجد أحداث إضافية مسجلة.</p>}</div>}
