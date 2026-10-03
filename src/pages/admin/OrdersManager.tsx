@@ -5,7 +5,7 @@ import type { Order, OrderStatusDefinition, ShopSettings } from '../../types';
 import OrderEditModal from './OrderEditModal';
 import OrderOperationsDetails from './OrderOperationsDetails';
 
-export default function OrdersManager({settings,onNewCount,onOpenStatuses}:{settings:ShopSettings,onNewCount:(n:number)=>void,onOpenStatuses:()=>void}){
+export default function OrdersManager({settings,onNewCount,onOpenStatuses,canManage}:{settings:ShopSettings,onNewCount:(n:number)=>void,onOpenStatuses:()=>void,canManage:boolean}){
   const [orders,setOrders]=useState<Order[]|null>(null);
   const [statuses,setStatuses]=useState<OrderStatusDefinition[]|null>(null);
   const [editing,setEditing]=useState<Order|null>(null);
@@ -57,7 +57,7 @@ export default function OrdersManager({settings,onNewCount,onOpenStatuses}:{sett
   ]);
 
   return <>
-    <div className="page-title"><h1>الطلبات</h1><div className="page-actions"><button className="btn secondary" onClick={onOpenStatuses}>إدارة الحالات</button><button className="btn secondary" onClick={exportOrders}>تصدير النتائج</button></div></div>
+    <div className="page-title"><h1>الطلبات</h1><div className="page-actions">{canManage&&<button className="btn secondary" onClick={onOpenStatuses}>إدارة الحالات</button>}<button className="btn secondary" onClick={exportOrders}>تصدير النتائج</button></div></div>
     {msg&&<p className={msg.includes('تعذر')?'error-text':'success-text'}>{msg}</p>}
 
     <div className="order-filters">
@@ -76,15 +76,15 @@ export default function OrdersManager({settings,onNewCount,onOpenStatuses}:{sett
         <td>{new Date(o.created_at).toLocaleString('ar-EG')}</td>
         <td>{money(o.total)}</td>
         <td>
-          <div className="order-status-box"><select value={o.status} onChange={e=>void changeStatus(o,e.target.value)}>{options.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}</select>{definition?.note&&<small className="status-note">{definition.note}</small>}</div>
-          <div className="order-action-row"><button onClick={()=>setEditing(o)}>تعديل الطلب</button><button onClick={()=>printOrder(o,settings)}>طباعة</button><button onClick={()=>downloadOrder(o)}>تنزيل</button></div>
+          <div className="order-status-box">{canManage?<select value={o.status} onChange={e=>void changeStatus(o,e.target.value)}>{options.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}</select>:<b>{o.status}</b>}{definition?.note&&<small className="status-note">{definition.note}</small>}</div>
+          <div className="order-action-row">{canManage&&<button onClick={()=>setEditing(o)}>تعديل الطلب</button>}<button onClick={()=>printOrder(o,settings)}>طباعة</button><button onClick={()=>downloadOrder(o)}>تنزيل</button></div>
           <details><summary>التفاصيل والسجل</summary><div className="order-details">
             {o.items.map(i=><p key={i.id}>{i.product_name} — {i.option_name} × {i.quantity} = {money(i.line_total)}</p>)}
             <p><b>العنوان:</b> {o.address||'—'}</p>
             {settings.delivery_enabled&&<p><b>المنطقة:</b> {o.area_name||'—'} · <b>التوصيل:</b> {money(o.delivery_fee)}</p>}
             {o.requested_time&&<p><b>الموعد المطلوب:</b> {o.requested_time}</p>}
             <p><b>ملاحظات العميل:</b> {o.notes||'لا يوجد'}</p>
-            <OrderOperationsDetails order={o} allOrders={orders} onUpdated={reload}/>
+            <OrderOperationsDetails order={o} allOrders={orders} onUpdated={reload} canManage={canManage}/>
           </div></details>
         </td>
       </tr>;
