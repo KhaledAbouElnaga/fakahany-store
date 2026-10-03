@@ -767,6 +767,10 @@ declare
   final_total numeric:=0;
   area_name_value text:='';
   requested_for_value timestamptz:=nullif(order_payload->>'requested_for','')::timestamptz;
+  slot_start timestamptz;
+  slot_end timestamptz;
+  slot_seconds integer;
+  slot_count integer;
 begin
   if not public.has_permission('orders.manage') then raise exception 'غير مصرح'; end if;
   perform public.apply_due_scheduled_prices();
@@ -775,6 +779,21 @@ begin
   if ord.id is null then raise exception 'الطلب غير موجود'; end if;
   select * into s from public.shop_settings where id='main';
   select * into st from public.order_statuses where name=ord.status;
+
+  if s.delivery_enabled and s.delivery_capacity_enabled and s.delivery_slot_capacity>0 and requested_for_value is not null then
+    slot_seconds:=greatest(15,least(240,s.delivery_slot_minutes))*60;
+    slot_start:=date_trunc('day',requested_for_value)
+      + floor(extract(epoch from (requested_for_value-date_trunc('day',requested_for_value)))/slot_seconds)*slot_seconds*interval '1 second';
+    slot_end:=slot_start+slot_seconds*interval '1 second';
+    select count(*)::integer into slot_count
+    from public.orders other
+    left join public.order_statuses other_status on other_status.name=other.status
+    where other.id<>order_id_input
+      and other.archived_at is null
+      and other.requested_for>=slot_start and other.requested_for<slot_end
+      and coalesce(other_status.is_cancelled,false)=false;
+    if slot_count>=s.delivery_slot_capacity then raise exception 'الفترة المختارة ممتلئة. اختر موعدًا آخر'; end if;
+  end if;
 
   -- If the order is active, restore its old stock first. Transaction rollback protects failures.
   if not coalesce(st.is_cancelled,false) then
