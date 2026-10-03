@@ -110,7 +110,10 @@ export async function loadOrderStatuses():Promise<OrderStatusDefinition[]>{
     return structuredClone(DEFAULT_ORDER_STATUSES);
   }
   const {data,error}=await supabase.from('order_statuses').select('*').order('display_order');
-  if(error)throw error;
+  if(error){
+    if((error as any).code==='42P01')return structuredClone(DEFAULT_ORDER_STATUSES);
+    throw error;
+  }
   return (data||[]) as OrderStatusDefinition[];
 }
 
@@ -123,7 +126,16 @@ export async function saveOrderStatus(status:OrderStatusDefinition):Promise<Orde
     localStorage.setItem('fakahany-demo-order-statuses',JSON.stringify(list));
     return status;
   }
-  const {data,error}=await supabase.from('order_statuses').upsert(status).select().single();
+  const {data,error}=await supabase.rpc('save_order_status_definition',{
+    status_id_input:status.id,
+    name_input:status.name,
+    note_input:status.note,
+    display_order_input:status.display_order,
+    active_input:status.active,
+    is_new_input:status.is_new,
+    is_completed_input:status.is_completed,
+    is_cancelled_input:status.is_cancelled
+  });
   if(error)throw error;
   return data as OrderStatusDefinition;
 }
@@ -186,8 +198,10 @@ export async function setOrderCleanupPassword(password:string,currentPassword=''
     if(existing&&existing!==currentPassword)throw new Error('كلمة مرور الحذف الحالية غير صحيحة.');
     localStorage.setItem('fakahany-demo-cleanup-password',password);return;
   }
-  const {error}=await supabase.rpc('set_order_cleanup_password',{password_input:password,current_password_input:currentPassword});
+  const {data,error}=await supabase.rpc('set_order_cleanup_password',{password_input:password,current_password_input:currentPassword});
   if(error) throw error;
+  const result=(data||{}) as any;
+  if(result.ok===false)throw new Error(result.error||'تعذر تغيير كلمة مرور الحذف.');
 }
 
 export async function previewOrderCleanup(dateFrom:string,dateTo:string):Promise<{count:number;active_count:number;archived_count:number}>{
@@ -226,6 +240,7 @@ export async function executeOrderCleanup(input:{action:'archive'|'delete';dateF
   });
   if(error) throw error;
   const x=(data||{}) as any;
+  if(x.ok===false)throw new Error(x.error||'تعذر تنفيذ العملية.');
   return {count:Number(x.count||0)};
 }
 
