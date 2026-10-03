@@ -169,6 +169,7 @@ export interface SiteVisit {
   country_code: string;
   device_type: 'هاتف' | 'جهاز لوحي' | 'كمبيوتر';
   referrer: string;
+  visits?: number;
 }
 
 
