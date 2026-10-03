@@ -259,6 +259,7 @@ declare perms text[];
 begin
   if not public.is_admin() then raise exception 'هذه العملية متاحة للمالك فقط'; end if;
   if user_id_input=auth.uid() and active_input=false then raise exception 'لا يمكنك تعطيل حساب المالك الحالي'; end if;
+  if user_id_input=auth.uid() and role_input<>'owner' then raise exception 'لا يمكنك خفض صلاحية حساب المالك الحالي'; end if;
   if role_input not in ('owner','manager','orders','inventory','viewer') then raise exception 'الدور غير صحيح'; end if;
 
   perms := case role_input
@@ -313,7 +314,7 @@ begin
     select id from public.order_events
     where order_id=order_id_input
     order by created_at desc
-    offset 100
+    offset 30
   );
 end;
 $$;
@@ -515,7 +516,7 @@ begin
     select * into existing from public.orders where client_token=client_token_value;
     if existing.id is not null then
       return jsonb_build_object(
-        'ok',true,'duplicate',true,'order_id',existing.id,
+        'ok',true,'duplicate',true,'order_id',existing.id,'order_number',existing.order_number,
         'product_subtotal',existing.product_subtotal,'delivery_fee',existing.delivery_fee,
         'total',existing.total,'area_name',existing.area_name,'requested_time',existing.requested_time,
         'items','[]'::jsonb
@@ -547,7 +548,7 @@ begin
     raise exception 'موعد الطلب غير صحيح';
   end if;
 
-  if s.delivery_capacity_enabled and s.delivery_slot_capacity>0 and requested_for_value is not null then
+  if s.delivery_enabled and s.delivery_capacity_enabled and s.delivery_slot_capacity>0 and requested_for_value is not null then
     slot_seconds:=greatest(15,least(240,s.delivery_slot_minutes))*60;
     slot_start:=date_trunc('day',requested_for_value)
       + floor(extract(epoch from (requested_for_value-date_trunc('day',requested_for_value)))/slot_seconds)*slot_seconds*interval '1 second';
@@ -629,7 +630,7 @@ begin
   perform public.log_order_event(order_id_value,'created','تم إنشاء الطلب');
 
   return jsonb_build_object(
-    'ok',true,'duplicate',false,'order_id',order_id_value,
+    'ok',true,'duplicate',false,'order_id',order_id_value,'order_number',order_number_value,
     'product_subtotal',subtotal,'delivery_fee',delivery,'total',final_total,
     'area_name',area_name_value,
     'requested_time',case when s.scheduled_orders_enabled then requested_time_value else '' end,
