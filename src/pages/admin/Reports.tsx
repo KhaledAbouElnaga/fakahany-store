@@ -29,14 +29,14 @@ export default function Reports(){
     }
     const top=[...itemMap.values()].sort((a,b)=>b.qty-a.qty).slice(0,8);
     const countries=new Map<string,number>(); const devices=new Map<string,number>();
-    for(const v of visits){countries.set(v.country_code,(countries.get(v.country_code)||0)+1);devices.set(v.device_type,(devices.get(v.device_type)||0)+1)}
+    for(const v of visits){const n=Number(v.visits??1);countries.set(v.country_code,(countries.get(v.country_code)||0)+n);devices.set(v.device_type,(devices.get(v.device_type)||0)+n)}
     return {
       todayOrders:countSince(1),weekOrders:countSince(7),monthOrders:countSince(30),
       todaySales:totalSince(1),weekSales:totalSince(7),monthSales:totalSince(30),
       top,
       countries:[...countries.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10),
       devices:[...devices.entries()].sort((a,b)=>b[1]-a[1]),
-      visitCount:visits.length,
+      visitCount:visits.reduce((s,v)=>s+Number(v.visits??1),0),
       completedNames,cancelledNames
     };
   },[orders,visits,statuses]);
