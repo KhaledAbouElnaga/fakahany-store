@@ -159,7 +159,7 @@ export interface OrderCleanupLog {
   id: string;
   created_at: string;
   admin_user_id: string | null;
-  action: 'archive' | 'delete';
+  action: 'archive' | 'delete' | 'restore';
   filter_type: string;
   filter_label: string;
   date_from: string | null;
