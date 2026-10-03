@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLogin from './AdminLogin';
 import ProductBulkTools from './ProductBulkTools';
@@ -7,15 +7,18 @@ import ArchiveCleanup from './ArchiveCleanup';
 import OrderStatuses from './OrderStatuses';
 import OrdersManager from './OrdersManager';
 import StoreSettings from './StoreSettings';
-import { changeAdminPassword, currentAdminEmail, isAdmin, signOutAdmin } from '../../lib/auth';
+import StaffManager from './StaffManager';
+import InventoryPanel from './InventoryPanel';
+import ScheduledPrices from './ScheduledPrices';
+import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
-import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
+import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings, StaffProfile } from '../../types';
 import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, loadOrderStatuses, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
-import { supabaseConfigured } from '../../lib/supabase';
+import { supabase, supabaseConfigured } from '../../lib/supabase';
 
-type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'reports'|'settings';
+type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'settings';
 
 export default function AdminPage(){
   const [authorized,setAuthorized]=useState<boolean|null>(null); const [tab,setTab]=useState<Tab>('home'); const {data,loading,error,refresh}=useStore(); const [newOrderCount,setNewOrderCount]=useState(0);
