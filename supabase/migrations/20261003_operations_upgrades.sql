@@ -641,6 +641,55 @@ $$;
 revoke all on function public.create_store_order(jsonb,jsonb) from public;
 grant execute on function public.create_store_order(jsonb,jsonb) to anon, authenticated;
 
+-- Status definitions can be configured by managers/owners, while order staff can still change an order's status.
+create or replace function public.save_order_status_definition(
+  status_id_input uuid,
+  name_input text,
+  note_input text,
+  display_order_input integer,
+  active_input boolean,
+  is_new_input boolean,
+  is_completed_input boolean,
+  is_cancelled_input boolean
+)
+returns public.order_statuses
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $
+declare
+  old_name text;
+  result_row public.order_statuses%rowtype;
+begin
+  if not public.has_permission('settings.manage') then raise exception 'غير مصرح'; end if;
+  if btrim(coalesce(name_input,''))='' then raise exception 'اسم الحالة مطلوب'; end if;
+  if length(btrim(name_input))>80 then raise exception 'اسم الحالة طويل جدًا'; end if;
+  if (case when is_new_input then 1 else 0 end)
+     +(case when is_completed_input then 1 else 0 end)
+     +(case when is_cancelled_input then 1 else 0 end)>1 then
+    raise exception 'الحالة لا يمكن أن تكون جديدة ومكتملة وملغية في نفس الوقت';
+  end if;
+
+  select name into old_name from public.order_statuses where id=status_id_input for update;
+
+  insert into public.order_statuses(id,name,note,display_order,active,is_new,is_completed,is_cancelled,updated_at)
+  values(status_id_input,btrim(name_input),left(coalesce(note_input,''),300),coalesce(display_order_input,0),coalesce(active_input,true),coalesce(is_new_input,false),coalesce(is_completed_input,false),coalesce(is_cancelled_input,false),now())
+  on conflict(id) do update set
+    name=excluded.name,note=excluded.note,display_order=excluded.display_order,active=excluded.active,
+    is_new=excluded.is_new,is_completed=excluded.is_completed,is_cancelled=excluded.is_cancelled,updated_at=now()
+  returning * into result_row;
+
+  if old_name is not null and old_name<>result_row.name then
+    update public.orders set status=result_row.name where status=old_name;
+  end if;
+
+  return result_row;
+end;
+$;
+
+revoke all on function public.save_order_status_definition(uuid,text,text,integer,boolean,boolean,boolean,boolean) from public;
+grant execute on function public.save_order_status_definition(uuid,text,text,integer,boolean,boolean,boolean,boolean) to authenticated;
+
 -- ---------- Status updates with timeline ----------
 create or replace function public.set_order_status(order_id_input uuid,new_status text)
 returns boolean
@@ -896,6 +945,8 @@ drop policy if exists "admins read order items" on public.order_items;
 drop policy if exists "admins update order items" on public.order_items;
 drop policy if exists "admins delete order items" on public.order_items;
 drop policy if exists "admins manage order statuses" on public.order_statuses;
+drop policy if exists "staff manage order statuses" on public.order_statuses;
+drop policy if exists "staff read order statuses" on public.order_statuses;
 drop policy if exists "admins read visits" on public.site_visits;
 
 create policy "staff manage categories" on public.categories for all using (public.has_permission('products.manage')) with check (public.has_permission('products.manage'));
@@ -906,7 +957,8 @@ create policy "staff manage settings" on public.shop_settings for all using (pub
 create policy "staff manage areas" on public.delivery_areas for all using (public.has_permission('settings.manage')) with check (public.has_permission('settings.manage'));
 create policy "staff read orders" on public.orders for select using (public.has_permission('orders.view'));
 create policy "staff read order items" on public.order_items for select using (public.has_permission('orders.view'));
-create policy "staff manage order statuses" on public.order_statuses for all using (public.has_permission('orders.manage')) with check (public.has_permission('orders.manage'));
+create policy "staff read order statuses" on public.order_statuses for select using (public.has_permission('orders.view') or public.has_permission('settings.manage'));
+create policy "staff manage order statuses" on public.order_statuses for all using (public.has_permission('settings.manage')) with check (public.has_permission('settings.manage'));
 create policy "staff read visits" on public.site_visits for select using (public.has_permission('reports.view'));
 
 revoke all on public.staff_profiles,public.staff_invites,public.order_events,public.inventory_adjustments,public.scheduled_prices from anon,authenticated;
