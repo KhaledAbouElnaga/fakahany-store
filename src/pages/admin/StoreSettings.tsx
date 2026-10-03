@@ -23,7 +23,7 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     }catch(e:any){alert(e?.message||'تعذر رفع الصورة')}
   };
   const save=async()=>{
-    if(Number(s.min_order)<0||Number(s.default_delivery_fee)<0||Number(s.low_stock_threshold)<0)return setOk('القيم الرقمية لا يمكن أن تكون سالبة.');
+    if(Number(s.min_order)<0||Number(s.default_delivery_fee)<0||Number(s.low_stock_threshold)<0||Number(s.delivery_slot_capacity)<0)return setOk('القيم الرقمية لا يمكن أن تكون سالبة.');if(s.delivery_capacity_enabled&&(Number(s.delivery_slot_minutes)<15||Number(s.delivery_slot_minutes)>240))return setOk('مدة فترة التوصيل يجب أن تكون بين 15 و240 دقيقة.');
     setBusy(true);setOk('');
     try{await saveSettings(s);document.title=s.site_name||s.store_name;await refresh();setOk('تم حفظ التعديلات بنجاح');}
     catch(e:any){setOk(e?.message||'تعذر الحفظ')}finally{setBusy(false)}
@@ -60,10 +60,12 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     <section className="panel"><h3>الطلب والتوصيل</h3><div className="toggle-row">
       <label><input type="checkbox" checked={s.delivery_enabled} onChange={e=>set('delivery_enabled',e.target.checked)}/> تفعيل التوصيل</label>
       <label><input type="checkbox" checked={s.scheduled_orders_enabled} onChange={e=>set('scheduled_orders_enabled',e.target.checked)}/> السماح باختيار موعد للطلب</label>
+      {s.scheduled_orders_enabled&&<label><input type="checkbox" checked={s.delivery_capacity_enabled} onChange={e=>set('delivery_capacity_enabled',e.target.checked)}/> تحديد سعة لكل فترة توصيل</label>}
     </div><div className="form-grid">
       <label>الحد الأدنى للطلب<input type="number" min="0" value={s.min_order} onChange={e=>set('min_order',Number(e.target.value))}/></label>
       {s.delivery_enabled&&<label>رسوم التوصيل الافتراضية<input type="number" min="0" value={s.default_delivery_fee} onChange={e=>set('default_delivery_fee',Number(e.target.value))}/></label>}
       <label>حد تنبيه المخزون المنخفض<input type="number" min="0" value={s.low_stock_threshold} onChange={e=>set('low_stock_threshold',Number(e.target.value))}/></label>
+      {s.scheduled_orders_enabled&&s.delivery_capacity_enabled&&<><label>مدة فترة التوصيل بالدقائق<input type="number" min="15" max="240" step="15" value={s.delivery_slot_minutes} onChange={e=>set('delivery_slot_minutes',Number(e.target.value))}/></label><label>أقصى عدد طلبات في الفترة<input type="number" min="1" value={s.delivery_slot_capacity} onChange={e=>set('delivery_slot_capacity',Number(e.target.value))}/></label></>}
       <label>حالة المتجر<select value={s.store_status_mode} onChange={e=>set('store_status_mode',e.target.value)}><option value="auto">تلقائي حسب الأيام والمواعيد</option><option value="open">مفتوح يدويًا الآن</option><option value="closed">مغلق يدويًا الآن</option></select></label>
       <label>وقت الفتح<input type="time" value={s.opening_time} onChange={e=>set('opening_time',e.target.value)}/></label>
       <label>وقت الإغلاق<input type="time" value={s.closing_time} onChange={e=>set('closing_time',e.target.value)}/></label>
