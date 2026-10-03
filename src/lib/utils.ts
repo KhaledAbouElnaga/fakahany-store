@@ -104,6 +104,8 @@ export function updatePageMeta(settings: ShopSettings) {
   };
   const description = settings.site_description || settings.hero_subtitle || settings.store_name;
   setMeta('meta[name="description"]','name','description',description);
+  setMeta('meta[name="application-name"]','name','application-name',settings.site_name || settings.store_name);
+  setMeta('meta[name="apple-mobile-web-app-title"]','name','apple-mobile-web-app-title',settings.site_name || settings.store_name);
   setMeta('meta[property="og:title"]','property','og:title',settings.site_name || settings.store_name);
   setMeta('meta[property="og:description"]','property','og:description',description);
   if (settings.share_image_url || settings.banner_url || settings.logo_url) setMeta('meta[property="og:image"]','property','og:image',settings.share_image_url || settings.banner_url || settings.logo_url);
@@ -135,7 +137,11 @@ export function downloadText(filename: string, content: string, type='text/plain
   const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 
-const csvEscape = (value: unknown) => `"${String(value ?? '').replaceAll('"','""')}"`;
+const csvEscape = (value: unknown) => {
+  const raw = String(value ?? '');
+  const safe = /^[=+\-@]/.test(raw.trimStart()) ? `'${raw}` : raw;
+  return `"${safe.replaceAll('"','""')}"`;
+};
 export function downloadCsv(filename: string, rows: unknown[][]) {
   downloadText(filename, rows.map(r=>r.map(csvEscape).join(',')).join('\n'),'text/csv;charset=utf-8');
 }
