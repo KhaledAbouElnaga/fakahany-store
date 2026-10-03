@@ -6,8 +6,8 @@ import Reports from './Reports';
 import { changeAdminPassword, currentAdminEmail, isAdmin, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
-import type { Category, DeliveryArea, Order, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
-import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, loadOrders, newArea, newCategory, newProduct, newUnit, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
+import type { Category, DeliveryArea, Order, OrderCleanupLog, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
+import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
 import { supabaseConfigured } from '../../lib/supabase';
 
@@ -57,13 +57,212 @@ export default function AdminPage(){
   }
 
   function Orders(){
-    const [orders,setOrders]=useState<Order[]|null>(null); const [q,setQ]=useState(''); const [status,setStatus]=useState('all'); const [from,setFrom]=useState(''); const [to,setTo]=useState(''); const [msg,setMsg]=useState(''); useEffect(()=>{loadOrders().then(setOrders)},[]); if(!orders)return <Loading/>;
-    const filtered=orders.filter(o=>{const text=`${o.order_number} ${o.customer_name} ${o.customer_phone}`;const d=new Date(o.created_at);const fromOk=!from||d>=new Date(`${from}T00:00:00`);const toOk=!to||d<=new Date(`${to}T23:59:59`);return (!q||text.includes(q))&&(status==='all'||o.status===status)&&fromOk&&toOk;});
-    const setOrderStatus=async(o:Order,s:Order['status'])=>{try{await updateOrderStatus(o.id,s);setOrders(v=>v!.map(x=>x.id===o.id?{...x,status:s}:x));setNewOrderCount(v=>o.status==='جديد'&&s!=='جديد'?Math.max(0,v-1):o.status!=='جديد'&&s==='جديد'?v+1:v);setMsg('تم تحديث حالة الطلب.')}catch(e:any){setMsg(e?.message||'تعذر تحديث الحالة')}};
-    const waStatus=(o:Order,template:string)=>{const phone=normalizeWhatsAppNumber(o.customer_phone);if(!phone)return alert('رقم هاتف العميل غير صالح لواتساب.');const message=renderTemplate(template,orderTemplateValues(o,data!.settings));window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,'_blank')};
-    const downloadOrder=(o:Order)=>{const v=orderTemplateValues(o,data!.settings);downloadText(`order-${o.order_number}.txt`,renderTemplate(data!.settings.whatsapp_order_template,v));};
-    const exportOrders=()=>downloadCsv('orders.csv',[['رقم الطلب','التاريخ','العميل','الهاتف','العنوان','المنطقة','إجمالي المنتجات','التوصيل','الإجمالي','الحالة'],...filtered.map(o=>[o.order_number,new Date(o.created_at).toLocaleString('ar-EG'),o.customer_name,o.customer_phone,o.address,o.area_name,o.product_subtotal,o.delivery_fee,o.total,o.status])]);
-    return <><PageTitle actions={<button className="btn secondary" onClick={exportOrders}>تصدير النتائج CSV</button>}>الطلبات</PageTitle>{msg&&<p className="success-text">{msg}</p>}<div className="order-filters"><input placeholder="ابحث بالاسم أو الهاتف أو رقم الطلب" value={q} onChange={e=>setQ(e.target.value)}/><select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">كل الحالات</option><option>جديد</option><option>جاري التجهيز</option><option>خرج للتوصيل</option><option>مكتمل</option><option>ملغي</option></select><label>من<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label><label>إلى<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label></div>{!filtered.length?<div className="empty-state">لا توجد طلبات مطابقة.</div>:<div className="table-wrap"><table><thead><tr><th>رقم الطلب</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة والإجراءات</th></tr></thead><tbody>{filtered.map(o=><tr key={o.id}><td>#{o.order_number}</td><td>{o.customer_name||'—'}<small className="block">{o.customer_phone||'—'}</small></td><td>{new Date(o.created_at).toLocaleString('ar-EG')}</td><td>{money(o.total)}</td><td><select value={o.status} onChange={e=>void setOrderStatus(o,e.target.value as Order['status'])}><option>جديد</option><option>جاري التجهيز</option><option>خرج للتوصيل</option><option>مكتمل</option><option>ملغي</option></select><div className="order-action-row"><button onClick={()=>waStatus(o,data!.settings.whatsapp_received_template)}>واتساب: استلام</button><button onClick={()=>waStatus(o,data!.settings.whatsapp_preparing_template)}>جاري التجهيز</button><button onClick={()=>waStatus(o,data!.settings.whatsapp_delivery_template)}>خرج للتوصيل</button><button onClick={()=>printOrder(o,data!.settings)}>طباعة</button><button onClick={()=>downloadOrder(o)}>تنزيل</button></div><details><summary>التفاصيل</summary><div className="order-details">{o.items.map(i=><p key={i.id}>{i.product_name} — {i.option_name} × {i.quantity} = {money(i.line_total)}</p>)}<p><b>العنوان:</b> {o.address||'—'}</p>{data!.settings.delivery_enabled&&<p><b>المنطقة:</b> {o.area_name||'—'} · <b>التوصيل:</b> {money(o.delivery_fee)}</p>}{o.requested_time&&<p><b>الموعد المطلوب:</b> {o.requested_time}</p>}<p><b>ملاحظات:</b> {o.notes||'لا يوجد'}</p></div></details></td></tr>)}</tbody></table></div>}</>;
+    const [orders,setOrders]=useState<Order[]|null>(null);
+    const [logs,setLogs]=useState<OrderCleanupLog[]>([]);
+    const [q,setQ]=useState('');
+    const [status,setStatus]=useState('all');
+    const [from,setFrom]=useState('');
+    const [to,setTo]=useState('');
+    const [view,setView]=useState<'active'|'archived'>('active');
+    const [msg,setMsg]=useState('');
+    const [cleanupMode,setCleanupMode]=useState<'day'|'month'|'range'|'before'>('month');
+    const [cleanupDay,setCleanupDay]=useState('');
+    const [cleanupMonth,setCleanupMonth]=useState(new Date().toISOString().slice(0,7));
+    const [cleanupFrom,setCleanupFrom]=useState('');
+    const [cleanupTo,setCleanupTo]=useState('');
+    const [cleanupBefore,setCleanupBefore]=useState('');
+    const [cleanupAction,setCleanupAction]=useState<'archive'|'delete'>('archive');
+    const [cleanupPassword,setCleanupPasswordValue]=useState('');
+    const [cleanupPreview,setCleanupPreview]=useState<{count:number;active_count:number;archived_count:number}|null>(null);
+    const [cleanupBusy,setCleanupBusy]=useState(false);
+    const [passwordSet,setPasswordSet]=useState<boolean|null>(null);
+    const [showPasswordChange,setShowPasswordChange]=useState(false);
+    const [newDeletePassword,setNewDeletePassword]=useState('');
+    const [newDeletePassword2,setNewDeletePassword2]=useState('');
+
+    const reload=async()=>{
+      const [all,newLogs,passwordReady]=await Promise.all([
+        loadOrders(true),
+        loadOrderCleanupLogs().catch(()=>[] as OrderCleanupLog[]),
+        orderCleanupPasswordIsSet().catch(()=>false)
+      ]);
+      setOrders(all);setLogs(newLogs);setPasswordSet(passwordReady);
+      setNewOrderCount(all.filter(o=>!o.archived_at&&o.status==='جديد').length);
+    };
+
+    useEffect(()=>{void reload()},[]);
+    if(!orders)return <Loading/>;
+
+    const base=orders.filter(o=>view==='archived'?Boolean(o.archived_at):!o.archived_at);
+    const filtered=base.filter(o=>{
+      const text=`${o.order_number} ${o.customer_name} ${o.customer_phone}`;
+      const d=new Date(o.created_at);
+      const fromOk=!from||d>=new Date(`${from}T00:00:00`);
+      const toOk=!to||d<=new Date(`${to}T23:59:59`);
+      return (!q||text.includes(q))&&(status==='all'||o.status===status)&&fromOk&&toOk;
+    });
+
+    const setOrderStatus=async(o:Order,s:Order['status'])=>{
+      try{
+        await updateOrderStatus(o.id,s);
+        setOrders(v=>v!.map(x=>x.id===o.id?{...x,status:s}:x));
+        setNewOrderCount(v=>o.status==='جديد'&&s!=='جديد'?Math.max(0,v-1):o.status!=='جديد'&&s==='جديد'?v+1:v);
+        setMsg('تم تحديث حالة الطلب.');
+      }catch(e:any){setMsg(e?.message||'تعذر تحديث الحالة')}
+    };
+
+    const waStatus=(o:Order,template:string)=>{
+      const phone=normalizeWhatsAppNumber(o.customer_phone);
+      if(!phone)return alert('رقم هاتف العميل غير صالح لواتساب.');
+      const message=renderTemplate(template,orderTemplateValues(o,data!.settings));
+      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`,'_blank');
+    };
+
+    const downloadOrder=(o:Order)=>{
+      const v=orderTemplateValues(o,data!.settings);
+      downloadText(`order-${o.order_number}.txt`,renderTemplate(data!.settings.whatsapp_order_template,v));
+    };
+
+    const exportOrders=()=>downloadCsv(
+      view==='archived'?'archived-orders.csv':'orders.csv',
+      [['رقم الطلب','التاريخ','العميل','الهاتف','العنوان','المنطقة','إجمالي المنتجات','التوصيل','الإجمالي','الحالة'],...filtered.map(o=>[o.order_number,new Date(o.created_at).toLocaleString('ar-EG'),o.customer_name,o.customer_phone,o.address,o.area_name,o.product_subtotal,o.delivery_fee,o.total,o.status])]
+    );
+
+    const cleanupRange=()=>{
+      if(cleanupMode==='day'){
+        if(!cleanupDay)throw new Error('اختر اليوم أولًا.');
+        return {from:cleanupDay,to:cleanupDay,type:'day',label:`طلبات يوم ${new Date(cleanupDay+'T12:00:00').toLocaleDateString('ar-EG')}`};
+      }
+      if(cleanupMode==='month'){
+        if(!cleanupMonth)throw new Error('اختر الشهر أولًا.');
+        const [y,m]=cleanupMonth.split('-').map(Number);
+        const last=new Date(y,m,0).getDate();
+        const endDate=`${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+        return {from:`${cleanupMonth}-01`,to:endDate,type:'month',label:`طلبات شهر ${cleanupMonth}`};
+      }
+      if(cleanupMode==='range'){
+        if(!cleanupFrom||!cleanupTo)throw new Error('حدد تاريخ البداية والنهاية.');
+        if(cleanupFrom>cleanupTo)throw new Error('تاريخ البداية يجب أن يسبق تاريخ النهاية.');
+        return {from:cleanupFrom,to:cleanupTo,type:'range',label:`الطلبات من ${cleanupFrom} إلى ${cleanupTo}`};
+      }
+      if(!cleanupBefore)throw new Error('حدد آخر تاريخ للحذف أو الأرشفة.');
+      const dates=orders.map(o=>o.created_at.slice(0,10)).sort();
+      const earliest=dates[0]||cleanupBefore;
+      return {from:earliest,to:cleanupBefore,type:'before',label:`كل الطلبات حتى ${cleanupBefore}`};
+    };
+
+    const previewCleanup=async()=>{
+      setMsg('');
+      try{
+        const range=cleanupRange();
+        const preview=await previewOrderCleanup(range.from,range.to);
+        setCleanupPreview(preview);
+      }catch(e:any){setCleanupPreview(null);setMsg(e?.message||'تعذر معاينة الطلبات.')}
+    };
+
+    const saveDeletePassword=async()=>{
+      if(newDeletePassword!==newDeletePassword2)return setMsg('كلمتا مرور الحذف غير متطابقتين.');
+      if(newDeletePassword.length<8)return setMsg('كلمة مرور الحذف يجب أن تكون 8 أحرف على الأقل.');
+      setCleanupBusy(true);
+      try{
+        await setOrderCleanupPassword(newDeletePassword);
+        setPasswordSet(true);setShowPasswordChange(false);setNewDeletePassword('');setNewDeletePassword2('');
+        setMsg('تم حفظ كلمة مرور الحذف المستقلة بنجاح.');
+      }catch(e:any){setMsg(e?.message||'تعذر حفظ كلمة مرور الحذف.')}finally{setCleanupBusy(false)}
+    };
+
+    const runCleanup=async()=>{
+      setMsg('');
+      let range:{from:string;to:string;type:string;label:string};
+      try{range=cleanupRange()}catch(e:any){return setMsg(e?.message||'الفترة غير صحيحة.')}
+      if(cleanupAction==='delete'&&!passwordSet)return setMsg('عيّن كلمة مرور الحذف المستقلة أولًا.');
+      if(cleanupAction==='delete'&&!cleanupPassword)return setMsg('اكتب كلمة مرور الحذف قبل الحذف النهائي.');
+
+      setCleanupBusy(true);
+      try{
+        const preview=await previewOrderCleanup(range.from,range.to);
+        setCleanupPreview(preview);
+        const affected=cleanupAction==='archive'?preview.active_count:preview.count;
+        if(!affected){setMsg('لا توجد طلبات مطابقة لهذه الفترة.');return}
+        const verb=cleanupAction==='archive'?'أرشفة':'حذف نهائي';
+        const warning=cleanupAction==='delete'
+          ? `سيتم حذف ${affected} طلب نهائيًا. لن يمكن استرجاع الطلبات بعد الحذف، لكن سجل عملية الحذف سيظل محفوظًا. هل تريد المتابعة؟`
+          : `سيتم نقل ${affected} طلب إلى الأرشيف. يمكن استرجاعها لاحقًا. هل تريد المتابعة؟`;
+        if(!window.confirm(warning))return;
+        const result=await executeOrderCleanup({action:cleanupAction,dateFrom:range.from,dateTo:range.to,filterType:range.type,filterLabel:range.label,password:cleanupPassword});
+        setCleanupPasswordValue('');setCleanupPreview(null);
+        await reload();
+        setMsg(`تم ${verb} ${result.count} طلب وتسجيل العملية في سجل العمليات.`);
+      }catch(e:any){setMsg(e?.message||'تعذر تنفيذ العملية.')}finally{setCleanupBusy(false)}
+    };
+
+    const restoreOrder=async(o:Order)=>{
+      if(!window.confirm(`استرجاع الطلب #${o.order_number} إلى قائمة الطلبات؟`))return;
+      try{await restoreArchivedOrder(o.id);await reload();setMsg('تم استرجاع الطلب وتسجيل العملية.')}catch(e:any){setMsg(e?.message||'تعذر استرجاع الطلب.')}
+    };
+
+    const actionName=(a:OrderCleanupLog['action'])=>a==='delete'?'حذف نهائي':a==='archive'?'أرشفة':'استرجاع';
+
+    return <><PageTitle actions={<button className="btn secondary" onClick={exportOrders}>تصدير النتائج CSV</button>}>الطلبات</PageTitle>
+      {msg&&<p className={msg.includes('تعذر')||msg.includes('غير ')||msg.includes('يجب')||msg.includes('عيّن')||msg.includes('اكتب')?'error-text':'success-text'}>{msg}</p>}
+
+      <div className="orders-view-tabs">
+        <button className={view==='active'?'active':''} onClick={()=>setView('active')}>الطلبات الحالية <b>{orders.filter(o=>!o.archived_at).length}</b></button>
+        <button className={view==='archived'?'active':''} onClick={()=>setView('archived')}>الأرشيف <b>{orders.filter(o=>Boolean(o.archived_at)).length}</b></button>
+      </div>
+
+      <div className="order-filters">
+        <input placeholder="ابحث بالاسم أو الهاتف أو رقم الطلب" value={q} onChange={e=>setQ(e.target.value)}/>
+        <select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">كل الحالات</option><option>جديد</option><option>جاري التجهيز</option><option>خرج للتوصيل</option><option>مكتمل</option><option>ملغي</option></select>
+        <label>من<input type="date" value={from} onChange={e=>setFrom(e.target.value)}/></label>
+        <label>إلى<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
+      </div>
+
+      {!filtered.length?<div className="empty-state">لا توجد طلبات مطابقة.</div>:<div className="table-wrap"><table><thead><tr><th>رقم الطلب</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة والإجراءات</th></tr></thead><tbody>{filtered.map(o=><tr key={o.id}><td>#{o.order_number}{o.archived_at&&<small className="block muted">مؤرشف</small>}</td><td>{o.customer_name||'—'}<small className="block">{o.customer_phone||'—'}</small></td><td>{new Date(o.created_at).toLocaleString('ar-EG')}</td><td>{money(o.total)}</td><td>
+        {o.archived_at?<button className="btn secondary small-admin-btn" onClick={()=>void restoreOrder(o)}>استرجاع من الأرشيف</button>:<>
+          <select value={o.status} onChange={e=>void setOrderStatus(o,e.target.value as Order['status'])}><option>جديد</option><option>جاري التجهيز</option><option>خرج للتوصيل</option><option>مكتمل</option><option>ملغي</option></select>
+          <div className="order-action-row"><button onClick={()=>waStatus(o,data!.settings.whatsapp_received_template)}>واتساب: استلام</button><button onClick={()=>waStatus(o,data!.settings.whatsapp_preparing_template)}>جاري التجهيز</button><button onClick={()=>waStatus(o,data!.settings.whatsapp_delivery_template)}>خرج للتوصيل</button><button onClick={()=>printOrder(o,data!.settings)}>طباعة</button><button onClick={()=>downloadOrder(o)}>تنزيل</button></div>
+        </>}
+        <details><summary>التفاصيل</summary><div className="order-details">{o.items.map(i=><p key={i.id}>{i.product_name} — {i.option_name} × {i.quantity} = {money(i.line_total)}</p>)}<p><b>العنوان:</b> {o.address||'—'}</p>{data!.settings.delivery_enabled&&<p><b>المنطقة:</b> {o.area_name||'—'} · <b>التوصيل:</b> {money(o.delivery_fee)}</p>}{o.requested_time&&<p><b>الموعد المطلوب:</b> {o.requested_time}</p>}<p><b>ملاحظات:</b> {o.notes||'لا يوجد'}</p></div></details>
+      </td></tr>)}</tbody></table></div>}
+
+      <section className="panel order-cleanup-panel">
+        <div className="cleanup-head"><div><h3>تنظيف وأرشفة الطلبات</h3><p className="muted">يمكنك أرشفة الطلبات القديمة أو حذفها نهائيًا حسب يوم أو شهر أو فترة. كل عملية يتم تسجيلها في السجل بالوقت والفترة وعدد الطلبات.</p></div><span className="security-pill">{passwordSet?'كلمة مرور الحذف مفعلة':'كلمة مرور الحذف غير معينة'}</span></div>
+
+        <div className="cleanup-grid">
+          <label>اختيار الفترة<select value={cleanupMode} onChange={e=>{setCleanupMode(e.target.value as typeof cleanupMode);setCleanupPreview(null)}}><option value="day">يوم محدد</option><option value="month">شهر محدد</option><option value="range">فترة من تاريخ إلى تاريخ</option><option value="before">كل الطلبات حتى تاريخ</option></select></label>
+          {cleanupMode==='day'&&<label>اليوم<input type="date" value={cleanupDay} onChange={e=>{setCleanupDay(e.target.value);setCleanupPreview(null)}}/></label>}
+          {cleanupMode==='month'&&<label>الشهر<input type="month" value={cleanupMonth} onChange={e=>{setCleanupMonth(e.target.value);setCleanupPreview(null)}}/></label>}
+          {cleanupMode==='range'&&<><label>من<input type="date" value={cleanupFrom} onChange={e=>{setCleanupFrom(e.target.value);setCleanupPreview(null)}}/></label><label>إلى<input type="date" value={cleanupTo} onChange={e=>{setCleanupTo(e.target.value);setCleanupPreview(null)}}/></label></>}
+          {cleanupMode==='before'&&<label>حتى تاريخ<input type="date" value={cleanupBefore} onChange={e=>{setCleanupBefore(e.target.value);setCleanupPreview(null)}}/></label>}
+          <label>الإجراء<select value={cleanupAction} onChange={e=>{setCleanupAction(e.target.value as 'archive'|'delete');setCleanupPreview(null)}}><option value="archive">أرشفة — يمكن الاسترجاع</option><option value="delete">حذف نهائي — لا يمكن الاسترجاع</option></select></label>
+        </div>
+
+        <div className="cleanup-actions">
+          <button className="btn secondary" disabled={cleanupBusy} onClick={()=>void previewCleanup()}>معاينة العدد</button>
+          {cleanupPreview&&<div className="cleanup-preview"><b>{cleanupPreview.count} طلب في الفترة</b><span>{cleanupPreview.active_count} حالي · {cleanupPreview.archived_count} مؤرشف</span></div>}
+        </div>
+
+        {cleanupAction==='delete'&&<div className="danger-zone">
+          <b>الحذف النهائي</b>
+          <p>الحذف النهائي لا يمكن التراجع عنه. سجل الحذف نفسه لن يتم حذفه. الحذف لا يغيّر المخزون الحالي.</p>
+          <label>كلمة مرور الحذف<input type="password" autoComplete="off" value={cleanupPassword} onChange={e=>setCleanupPasswordValue(e.target.value)} placeholder="كلمة المرور المستقلة للحذف"/></label>
+        </div>}
+
+        <button className={cleanupAction==='delete'?'btn delete-action':'btn'} disabled={cleanupBusy} onClick={()=>void runCleanup()}>{cleanupBusy?'جاري التنفيذ...':cleanupAction==='delete'?'حذف الطلبات المحددة نهائيًا':'نقل الطلبات المحددة إلى الأرشيف'}</button>
+
+        <div className="cleanup-password-box">
+          <div><b>كلمة مرور الحذف المستقلة</b><p className="muted">مختلفة عن كلمة مرور تسجيل دخول المدير، ولا يتم حفظها كنص قابل للقراءة.</p></div>
+          {passwordSet&&!showPasswordChange?<button className="btn secondary" onClick={()=>setShowPasswordChange(true)}>تغيير كلمة مرور الحذف</button>:<div className="cleanup-password-fields"><input type="password" value={newDeletePassword} onChange={e=>setNewDeletePassword(e.target.value)} placeholder="كلمة مرور جديدة — 8 أحرف على الأقل"/><input type="password" value={newDeletePassword2} onChange={e=>setNewDeletePassword2(e.target.value)} placeholder="تأكيد كلمة المرور"/><button className="btn secondary" disabled={cleanupBusy||!newDeletePassword} onClick={()=>void saveDeletePassword()}>{passwordSet?'حفظ كلمة المرور الجديدة':'تعيين كلمة مرور الحذف'}</button>{passwordSet&&<button className="text-btn" onClick={()=>{setShowPasswordChange(false);setNewDeletePassword('');setNewDeletePassword2('')}}>إلغاء</button>}</div>}
+        </div>
+      </section>
+
+      <section className="panel cleanup-log-panel">
+        <h3>سجل عمليات الطلبات</h3>
+        <p className="muted">هذا السجل يبقى موجودًا حتى بعد الحذف النهائي للطلبات.</p>
+        {!logs.length?<p className="muted">لا توجد عمليات أرشفة أو حذف مسجلة بعد.</p>:<div className="table-wrap"><table><thead><tr><th>وقت العملية</th><th>العملية</th><th>الفترة</th><th>عدد الطلبات</th></tr></thead><tbody>{logs.map(log=><tr key={log.id}><td>{new Date(log.created_at).toLocaleString('ar-EG')}</td><td>{actionName(log.action)}</td><td>{log.filter_label||'—'}<small className="block muted">{log.date_from||'—'} ← {log.date_to||'—'}</small></td><td>{log.orders_count}</td></tr>)}</tbody></table></div>}
+      </section>
+    </>;
   }
 
   function Settings(){

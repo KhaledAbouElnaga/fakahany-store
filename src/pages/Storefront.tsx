@@ -101,8 +101,18 @@ export default function Storefront() {
 
     <footer className="store-footer"><div className="container footer-inner"><div><strong>{settings.store_name}</strong>{settings.address&&<span>{settings.address}</span>}{settings.phone&&<a href={`tel:${settings.phone}`}>{settings.phone}</a>}</div><InstallPwaButton/></div></footer>
 
-    {count>0&&<Link to="/cart" className="floating-cart">السلة <b>{count}</b><span>{subtotal.toLocaleString('ar-EG')} جنيه</span></Link>}
-    {wa&&<a className="floating-contact" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer">استفسار واتساب</a>}
+    <Link to="/cart" className="floating-cart-circle" aria-label={`السلة: ${count} منتج، الإجمالي ${subtotal.toLocaleString('ar-EG')} جنيه`} title="السلة">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 8H7.1M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>
+      <b>{count}</b>
+    </Link>
+    <div className="floating-contact-stack">
+      {settings.phone&&<a className="floating-round-action phone" href={`tel:${settings.phone}`} aria-label="اتصال بالمتجر" title="اتصال">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24c1.1.36 2.3.55 3.6.55a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.6 21 3 13.4 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.3.2 2.5.56 3.6a1 1 0 0 1-.25 1Z"/></svg>
+      </a>}
+      {wa&&<a className="floating-round-action whatsapp" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer" aria-label="واتساب" title="واتساب">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 11.8A8.5 8.5 0 0 1 8 19.2L3.5 20.5l1.3-4.3A8.5 8.5 0 1 1 20.5 11.8Zm-4.1 2.1c-.2-.1-1.4-.7-1.6-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1-1.5-.7-2.5-1.5-3.5-3-.2-.3 0-.4.1-.6l.6-.7c.1-.2.2-.4.1-.6l-.7-1.7c-.2-.5-.4-.5-.6-.5h-.5c-.2 0-.5.1-.7.4-.8.8-1.2 1.7-.9 2.9.6 2.5 2.3 4.7 4.5 6 2 .9 3.7 1.2 4.9.7.7-.3 1.3-1.2 1.5-1.9.1-.5.1-.9-.1-1-.2-.2-.6-.3-1.2-.5Z"/></svg>
+      </a>}
+    </div>
 
     {quickProduct&&<ProductQuickView product={quickProduct} threshold={settings.low_stock_threshold} onClose={()=>setQuickProduct(null)}/>}
     {qrOpen&&<div className="modal-backdrop" onClick={()=>setQrOpen(false)}><div className="modal-card qr-card" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>رمز المتجر</h2><button onClick={()=>setQrOpen(false)}>✕</button></div><p>امسح الرمز بالكاميرا لفتح المتجر مباشرة.</p><img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(window.location.origin)}`} alt="رمز المتجر"/><button className="btn secondary" onClick={shareStore}>مشاركة الرابط</button></div></div>}
