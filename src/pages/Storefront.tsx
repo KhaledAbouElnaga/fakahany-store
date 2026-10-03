@@ -4,21 +4,30 @@ import Header from '../components/Header';
 import InstallPwaButton from '../components/InstallPwaButton';
 import Loading from '../components/Loading';
 import ProductCard from '../components/ProductCard';
+import ProductQuickView from '../components/ProductQuickView';
 import { useCart } from '../contexts/CartContext';
 import { useStore } from '../contexts/StoreContext';
-import { isOutOfStock, isStoreOpenNow, storeStatusText, updatePageMeta } from '../lib/utils';
+import { isOutOfStock, normalizeWhatsAppNumber, storeStatusText, updatePageMeta } from '../lib/utils';
+import { recordVisit } from '../lib/storeApi';
+import type { Order, Product } from '../types';
 
 export default function Storefront() {
   const { data, loading, error, refresh } = useStore();
-  const { count } = useCart();
+  const { count, subtotal, add } = useCart();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [availableOnly,setAvailableOnly]=useState(false);
   const [offersOnly,setOffersOnly]=useState(false);
   const [featuredOnly,setFeaturedOnly]=useState(false);
   const [sort,setSort]=useState<'display'|'priceAsc'|'priceDesc'|'name'>('display');
+  const [quickProduct,setQuickProduct]=useState<Product|null>(null);
+  const [qrOpen,setQrOpen]=useState(false);
+  const [shareMsg,setShareMsg]=useState('');
+  const [lastOrder,setLastOrder]=useState<Order|null>(null);
 
   useEffect(()=>{ if(data) updatePageMeta(data.settings); },[data]);
+  useEffect(()=>{ void recordVisit(); try{const x=JSON.parse(localStorage.getItem('fakahany-last-order')||'null');setLastOrder(x)}catch{} },[]);
+
   if (loading) return <Loading/>;
   if (error || !data) return <div className="center-state error-state"><p>{error || 'تعذر تحميل المتجر'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
   const { settings } = data;
@@ -33,7 +42,34 @@ export default function Storefront() {
   }).sort((a,b)=>sort==='priceAsc'?priceOf(a)-priceOf(b):sort==='priceDesc'?priceOf(b)-priceOf(a):sort==='name'?a.name_ar.localeCompare(b.name_ar,'ar'):a.display_order-b.display_order);
   const featured = visible.filter(p => p.featured).sort((a,b) => a.display_order - b.display_order);
   const offers = visible.filter(p => p.options.some(o => o.old_price && o.old_price > o.price)).sort((a,b) => a.display_order - b.display_order);
-  const storeOpen = isStoreOpenNow(settings);
+  const storeOpen = settings.store_status_mode==='open' || settings.store_status_mode==='auto' && storeStatusText(settings).startsWith('مفتوح');
+  const wa=normalizeWhatsAppNumber(settings.whatsapp_number);
+
+  const card=(p:Product)=><ProductCard key={p.id} product={p} lowStockThreshold={settings.low_stock_threshold} onQuickView={setQuickProduct}/>;
+
+  const shareStore=async()=>{
+    const payload={title:settings.store_name,text:`تسوق من ${settings.store_name}`,url:window.location.origin};
+    try{
+      if(navigator.share){await navigator.share(payload)}
+      else{await navigator.clipboard.writeText(window.location.origin);setShareMsg('تم نسخ رابط المتجر');setTimeout(()=>setShareMsg(''),1800)}
+    }catch{}
+  };
+
+  const reorder=()=>{
+    if(!lastOrder)return;
+    let added=0,skipped=0;
+    for(const item of lastOrder.items){
+      const product=data.products.find(p=>p.id===item.product_id&&!p.hidden&&p.available);
+      const option=product?.options.find(o=>o.id===item.option_id&&o.available&&(!o.track_stock||Number(o.stock_qty??0)>0));
+      if(!product||!option){skipped++;continue}
+      const max=Math.min(product.track_stock?Number(product.stock_qty??0):Infinity,option.track_stock?Number(option.stock_qty??0):Infinity);
+      const qty=Math.max(0,Math.min(Number(item.quantity)||1,max));
+      if(qty>0){add(product,option,qty);added+=qty}else skipped++;
+    }
+    setShareMsg(added?skipped?'تمت إضافة المتاح من طلبك السابق':'تمت إضافة طلبك السابق للسلة':'لا توجد منتجات متاحة من طلبك السابق');
+    setTimeout(()=>setShareMsg(''),2200);
+  };
+
   return <>
     <Header settings={settings}/>
     <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
@@ -41,6 +77,14 @@ export default function Storefront() {
       <section className="hero" style={settings.banner_url ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.08),rgba(0,0,0,.6)),url(${settings.banner_url})` } : undefined}>
         <div><h1>{settings.hero_title}</h1><p>{settings.hero_subtitle}</p>{settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}</div>
       </section>
+
+      <div className="store-action-row">
+        <button className="soft-action" onClick={shareStore}>مشاركة المتجر</button>
+        <button className="soft-action" onClick={()=>setQrOpen(true)}>رمز المتجر</button>
+        {lastOrder&&<button className="soft-action" onClick={reorder}>إعادة آخر طلب</button>}
+        {shareMsg&&<span className="inline-feedback">{shareMsg}</span>}
+      </div>
+
       {settings.show_search && <div className="search-wrap"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث عن منتج"/><span>⌕</span></div>}
       {settings.show_categories && <div className="category-chips"><button className={category==='all'?'active':''} onClick={()=>setCategory('all')}>الكل</button>{data.categories.filter(c=>c.visible).sort((a,b)=>a.display_order-b.display_order).map(c=><button key={c.id} className={category===c.id?'active':''} onClick={()=>setCategory(c.id)}>{c.name_ar}</button>)}</div>}
       <div className="store-filters">
@@ -49,11 +93,18 @@ export default function Storefront() {
         <label><input type="checkbox" checked={featuredOnly} onChange={e=>setFeaturedOnly(e.target.checked)}/> المميزة</label>
         <select value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="display">ترتيب المتجر</option><option value="priceAsc">السعر: الأقل أولًا</option><option value="priceDesc">السعر: الأعلى أولًا</option><option value="name">الاسم</option></select>
       </div>
-      {!search && category==='all' && !offersOnly && !featuredOnly && settings.show_featured && featured.length>0 && <section><div className="section-title"><h2>منتجات مميزة</h2></div><div className="product-grid">{featured.map(p=><ProductCard key={p.id} product={p}/>)}</div></section>}
-      {!search && category==='all' && !offersOnly && !featuredOnly && settings.show_offers && offers.length>0 && <section><div className="section-title"><h2>عروض خاصة</h2></div><div className="product-grid">{offers.map(p=><ProductCard key={p.id} product={p}/>)}</div></section>}
-      <section><div className="section-title"><h2>{search ? 'نتائج البحث' : category==='all' ? 'كل المنتجات' : 'المنتجات'}</h2><small>{filtered.length} منتج</small></div>{filtered.length ? <div className="product-grid">{filtered.map(p=><ProductCard key={p.id} product={p}/>)}</div> : <div className="empty-state">لم يتم العثور على نتائج</div>}</section>
+
+      {!search && category==='all' && !offersOnly && !featuredOnly && settings.show_featured && featured.length>0 && <section><div className="section-title"><h2>منتجات مميزة</h2></div><div className="product-grid">{featured.map(card)}</div></section>}
+      {!search && category==='all' && !offersOnly && !featuredOnly && settings.show_offers && offers.length>0 && <section><div className="section-title"><h2>عروض خاصة</h2></div><div className="product-grid">{offers.map(card)}</div></section>}
+      <section><div className="section-title"><h2>{search ? 'نتائج البحث' : category==='all' ? 'كل المنتجات' : 'المنتجات'}</h2><small>{filtered.length} منتج</small></div>{filtered.length ? <div className="product-grid">{filtered.map(card)}</div> : <div className="empty-state">لم يتم العثور على نتائج</div>}</section>
     </main>
+
     <footer className="store-footer"><div className="container footer-inner"><div><strong>{settings.store_name}</strong>{settings.address&&<span>{settings.address}</span>}{settings.phone&&<a href={`tel:${settings.phone}`}>{settings.phone}</a>}</div><InstallPwaButton/></div></footer>
-    {count>0&&<Link to="/cart" className="mobile-cart-fab">السلة <b>{count}</b></Link>}
+
+    {count>0&&<Link to="/cart" className="floating-cart">السلة <b>{count}</b><span>{subtotal.toLocaleString('ar-EG')} جنيه</span></Link>}
+    {wa&&<a className="floating-contact" href={`https://wa.me/${wa}`} target="_blank" rel="noreferrer">استفسار واتساب</a>}
+
+    {quickProduct&&<ProductQuickView product={quickProduct} threshold={settings.low_stock_threshold} onClose={()=>setQuickProduct(null)}/>}
+    {qrOpen&&<div className="modal-backdrop" onClick={()=>setQrOpen(false)}><div className="modal-card qr-card" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>رمز المتجر</h2><button onClick={()=>setQrOpen(false)}>✕</button></div><p>امسح الرمز بالكاميرا لفتح المتجر مباشرة.</p><img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(window.location.origin)}`} alt="رمز المتجر"/><button className="btn secondary" onClick={shareStore}>مشاركة الرابط</button></div></div>}
   </>;
 }
