@@ -21,13 +21,65 @@ import { supabase, supabaseConfigured } from '../../lib/supabase';
 type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'settings';
 
 export default function AdminPage(){
-  const [authorized,setAuthorized]=useState<boolean|null>(null); const [tab,setTab]=useState<Tab>('home'); const {data,loading,error,refresh}=useStore(); const [newOrderCount,setNewOrderCount]=useState(0);
+  const [authorized,setAuthorized]=useState<boolean|null>(null);
+  const [profile,setProfile]=useState<StaffProfile|null>(null);
+  const [tab,setTab]=useState<Tab>('home');
+  const {data,loading,error,refresh}=useStore();
+  const [newOrderCount,setNewOrderCount]=useState(0);
+  const [alertsEnabled,setAlertsEnabled]=useState(()=>sessionStorage.getItem('fakahany-admin-alerts')==='1');
+  const audioRef=useRef<AudioContext|null>(null);
+
+  const can=(permission:string)=>hasStaffPermission(profile,permission);
+
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
-  useEffect(()=>{if(authorized)Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{const names=new Set(s.filter(x=>x.is_new).map(x=>x.name));setNewOrderCount(o.filter(x=>names.has(x.status)).length)}).catch(()=>{});},[authorized,tab]);
-  if(authorized===null||loading)return <Loading text="جاري فتح لوحة الإدارة..."/>;
+  useEffect(()=>{if(authorized)void currentStaffProfile().then(setProfile)},[authorized]);
+  useEffect(()=>{if(authorized&&profile&&can('orders.view'))Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{const names=new Set(s.filter(x=>x.is_new).map(x=>x.name));setNewOrderCount(o.filter(x=>names.has(x.status)).length)}).catch(()=>{});},[authorized,profile,tab]);
+
+  useEffect(()=>{
+    if(!authorized||!profile||!supabaseConfigured||!supabase||!can('orders.view'))return;
+    const channel=supabase.channel('admin-new-order-alerts').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{
+      setNewOrderCount(v=>v+1);
+      if(alertsEnabled){
+        try{
+          const ctx=audioRef.current;
+          if(ctx){
+            const osc=ctx.createOscillator();const gain=ctx.createGain();
+            osc.connect(gain);gain.connect(ctx.destination);osc.frequency.value=880;gain.gain.value=.08;
+            osc.start();osc.stop(ctx.currentTime+.18);
+          }
+        }catch{}
+        if('Notification' in window&&Notification.permission==='granted'){
+          new Notification('طلب جديد',{body:'تم استلام طلب جديد في المتجر.'});
+        }
+      }
+    }).subscribe();
+    return ()=>{void supabase.removeChannel(channel)};
+  },[authorized,profile,alertsEnabled]);
+
+  useEffect(()=>{
+    if(!authorized||!profile||profile.role!=='owner'||!data)return;
+    const today=new Date().toISOString().slice(0,10);
+    if(localStorage.getItem('fakahany-auto-backup-date')===today)return;
+    void loadOrders(true).then(orders=>{
+      const payload=JSON.stringify({exported_at:new Date().toISOString(),store:data,orders},null,2);
+      downloadText('fakahany-auto-backup-'+today+'.json',payload,'application/json;charset=utf-8');
+      localStorage.setItem('fakahany-auto-backup-date',today);
+    }).catch(()=>{});
+  },[authorized,profile,data]);
+
+  const enableAlerts=async()=>{
+    try{
+      if(!audioRef.current)audioRef.current=new AudioContext();
+      await audioRef.current.resume();
+      if('Notification' in window&&Notification.permission==='default')await Notification.requestPermission();
+      sessionStorage.setItem('fakahany-admin-alerts','1');setAlertsEnabled(true);
+    }catch{setAlertsEnabled(true)}
+  };
+
+  if(authorized===null||loading||(authorized&&profile===null))return <Loading text="جاري فتح لوحة الإدارة..."/>;
   if(!authorized)return <AdminLogin onDone={()=>setAuthorized(true)}/>;
   if(error||!data)return <div className="center-state error-state"><p>{error||'تعذر تحميل البيانات'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
-  const logout=async()=>{await signOutAdmin();setAuthorized(false)};
+  const logout=async()=>{await signOutAdmin();setAuthorized(false);setProfile(null)};
   return <div className="admin-shell"><aside className="admin-side"><div className="admin-brand"><b>{data.settings.store_name}</b><small>لوحة الإدارة</small></div><nav>
     <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav><Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav><Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav><Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav><Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav><Nav t="reports" active={tab} set={setTab}>التقارير</Nav><Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>
   </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">{!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}{tab==='home'&&<Dashboard/>}{tab==='products'&&<Products/>}{tab==='categories'&&<SimpleManager kind="categories"/>}{tab==='units'&&<SimpleManager kind="units"/>}{tab==='areas'&&<SimpleManager kind="areas"/>}{tab==='orders'&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')}/>}{tab==='statuses'&&<OrderStatuses/>}{tab==='archive'&&<ArchiveCleanup/>}{tab==='reports'&&<Reports/>}{tab==='settings'&&<StoreSettings data={data} refresh={refresh}/>}</main></div>;
