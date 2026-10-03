@@ -9,8 +9,8 @@ export default function OrderOperationsDetails({order,allOrders,onUpdated,canMan
   const [busy,setBusy]=useState(false);
   const [msg,setMsg]=useState('');
 
-  const phoneDigits=(order.customer_phone||'').replace(/\\D/g,'');
-  const history=allOrders.filter(o=>(o.customer_phone||'').replace(/\\D/g,'')===phoneDigits&&phoneDigits.length>=6);
+  const phoneDigits=(order.customer_phone||'').replace(/\D/g,'');
+  const history=allOrders.filter(o=>(o.customer_phone||'').replace(/\D/g,'')===phoneDigits&&phoneDigits.length>=6);
   const total=history.reduce((s,o)=>s+Number(o.total),0);
   const last=history.filter(o=>o.id!==order.id).sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())[0];
 
