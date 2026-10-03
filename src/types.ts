@@ -119,6 +119,8 @@ export interface Order {
   total: number;
   notes: string;
   requested_time: string;
+  archived_at?: string | null;
+  archived_by?: string | null;
   status: OrderStatus;
   items: OrderItem[];
 }
@@ -150,4 +152,19 @@ export interface SiteVisit {
   country_code: string;
   device_type: 'هاتف' | 'جهاز لوحي' | 'كمبيوتر';
   referrer: string;
+}
+
+
+export interface OrderCleanupLog {
+  id: string;
+  created_at: string;
+  admin_user_id: string | null;
+  action: 'archive' | 'delete';
+  filter_type: string;
+  filter_label: string;
+  date_from: string | null;
+  date_to: string | null;
+  orders_count: number;
+  min_order_created_at: string | null;
+  max_order_created_at: string | null;
 }
