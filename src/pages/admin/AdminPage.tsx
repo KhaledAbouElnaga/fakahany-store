@@ -85,7 +85,7 @@ export default function AdminPage(){
     {can('products.manage')&&<><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav></>}
     {can('settings.manage')&&<Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav>}
     {can('orders.view')&&<Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav>}
-    {can('orders.manage')&&<Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav>}
+    {can('settings.manage')&&<Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav>}
     {profile?.role==='owner'&&<Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav>}
     {can('inventory.manage')&&<Nav t="inventory" active={tab} set={setTab}>المخزون</Nav>}
     {can('prices.manage')&&<Nav t="prices" active={tab} set={setTab}>الأسعار المجدولة</Nav>}
@@ -99,8 +99,8 @@ export default function AdminPage(){
     {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
     {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
     {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
-    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')} canManage={can('orders.manage')}/>}
-    {tab==='statuses'&&can('orders.manage')&&<OrderStatuses/>}
+    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')} canManage={can('orders.manage')} canConfigureStatuses={can('settings.manage')}/>}
+    {tab==='statuses'&&can('settings.manage')&&<OrderStatuses/>}
     {tab==='archive'&&profile?.role==='owner'&&<ArchiveCleanup/>}
     {tab==='inventory'&&can('inventory.manage')&&<InventoryPanel/>}
     {tab==='prices'&&can('prices.manage')&&<ScheduledPrices/>}
