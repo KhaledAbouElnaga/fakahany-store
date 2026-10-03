@@ -1,4 +1,4 @@
-import type { Category, DeliveryArea, Order, Product, ProductOption, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
+import type { Category, DeliveryArea, Order, OrderCleanupLog, Product, ProductOption, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
 import { supabase, supabaseConfigured } from './supabase';
 import { getDemoOrders, getDemoSnapshot, setDemoOrders, setDemoSnapshot } from './demoData';
 import { compressImage, fileToDataUrl, uid } from './utils';
@@ -82,7 +82,17 @@ export async function saveOrder(order: Order):Promise<Order>{
   return {...order,product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
 }
 
-export async function loadOrders():Promise<Order[]>{ if(!supabaseConfigured||!supabase)return getDemoOrders(); const {data:orders,error}=await supabase.from('orders').select('*').order('created_at',{ascending:false});if(error)throw error; const {data:items,error:e2}=await supabase.from('order_items').select('*');if(e2)throw e2; return (orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[]; }
+export async function loadOrders(includeArchived=false):Promise<Order[]>{
+  if(!supabaseConfigured||!supabase){
+    const orders=getDemoOrders();
+    return includeArchived?orders:orders.filter(o=>!o.archived_at);
+  }
+  let query=supabase.from('orders').select('*').order('created_at',{ascending:false});
+  if(!includeArchived) query=query.is('archived_at',null);
+  const {data:orders,error}=await query;if(error)throw error;
+  const {data:items,error:e2}=await supabase.from('order_items').select('*');if(e2)throw e2;
+  return (orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
+}
 export async function updateOrderStatus(id:string,status:Order['status']){ if(!supabaseConfigured||!supabase){const orders=getDemoOrders();const i=orders.findIndex(o=>o.id===id);if(i>=0)orders[i].status=status;setDemoOrders(orders);return;} const {error}=await supabase.rpc('set_order_status',{order_id_input:id,new_status:status});if(error)throw error; }
 
 export function newCategory(order=999):Category{return{id:uid(),name_ar:'',display_order:order,visible:true};}
@@ -119,4 +129,72 @@ export async function loadVisits(limit=5000):Promise<SiteVisit[]>{
   const {data,error}=await supabase.from('site_visits').select('*').order('created_at',{ascending:false}).limit(limit);
   if(error) throw error;
   return (data||[]) as SiteVisit[];
+}
+
+
+export async function orderCleanupPasswordIsSet():Promise<boolean>{
+  if(!supabaseConfigured||!supabase) return Boolean(localStorage.getItem('fakahany-demo-cleanup-password'));
+  const {data,error}=await supabase.rpc('order_cleanup_password_set');
+  if(error) throw error;
+  return Boolean(data);
+}
+
+export async function setOrderCleanupPassword(password:string):Promise<void>{
+  if(password.length<8) throw new Error('كلمة مرور الحذف يجب أن تكون 8 أحرف على الأقل.');
+  if(!supabaseConfigured||!supabase){localStorage.setItem('fakahany-demo-cleanup-password',password);return;}
+  const {error}=await supabase.rpc('set_order_cleanup_password',{password_input:password});
+  if(error) throw error;
+}
+
+export async function previewOrderCleanup(dateFrom:string,dateTo:string):Promise<{count:number;active_count:number;archived_count:number}>{
+  if(!supabaseConfigured||!supabase){
+    const from=new Date(dateFrom+'T00:00:00').getTime(),to=new Date(dateTo+'T23:59:59').getTime();
+    const rows=getDemoOrders().filter(o=>{const t=new Date(o.created_at).getTime();return t>=from&&t<=to});
+    return {count:rows.length,active_count:rows.filter(o=>!o.archived_at).length,archived_count:rows.filter(o=>Boolean(o.archived_at)).length};
+  }
+  const {data,error}=await supabase.rpc('preview_order_cleanup',{date_from_input:dateFrom,date_to_input:dateTo});
+  if(error) throw error;
+  const x=(data||{}) as any;
+  return {count:Number(x.count||0),active_count:Number(x.active_count||0),archived_count:Number(x.archived_count||0)};
+}
+
+export async function executeOrderCleanup(input:{action:'archive'|'delete';dateFrom:string;dateTo:string;filterType:string;filterLabel:string;password?:string}):Promise<{count:number}>{
+  if(!supabaseConfigured||!supabase){
+    const from=new Date(input.dateFrom+'T00:00:00').getTime(),to=new Date(input.dateTo+'T23:59:59').getTime();
+    const all=getDemoOrders(); const matched=all.filter(o=>{const t=new Date(o.created_at).getTime();return t>=from&&t<=to});
+    if(input.action==='delete'){
+      const saved=localStorage.getItem('fakahany-demo-cleanup-password')||'';
+      if(!saved||saved!==input.password) throw new Error('كلمة مرور الحذف غير صحيحة.');
+      setDemoOrders(all.filter(o=>!matched.some(m=>m.id===o.id)));
+    }else{
+      const now=new Date().toISOString(); setDemoOrders(all.map(o=>matched.some(m=>m.id===o.id)&&!o.archived_at?{...o,archived_at:now}:o));
+    }
+    return {count:matched.length};
+  }
+  const {data,error}=await supabase.rpc('cleanup_orders',{
+    action_input:input.action,
+    date_from_input:input.dateFrom,
+    date_to_input:input.dateTo,
+    filter_type_input:input.filterType,
+    filter_label_input:input.filterLabel,
+    password_input:input.password||''
+  });
+  if(error) throw error;
+  const x=(data||{}) as any;
+  return {count:Number(x.count||0)};
+}
+
+export async function restoreArchivedOrder(id:string):Promise<void>{
+  if(!supabaseConfigured||!supabase){
+    const orders=getDemoOrders();setDemoOrders(orders.map(o=>o.id===id?{...o,archived_at:null,archived_by:null}:o));return;
+  }
+  const {error}=await supabase.rpc('restore_archived_order',{order_id_input:id});
+  if(error) throw error;
+}
+
+export async function loadOrderCleanupLogs():Promise<OrderCleanupLog[]>{
+  if(!supabaseConfigured||!supabase) return [];
+  const {data,error}=await supabase.from('order_cleanup_logs').select('*').order('created_at',{ascending:false}).limit(200);
+  if(error) throw error;
+  return (data||[]) as OrderCleanupLog[];
 }
