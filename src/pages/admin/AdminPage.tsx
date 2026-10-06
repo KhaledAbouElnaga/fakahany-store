@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLogin from './AdminLogin';
 import ProductBulkTools from './ProductBulkTools';
@@ -7,42 +7,176 @@ import ArchiveCleanup from './ArchiveCleanup';
 import OrderStatuses from './OrderStatuses';
 import OrdersManager from './OrdersManager';
 import StoreSettings from './StoreSettings';
-import { changeAdminPassword, currentAdminEmail, isAdmin, signOutAdmin } from '../../lib/auth';
+import StaffManager from './StaffManager';
+import InventoryPanel from './InventoryPanel';
+import ScheduledPrices from './ScheduledPrices';
+import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
-import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings } from '../../types';
+import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings, StaffProfile } from '../../types';
 import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, loadOrderStatuses, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
-import { supabaseConfigured } from '../../lib/supabase';
+import { supabase, supabaseConfigured } from '../../lib/supabase';
 
-type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'reports'|'settings';
+type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'settings';
 
 export default function AdminPage(){
-  const [authorized,setAuthorized]=useState<boolean|null>(null); const [tab,setTab]=useState<Tab>('home'); const {data,loading,error,refresh}=useStore(); const [newOrderCount,setNewOrderCount]=useState(0);
+  const [authorized,setAuthorized]=useState<boolean|null>(null);
+  const [profile,setProfile]=useState<StaffProfile|null>(null);
+  const [tab,setTab]=useState<Tab>('home');
+  const {data,loading,error,refresh}=useStore();
+  const [newOrderCount,setNewOrderCount]=useState(0);
+  const [alertsEnabled,setAlertsEnabled]=useState(()=>sessionStorage.getItem('fakahany-admin-alerts')==='1');
+  const audioRef=useRef<AudioContext|null>(null);
+
+  const can=(permission:string)=>hasStaffPermission(profile,permission);
+
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
-  useEffect(()=>{if(authorized)Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{const names=new Set(s.filter(x=>x.is_new).map(x=>x.name));setNewOrderCount(o.filter(x=>names.has(x.status)).length)}).catch(()=>{});},[authorized,tab]);
-  if(authorized===null||loading)return <Loading text="جاري فتح لوحة الإدارة..."/>;
+  useEffect(()=>{if(authorized)void currentStaffProfile().then(setProfile)},[authorized]);
+  useEffect(()=>{if(authorized&&profile&&can('orders.view'))Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{const names=new Set(s.filter(x=>x.is_new).map(x=>x.name));setNewOrderCount(o.filter(x=>names.has(x.status)).length)}).catch(()=>{});},[authorized,profile,tab]);
+
+  useEffect(()=>{
+    if(!authorized||!profile||!supabaseConfigured||!supabase||!can('orders.view'))return;
+    const channel=supabase!.channel('admin-new-order-alerts').on('postgres_changes',{event:'INSERT',schema:'public',table:'orders'},payload=>{
+      setNewOrderCount(v=>v+1);
+      if(alertsEnabled){
+        try{
+          const ctx=audioRef.current;
+          if(ctx){
+            const osc=ctx.createOscillator();const gain=ctx.createGain();
+            osc.connect(gain);gain.connect(ctx.destination);osc.frequency.value=880;gain.gain.value=.08;
+            osc.start();osc.stop(ctx.currentTime+.18);
+          }
+        }catch{}
+        if('Notification' in window&&Notification.permission==='granted'){
+          new Notification('طلب جديد',{body:'تم استلام طلب جديد في المتجر.'});
+        }
+      }
+    }).subscribe();
+    return ()=>{void supabase!.removeChannel(channel)};
+  },[authorized,profile,alertsEnabled]);
+
+  useEffect(()=>{
+    if(!authorized||!profile||profile.role!=='owner'||!data)return;
+    const today=new Date().toISOString().slice(0,10);
+    if(localStorage.getItem('fakahany-auto-backup-date')===today)return;
+    void loadOrders(true).then(orders=>{
+      const payload=JSON.stringify({exported_at:new Date().toISOString(),store:data,orders},null,2);
+      downloadText('fakahany-auto-backup-'+today+'.json',payload,'application/json;charset=utf-8');
+      localStorage.setItem('fakahany-auto-backup-date',today);
+    }).catch(()=>{});
+  },[authorized,profile,data]);
+
+  const enableAlerts=async()=>{
+    try{
+      if(!audioRef.current)audioRef.current=new AudioContext();
+      await audioRef.current.resume();
+      if('Notification' in window&&Notification.permission==='default')await Notification.requestPermission();
+      sessionStorage.setItem('fakahany-admin-alerts','1');setAlertsEnabled(true);
+    }catch{setAlertsEnabled(true)}
+  };
+
+  if(authorized===null||loading||(authorized&&profile===null))return <Loading text="جاري فتح لوحة الإدارة..."/>;
   if(!authorized)return <AdminLogin onDone={()=>setAuthorized(true)}/>;
   if(error||!data)return <div className="center-state error-state"><p>{error||'تعذر تحميل البيانات'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
-  const logout=async()=>{await signOutAdmin();setAuthorized(false)};
-  return <div className="admin-shell"><aside className="admin-side"><div className="admin-brand"><b>{data.settings.store_name}</b><small>لوحة الإدارة</small></div><nav>
-    <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav><Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav><Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav><Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav><Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav><Nav t="reports" active={tab} set={setTab}>التقارير</Nav><Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>
-  </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">{!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}{tab==='home'&&<Dashboard/>}{tab==='products'&&<Products/>}{tab==='categories'&&<SimpleManager kind="categories"/>}{tab==='units'&&<SimpleManager kind="units"/>}{tab==='areas'&&<SimpleManager kind="areas"/>}{tab==='orders'&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')}/>}{tab==='statuses'&&<OrderStatuses/>}{tab==='archive'&&<ArchiveCleanup/>}{tab==='reports'&&<Reports/>}{tab==='settings'&&<StoreSettings data={data} refresh={refresh}/>}</main></div>;
+  const logout=async()=>{await signOutAdmin();setAuthorized(false);setProfile(null)};
+  return <div className="admin-shell"><aside className="admin-side"><div className="admin-brand"><b>{data.settings.store_name}</b><small>{profile?.display_name||profile?.email||'لوحة الإدارة'}</small></div><nav>
+    <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav>
+    {can('products.manage')&&<><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav></>}
+    {can('settings.manage')&&<Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav>}
+    {can('orders.view')&&<Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav>}
+    {can('settings.manage')&&<Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav>}
+    {profile?.role==='owner'&&<Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav>}
+    {can('inventory.manage')&&<Nav t="inventory" active={tab} set={setTab}>المخزون</Nav>}
+    {can('prices.manage')&&<Nav t="prices" active={tab} set={setTab}>الأسعار المجدولة</Nav>}
+    {can('reports.view')&&<Nav t="reports" active={tab} set={setTab}>التقارير</Nav>}
+    {profile?.role==='owner'&&<Nav t="staff" active={tab} set={setTab}>الموظفون والصلاحيات</Nav>}
+    {can('settings.manage')&&<Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>}
+  </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
+    {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
+    {tab==='home'&&<Dashboard/>}
+    {tab==='products'&&can('products.manage')&&<Products/>}
+    {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
+    {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
+    {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
+    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')} canManage={can('orders.manage')} canConfigureStatuses={can('settings.manage')}/>}
+    {tab==='statuses'&&can('settings.manage')&&<OrderStatuses/>}
+    {tab==='archive'&&profile?.role==='owner'&&<ArchiveCleanup/>}
+    {tab==='inventory'&&can('inventory.manage')&&<InventoryPanel/>}
+    {tab==='prices'&&can('prices.manage')&&<ScheduledPrices/>}
+    {tab==='reports'&&can('reports.view')&&<Reports/>}
+    {tab==='staff'&&profile?.role==='owner'&&<StaffManager/>}
+    {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh}/>}
+  </main></div>;
 
   function Dashboard(){
     const [orders,setOrders]=useState<Order[]|null>(null);
     const [statuses,setStatuses]=useState<OrderStatusDefinition[]|null>(null);
     useEffect(()=>{void Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{setOrders(o);setStatuses(s)}).catch(()=>{setOrders([]);setStatuses([])})},[]);
     if(!orders||!statuses)return <Loading/>;
+
     const newNames=new Set(statuses.filter(s=>s.is_new).map(s=>s.name));
     const completedNames=new Set(statuses.filter(s=>s.is_completed).map(s=>s.name));
-    const today=new Date().toDateString();
-    const todayOrders=orders.filter(o=>new Date(o.created_at).toDateString()===today).length;
+    const cancelledNames=new Set(statuses.filter(s=>s.is_cancelled).map(s=>s.name));
+    const now=new Date();
+    const startToday=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const startYesterday=new Date(startToday);startYesterday.setDate(startYesterday.getDate()-1);
+    const startWeek=new Date(startToday);startWeek.setDate(startWeek.getDate()-6);
+    const prevWeekStart=new Date(startWeek);prevWeekStart.setDate(prevWeekStart.getDate()-7);
+
+    const inRange=(o:Order,a:Date,b:Date)=>{const t=new Date(o.created_at);return t>=a&&t<b};
+    const todayOrdersList=orders.filter(o=>inRange(o,startToday,new Date(startToday.getTime()+86400000)));
+    const yesterdayOrders=orders.filter(o=>inRange(o,startYesterday,startToday));
+    const weekOrders=orders.filter(o=>new Date(o.created_at)>=startWeek);
+    const prevWeekOrders=orders.filter(o=>inRange(o,prevWeekStart,startWeek));
     const completed=orders.filter(o=>completedNames.has(o.status));
     const revenue=completed.reduce((s,o)=>s+Number(o.total),0);
     const avg=orders.length?orders.reduce((s,o)=>s+Number(o.total),0)/orders.length:0;
     const low=data!.products.filter(p=>isLowStock(p,data!.settings.low_stock_threshold)).length;
-    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={()=>setTab('products')}>إضافة منتج</button><button className="btn" onClick={()=>setTab('orders')}>عرض الطلبات</button></div>}>الرئيسية</PageTitle><div className="stats-grid"><Stat label="طلبات اليوم" value={todayOrders}/><Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/><Stat label="إجمالي الطلبات" value={orders.length}/><Stat label="المنتجات المتاحة" value={data!.products.filter(p=>p.available&&!p.hidden).length}/><Stat label="غير المتاحة" value={data!.products.filter(p=>!p.available).length}/><Stat label="مخزون منخفض" value={low}/><Stat label="قيمة الطلبات المكتملة" value={money(revenue)}/><Stat label="متوسط قيمة الطلب" value={money(avg)}/><Stat label="عدد الأقسام" value={data!.categories.length}/></div>{low>0&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض. راجع قسم المنتجات.</p></div>}<div className="panel"><h3>حالة المتجر</h3><p>وضع الفتح الحالي: <b>{data!.settings.store_status_mode==='open'?'مفتوح يدويًا':data!.settings.store_status_mode==='closed'?'مغلق يدويًا':'تلقائي حسب المواعيد'}</b> · التوصيل: <b>{data!.settings.delivery_enabled?'مفعل':'غير مفعل'}</b></p></div></>;
+
+    const salesOf=(list:Order[])=>list.filter(o=>completedNames.has(o.status)).reduce((s,o)=>s+Number(o.total),0);
+    const todaySales=salesOf(todayOrdersList),yesterdaySales=salesOf(yesterdayOrders),weekSales=salesOf(weekOrders),prevWeekSales=salesOf(prevWeekOrders);
+    const percent=(a:number,b:number)=>b===0?(a>0?100:0):Math.round((a-b)/b*100);
+
+    const itemMap=new Map<string,{name:string,qty:number}>();
+    for(const o of orders.filter(x=>!cancelledNames.has(x.status)))for(const item of o.items){
+      const key=item.product_id||item.product_name;const x=itemMap.get(key)||{name:item.product_name,qty:0};x.qty+=Number(item.quantity);itemMap.set(key,x);
+    }
+    const topProduct=[...itemMap.values()].sort((a,b)=>b.qty-a.qty)[0];
+
+    const hours=new Map<number,number>();
+    for(const o of orders){const h=new Date(o.created_at).getHours();hours.set(h,(hours.get(h)||0)+1)}
+    const peak=[...hours.entries()].sort((a,b)=>b[1]-a[1])[0];
+
+    const customers=new Map<string,number>();
+    for(const o of orders){const p=(o.customer_phone||'').replace(/\D/g,'');if(p)customers.set(p,(customers.get(p)||0)+1)}
+    const repeat=[...customers.values()].filter(n=>n>1).length;
+    const cancelRate=orders.length?Math.round(orders.filter(o=>cancelledNames.has(o.status)).length/orders.length*100):0;
+
+    return <><PageTitle actions={<div className="page-actions">
+      {!alertsEnabled&&can('orders.view')&&<button className="btn secondary" onClick={()=>void enableAlerts()}>تفعيل تنبيهات الطلبات</button>}
+      {can('products.manage')&&<button className="btn secondary" onClick={()=>setTab('products')}>إضافة منتج</button>}
+      {can('orders.view')&&<button className="btn" onClick={()=>setTab('orders')}>عرض الطلبات</button>}
+    </div>}>الرئيسية</PageTitle>
+
+    <div className="stats-grid">
+      <Stat label="طلبات اليوم" value={todayOrdersList.length}/>
+      <Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>
+      <Stat label="مبيعات اليوم" value={money(todaySales)}/>
+      <Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/>
+      <Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/>
+      <Stat label="مقارنة بالأسبوع السابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/>
+      <Stat label="متوسط قيمة الطلب" value={money(avg)}/>
+      <Stat label="العملاء المتكررون" value={repeat}/>
+      <Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>
+      <Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>
+      <Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>
+      <Stat label="مخزون منخفض" value={low}/>
+    </div>
+
+    {low>0&&can('inventory.manage')&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض.</p><button className="btn secondary" onClick={()=>setTab('inventory')}>فتح المخزون</button></div>}
+    <div className="panel"><h3>حالة المتجر</h3><p>وضع الفتح الحالي: <b>{data!.settings.store_status_mode==='open'?'مفتوح يدويًا':data!.settings.store_status_mode==='closed'?'مغلق يدويًا':'تلقائي حسب المواعيد'}</b> · التوصيل: <b>{data!.settings.delivery_enabled?'مفعل':'غير مفعل'}</b> · تنبيهات الطلبات: <b>{alertsEnabled?'مفعلة':'غير مفعلة'}</b></p></div>
+    </>;
   }
 
   function Products(){

@@ -1,4 +1,4 @@
-import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
+import type { Category, DeliveryArea, InventoryAdjustment, Order, OrderCleanupLog, OrderEvent, OrderStatusDefinition, Product, ProductOption, ScheduledPrice, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
 import { supabase, supabaseConfigured } from './supabase';
 import { getDemoOrders, getDemoSnapshot, setDemoOrders, setDemoSnapshot } from './demoData';
 import { compressImage, fileToDataUrl, uid } from './utils';
@@ -21,7 +21,7 @@ export const DEFAULT_ORDER_STATUSES: OrderStatusDefinition[] = [
 
 function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): ShopSettings {
   const defaults: ShopSettings = {
-    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
+    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
   };
   const s = settings || {};
   const merged = { ...defaults, ...s } as ShopSettings;
@@ -29,6 +29,9 @@ function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): 
   merged.store_status_mode = s.store_status_mode ?? (s.manual_open === false ? 'closed' : 'auto');
   merged.low_stock_threshold = Number(s.low_stock_threshold ?? 5);
   merged.scheduled_orders_enabled = s.scheduled_orders_enabled ?? false;
+  merged.delivery_capacity_enabled = s.delivery_capacity_enabled ?? false;
+  merged.delivery_slot_minutes = Number(s.delivery_slot_minutes ?? 60);
+  merged.delivery_slot_capacity = Number(s.delivery_slot_capacity ?? 0);
   merged.require_name = s.require_name ?? true;
   merged.require_phone = s.require_phone ?? true;
   merged.require_address = s.require_address ?? true;
@@ -44,6 +47,7 @@ function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): 
 }
 
 export async function loadStore(): Promise<StoreSnapshot> {
+  if (supabaseConfigured && supabase) { try { await supabase.rpc('apply_due_scheduled_prices'); } catch {} }
   if (!supabaseConfigured || !supabase) { await demoWait(); const snap=getDemoSnapshot(); return {...snap,settings:normalizeSettings(snap.settings)}; }
   const [{ data: categories, error: e1 }, { data: units, error: e2 }, { data: products, error: e3 }, { data: options, error: e4 }, { data: settings, error: e5 }, { data: areas, error: e6 }] = await Promise.all([
     supabase.from('categories').select('*').order('display_order'), supabase.from('selling_units').select('*').order('display_order'), supabase.from('products').select('*').order('display_order'), supabase.from('product_options').select('*').order('display_order'), supabase.from('shop_settings').select('*').eq('id', 'main').single(), supabase.from('delivery_areas').select('*').order('display_order'),
@@ -71,10 +75,37 @@ export async function deleteDeliveryArea(id:string){ if(!supabaseConfigured||!su
 
 export async function saveProduct(product: Product) {
   if (!supabaseConfigured || !supabase) { const s=getDemoSnapshot(); const i=s.products.findIndex(x=>x.id===product.id); if(i>=0)s.products[i]=product;else s.products.push(product);setDemoSnapshot(s);return product; }
-  const {options,...row}=product; const {error}=await supabase.from('products').upsert(row);if(error)throw error;
+
+  const [oldProductResult,oldOptionsResult]=await Promise.all([
+    supabase.from('products').select('id,name_ar,track_stock,stock_qty').eq('id',product.id).maybeSingle(),
+    supabase.from('product_options').select('id,name_ar,track_stock,stock_qty').eq('product_id',product.id)
+  ]);
+
+  const oldProduct=oldProductResult.data as any;
+  const oldOptions=(oldOptionsResult.data||[]) as any[];
+
+  const {options,...row}=product;
+  const {error}=await supabase.from('products').upsert(row);if(error)throw error;
   const existing=await supabase.from('product_options').select('id').eq('product_id',product.id);if(existing.error)throw existing.error;
-  const incoming=new Set(options.map(o=>o.id)); const toDelete=(existing.data||[]).filter(x=>!incoming.has(x.id)).map(x=>x.id); if(toDelete.length){const d=await supabase.from('product_options').delete().in('id',toDelete);if(d.error)throw d.error;}
-  if(options.length){const up=await supabase.from('product_options').upsert(options);if(up.error)throw up.error;} return product;
+  const incoming=new Set(options.map(o=>o.id));
+  const toDelete=(existing.data||[]).filter(x=>!incoming.has(x.id)).map(x=>x.id);
+  if(toDelete.length){const d=await supabase.from('product_options').delete().in('id',toDelete);if(d.error)throw d.error;}
+  if(options.length){const up=await supabase.from('product_options').upsert(options);if(up.error)throw up.error;}
+
+  const logChange=async(optionId:string|null,before:number|null,after:number|null)=>{
+    if(before===after)return;
+    try{await supabase!.rpc('record_inventory_adjustment',{product_id_input:product.id,option_id_input:optionId,before_input:before,after_input:after,reason_input:'تعديل يدوي من لوحة الإدارة'});}catch{}
+  };
+  if(oldProduct && (oldProduct.track_stock||product.track_stock)){
+    await logChange(null,oldProduct.stock_qty===null?null:Number(oldProduct.stock_qty),product.stock_qty===null?null:Number(product.stock_qty));
+  }
+  for(const option of options){
+    const old=oldOptions.find(x=>x.id===option.id);
+    if(old && (old.track_stock||option.track_stock)){
+      await logChange(option.id,old.stock_qty===null?null:Number(old.stock_qty),option.stock_qty===null?null:Number(option.stock_qty));
+    }
+  }
+  return product;
 }
 export async function updateProductFields(id:string, fields:Partial<Pick<Product,'available'|'hidden'|'featured'|'display_order'|'stock_qty'|'track_stock'>>){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.products=s.products.map(p=>p.id===id?{...p,...fields}:p);setDemoSnapshot(s);return;} const {error}=await supabase.from('products').update(fields).eq('id',id);if(error)throw error; }
 export async function deleteProduct(id:string){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.products=s.products.filter(x=>x.id!==id);setDemoSnapshot(s);return;} const {error}=await supabase.from('products').delete().eq('id',id);if(error)throw error; }
@@ -84,11 +115,11 @@ export async function deleteImage(publicUrl:string){ if(!publicUrl||!supabaseCon
 
 export async function saveOrder(order: Order):Promise<Order>{
   if(!supabaseConfigured||!supabase){const orders=getDemoOrders();orders.unshift(order);setDemoOrders(orders);return order;}
-  const payload={id:order.id,order_number:order.order_number,customer_name:order.customer_name,customer_phone:order.customer_phone,address:order.address,area_id:order.area_id,notes:order.notes,requested_time:order.requested_time||''};
+  const payload={id:order.id,order_number:order.order_number,customer_name:order.customer_name,customer_phone:order.customer_phone,address:order.address,area_id:order.area_id,notes:order.notes,requested_time:order.requested_time||'',requested_for:order.requested_for||'',client_token:order.client_token||''};
   const itemPayload=order.items.map(i=>({id:i.id,product_id:i.product_id,option_id:i.option_id,quantity:i.quantity}));
   const {data,error}=await supabase.rpc('create_store_order',{order_payload:payload,items_payload:itemPayload}); if(error)throw error;
   const result=(data||{}) as any;
-  return {...order,product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
+  return {...order,id:String(result.order_id??order.id),order_number:String(result.order_number??order.order_number),product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
 }
 
 export async function loadOrders(includeArchived=false):Promise<Order[]>{
@@ -98,7 +129,7 @@ export async function loadOrders(includeArchived=false):Promise<Order[]>{
   }
   const {data:orders,error}=await supabase.from('orders').select('*').order('created_at',{ascending:false});if(error)throw error;
   const {data:items,error:e2}=await supabase.from('order_items').select('*');if(e2)throw e2;
-  const mapped=(orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
+  const mapped=(orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',requested_for:o.requested_for||null,internal_note:o.internal_note||'',client_token:o.client_token||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
   return includeArchived?mapped:mapped.filter(o=>!o.archived_at);
 }
 export async function loadOrderStatuses():Promise<OrderStatusDefinition[]>{
@@ -178,9 +209,20 @@ export async function recordVisit():Promise<void>{
 
 export async function loadVisits(limit=5000):Promise<SiteVisit[]>{
   if(!supabaseConfigured||!supabase) return [];
-  const {data,error}=await supabase.from('site_visits').select('*').order('created_at',{ascending:false}).limit(limit);
-  if(error) throw error;
-  return (data||[]) as SiteVisit[];
+  const daily=await supabase.from('site_visit_daily').select('*').order('day',{ascending:false}).limit(limit);
+  if(!daily.error){
+    return (daily.data||[]).map((x:any)=>({
+      id:String(x.day)+'-'+String(x.country_code)+'-'+String(x.device_type),
+      created_at:String(x.day)+'T00:00:00',
+      country_code:String(x.country_code),
+      device_type:x.device_type,
+      referrer:'',
+      visits:Number(x.visits||0)
+    })) as SiteVisit[];
+  }
+  const legacy=await supabase.from('site_visits').select('*').order('created_at',{ascending:false}).limit(limit);
+  if(legacy.error) throw legacy.error;
+  return (legacy.data||[]) as SiteVisit[];
 }
 
 
@@ -257,4 +299,66 @@ export async function loadOrderCleanupLogs():Promise<OrderCleanupLog[]>{
   const {data,error}=await supabase.from('order_cleanup_logs').select('*').order('created_at',{ascending:false}).limit(200);
   if(error) throw error;
   return (data||[]) as OrderCleanupLog[];
+}
+
+
+export async function loadOrderEvents(orderId:string):Promise<OrderEvent[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.from('order_events').select('*').eq('order_id',orderId).order('created_at',{ascending:false}).limit(100);
+  if(error)throw error;
+  return (data||[]) as OrderEvent[];
+}
+
+export async function setOrderInternalNote(orderId:string,note:string):Promise<void>{
+  if(!supabaseConfigured||!supabase){
+    const orders=getDemoOrders();setDemoOrders(orders.map(o=>o.id===orderId?{...o,internal_note:note}:o));return;
+  }
+  const {error}=await supabase.rpc('set_order_internal_note',{order_id_input:orderId,note_input:note});
+  if(error)throw error;
+}
+
+export async function loadInventoryAdjustments(limit=300):Promise<InventoryAdjustment[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.from('inventory_adjustments').select('*').order('created_at',{ascending:false}).limit(limit);
+  if(error)throw error;
+  return (data||[]).map((x:any)=>({...x,quantity_before:x.quantity_before===null?null:Number(x.quantity_before),quantity_after:x.quantity_after===null?null:Number(x.quantity_after),delta:Number(x.delta)})) as InventoryAdjustment[];
+}
+
+export async function loadScheduledPrices():Promise<ScheduledPrice[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const [{data:rows,error},{data:opts,error:e2},{data:products,error:e3}]=await Promise.all([
+    supabase.from('scheduled_prices').select('*').order('starts_at'),
+    supabase.from('product_options').select('id,product_id,name_ar'),
+    supabase.from('products').select('id,name_ar')
+  ]);
+  if(error||e2||e3)throw error||e2||e3;
+  return (rows||[]).map((r:any)=>{
+    const option=(opts||[]).find((o:any)=>o.id===r.product_option_id) as any;
+    const product=(products||[]).find((p:any)=>p.id===option?.product_id) as any;
+    return {...r,price:Number(r.price),old_price:r.old_price===null?null:Number(r.old_price),product_name:product?.name_ar||'منتج',option_name:option?.name_ar||'خيار'};
+  }) as ScheduledPrice[];
+}
+
+export async function scheduleOptionPrice(optionId:string,price:number,oldPrice:number|null,startsAt:string):Promise<void>{
+  if(!supabaseConfigured||!supabase)return;
+  const {error}=await supabase.rpc('schedule_option_price',{option_id_input:optionId,price_input:price,old_price_input:oldPrice,starts_at_input:startsAt});
+  if(error)throw error;
+}
+
+export async function cancelScheduledPrice(id:string):Promise<void>{
+  if(!supabaseConfigured||!supabase)return;
+  const {error}=await supabase.rpc('cancel_scheduled_price',{id_input:id});
+  if(error)throw error;
+}
+
+export async function editStoreOrder(order:Order):Promise<Order>{
+  if(!supabaseConfigured||!supabase){
+    const orders=getDemoOrders();const i=orders.findIndex(o=>o.id===order.id);if(i>=0)orders[i]=order;setDemoOrders(orders);return order;
+  }
+  const payload={customer_name:order.customer_name,customer_phone:order.customer_phone,address:order.address,area_id:order.area_id,notes:order.notes,requested_time:order.requested_time||'',requested_for:order.requested_for||''};
+  const items=order.items.map(i=>({id:i.id||uid(),product_id:i.product_id,option_id:i.option_id,quantity:i.quantity}));
+  const {data,error}=await supabase.rpc('edit_store_order',{order_id_input:order.id,order_payload:payload,items_payload:items});
+  if(error)throw error;
+  const x=(data||{}) as any;
+  return {...order,product_subtotal:Number(x.product_subtotal??order.product_subtotal),delivery_fee:Number(x.delivery_fee??order.delivery_fee),total:Number(x.total??order.total),area_name:String(x.area_name??order.area_name)};
 }
