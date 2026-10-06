@@ -119,7 +119,7 @@ returns boolean
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 declare user_email text;
 begin
   if auth.uid() is null then raise exception 'يجب تسجيل الدخول أولًا'; end if;
@@ -138,7 +138,7 @@ begin
 
   return true;
 end;
-$;
+$$;
 
 revoke all on function public.claim_first_admin() from public;
 grant execute on function public.claim_first_admin() to authenticated;
@@ -657,7 +657,7 @@ returns public.order_statuses
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 declare
   old_name text;
   result_row public.order_statuses%rowtype;
@@ -686,7 +686,7 @@ begin
 
   return result_row;
 end;
-$;
+$$;
 
 revoke all on function public.save_order_status_definition(uuid,text,text,integer,boolean,boolean,boolean,boolean) from public;
 grant execute on function public.save_order_status_definition(uuid,text,text,integer,boolean,boolean,boolean,boolean) to authenticated;
@@ -899,7 +899,7 @@ returns boolean
 language plpgsql
 security definer
 set search_path = pg_catalog, public
-as $
+as $$
 begin
   insert into public.site_visit_daily(day,country_code,device_type,visits)
   values(
@@ -914,7 +914,7 @@ begin
   delete from public.site_visit_daily where day<current_date-180;
   return true;
 end;
-$;
+$$;
 
 revoke all on function public.record_store_visit(text,text,text) from public;
 grant execute on function public.record_store_visit(text,text,text) to anon,authenticated;
