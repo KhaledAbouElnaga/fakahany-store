@@ -28,6 +28,7 @@
 5. `supabase/migrations/20261003_order_cleanup.sql`
 6. `supabase/migrations/20261003_custom_statuses_cleanup_security.sql`
 7. `supabase/migrations/20261003_operations_upgrades.sql`
+8. `supabase/migrations/20261007_public_store_rls_hotfix.sql`
 
 لا تضع مفاتيح Supabase الحقيقية داخل GitHub. ملف `.env` مستبعد من Git.
 
