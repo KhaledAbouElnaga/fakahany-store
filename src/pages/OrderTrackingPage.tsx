@@ -17,6 +17,7 @@ export default function OrderTrackingPage(){
   const reload=async()=>{if(!token)return;setRefreshing(true);setError('');try{setTracking(await loadPublicOrderTracking(token))}catch(e:any){setError(e?.message||'تعذر تحميل حالة الطلب.')}finally{setRefreshing(false)}};
   useEffect(()=>{void reload()},[token]);
   if(loading||!data)return <Loading/>;
+  if(!data.settings.feature_flags.tracking)return <><Header settings={data.settings}/><main className="center-state"><div><h1>تتبع الطلبات غير مفعل</h1><Link className="btn secondary" to="/">العودة للمتجر</Link></div></main></>;
   return <><Header settings={data.settings}/><main className="container narrow tracking-page">
     <div className="panel tracking-card">
       <h1>تتبع الطلب</h1>

@@ -1,28 +1,32 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLogin from './AdminLogin';
 import ProductBulkTools from './ProductBulkTools';
-import Reports from './Reports';
-import ArchiveCleanup from './ArchiveCleanup';
-import OrderStatuses from './OrderStatuses';
-import OrdersManager from './OrdersManager';
-import StoreSettings from './StoreSettings';
-import StaffManager from './StaffManager';
-import InventoryPanel from './InventoryPanel';
-import ScheduledPrices from './ScheduledPrices';
-import SetupWizard from './SetupWizard';
 import AdminGlobalSearch from './AdminGlobalSearch';
-import SystemHealth from './SystemHealth';
-import AuditLog from './AuditLog';
-import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, signOutAdmin } from '../../lib/auth';
+import { confirmUnsavedNavigation, useUnsavedChanges } from '../../lib/unsaved';
+import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, mfaChallengeNeeded, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
+import MfaChallengeGate from '../../components/MfaChallengeGate';
 import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings, StaffProfile } from '../../types';
 import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, loadOrderStatuses, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
-import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
+import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, smartArabicMatch, uid } from '../../lib/utils';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
 
-type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'audit'|'health'|'settings';
+const Reports=lazy(()=>import('./Reports'));
+const ArchiveCleanup=lazy(()=>import('./ArchiveCleanup'));
+const OrderStatuses=lazy(()=>import('./OrderStatuses'));
+const OrdersManager=lazy(()=>import('./OrdersManager'));
+const StoreSettings=lazy(()=>import('./StoreSettings'));
+const StaffManager=lazy(()=>import('./StaffManager'));
+const InventoryPanel=lazy(()=>import('./InventoryPanel'));
+const ScheduledPrices=lazy(()=>import('./ScheduledPrices'));
+const SetupWizard=lazy(()=>import('./SetupWizard'));
+const SystemHealth=lazy(()=>import('./SystemHealth'));
+const AuditLog=lazy(()=>import('./AuditLog'));
+const ReleaseNotes=lazy(()=>import('./ReleaseNotes'));
+
+type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'audit'|'health'|'release'|'settings';
 
 export default function AdminPage(){
   const [authorized,setAuthorized]=useState<boolean|null>(null);
@@ -32,13 +36,19 @@ export default function AdminPage(){
   const [newOrderCount,setNewOrderCount]=useState(0);
   const [alertsEnabled,setAlertsEnabled]=useState(()=>sessionStorage.getItem('fakahany-admin-alerts')==='1');
   const [mobileNavOpen,setMobileNavOpen]=useState(false);
+  const [mfaReady,setMfaReady]=useState<boolean|null>(null);
   const audioRef=useRef<AudioContext|null>(null);
 
   const can=(permission:string)=>hasStaffPermission(profile,permission);
-  const chooseTab=(next:Tab)=>{setTab(next);setMobileNavOpen(false)};
+  const chooseTab=(next:Tab)=>{if(next!==tab&&!confirmUnsavedNavigation())return;setTab(next);setMobileNavOpen(false)};
 
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
   useEffect(()=>{if(authorized)void currentStaffProfile().then(setProfile)},[authorized]);
+  useEffect(()=>{
+    if(!authorized||!profile){setMfaReady(null);return}
+    if(profile.role!=='owner'){setMfaReady(true);return}
+    void mfaChallengeNeeded().then(required=>setMfaReady(!required)).catch(()=>setMfaReady(false));
+  },[authorized,profile]);
 
   useEffect(()=>{
     if(!authorized)return;
@@ -94,7 +104,8 @@ export default function AdminPage(){
     }catch{setAlertsEnabled(true)}
   };
 
-  if(authorized===null||loading||(authorized&&profile===null))return <Loading text="جاري فتح لوحة الإدارة..."/>;
+  if(authorized===null||loading||(authorized&&profile===null)||(authorized&&profile?.role==='owner'&&mfaReady===null))return <Loading text="جاري فتح لوحة الإدارة..."/>;
+  if(authorized&&profile?.role==='owner'&&mfaReady===false)return <MfaChallengeGate onDone={()=>setMfaReady(true)}/>;
   if(!authorized)return <AdminLogin onDone={()=>setAuthorized(true)}/>;
   if(error||!data)return <div className="center-state error-state"><p>{error||'تعذر تحميل البيانات'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
   const logout=async()=>{await signOutAdmin();setAuthorized(false);setProfile(null)};
@@ -114,33 +125,37 @@ export default function AdminPage(){
     {can('orders.view')&&<Nav t="orders" active={tab} set={chooseTab} badge={newOrderCount}>الطلبات</Nav>}
     {can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}
     {profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}
-    {can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}
-    {can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}
-    {can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}
-    {profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}
+    {data.settings.feature_flags.inventory&&can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}
+    {data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}
+    {data.settings.feature_flags.reports&&can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}
+    {data.settings.feature_flags.staff&&profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}
     {profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}
     {profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}
+    <Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>
     {can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}
   </nav><div className="side-bottom"><Link to="/" onClick={()=>setMobileNavOpen(false)}>عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
     <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {data.settings.maintenance_mode&&<div className="demo-banner maintenance-admin-banner">وضع الصيانة مفعل حاليًا — العملاء لا يمكنهم إنشاء طلبات جديدة.</div>}
-    {tab==='home'&&<Dashboard/>}
-    {tab==='products'&&can('products.manage')&&<Products/>}
-    {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
-    {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
-    {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
-    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')} canManage={can('orders.manage')} canConfigureStatuses={can('settings.manage')}/>}
-    {tab==='statuses'&&can('settings.manage')&&<OrderStatuses/>}
-    {tab==='archive'&&profile?.role==='owner'&&<ArchiveCleanup/>}
-    {tab==='inventory'&&can('inventory.manage')&&<InventoryPanel/>}
-    {tab==='prices'&&can('prices.manage')&&<ScheduledPrices/>}
-    {tab==='reports'&&can('reports.view')&&<Reports/>}
-    {tab==='staff'&&profile?.role==='owner'&&<StaffManager/>}
-    {tab==='audit'&&profile?.role==='owner'&&<AuditLog/>}
-    {tab==='health'&&profile?.role==='owner'&&<SystemHealth data={data}/>}
-    {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh}/>}
-  </main>{profile?.role==='owner'&&!data.settings.setup_completed&&<SetupWizard data={data} refresh={refresh}/>}</div>;
+    <Suspense fallback={<Loading text="جاري تحميل القسم..."/>}>
+      {tab==='home'&&<Dashboard/>}
+      {tab==='products'&&can('products.manage')&&<Products/>}
+      {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
+      {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
+      {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
+      {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>chooseTab('statuses')} canManage={can('orders.manage')} canConfigureStatuses={can('settings.manage')}/>}
+      {tab==='statuses'&&can('settings.manage')&&<OrderStatuses/>}
+      {tab==='archive'&&profile?.role==='owner'&&<ArchiveCleanup/>}
+      {tab==='inventory'&&data.settings.feature_flags.inventory&&can('inventory.manage')&&<InventoryPanel/>}
+      {tab==='prices'&&data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<ScheduledPrices/>}
+      {tab==='reports'&&data.settings.feature_flags.reports&&can('reports.view')&&<Reports/>}
+      {tab==='staff'&&data.settings.feature_flags.staff&&profile?.role==='owner'&&<StaffManager/>}
+      {tab==='audit'&&profile?.role==='owner'&&<AuditLog/>}
+      {tab==='health'&&profile?.role==='owner'&&<SystemHealth data={data}/>}
+      {tab==='release'&&<ReleaseNotes/>}
+      {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh} owner={profile?.role==='owner'}/>}
+    </Suspense>
+  </main>{profile?.role==='owner'&&!data.settings.setup_completed&&<Suspense fallback={null}><SetupWizard data={data} refresh={refresh}/></Suspense>}</div>;
 
   function Dashboard(){
     const [orders,setOrders]=useState<Order[]|null>(null);
@@ -187,6 +202,7 @@ export default function AdminPage(){
     const cancelRate=orders.length?Math.round(orders.filter(o=>cancelledNames.has(o.status)).length/orders.length*100):0;
     const overdueNew=orders.filter(o=>newNames.has(o.status)&&(Date.now()-new Date(o.created_at).getTime())>=Math.max(1,data!.settings.order_alert_minutes||15)*60000).length;
 
+    const show=(key:string)=>data!.settings.dashboard_widgets.includes(key);
     return <><PageTitle actions={<div className="page-actions">
       {!alertsEnabled&&can('orders.view')&&<button className="btn secondary" onClick={()=>void enableAlerts()}>تفعيل تنبيهات الطلبات</button>}
       {can('products.manage')&&<button className="btn secondary" onClick={()=>setTab('products')}>إضافة منتج</button>}
@@ -194,19 +210,17 @@ export default function AdminPage(){
     </div>}>الرئيسية</PageTitle>
 
     <div className="stats-grid">
-      <Stat label="طلبات اليوم" value={todayOrdersList.length}/>
-      <Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>
-      <Stat label="طلبات منتظرة أكثر من الحد" value={overdueNew}/>
-      <Stat label="مبيعات اليوم" value={money(todaySales)}/>
-      <Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/>
-      <Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/>
-      <Stat label="مقارنة بالأسبوع السابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/>
-      <Stat label="متوسط قيمة الطلب" value={money(avg)}/>
-      <Stat label="العملاء المتكررون" value={repeat}/>
-      <Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>
-      <Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>
-      <Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>
-      <Stat label="مخزون منخفض" value={low}/>
+      {show('orders_today')&&<Stat label="طلبات اليوم" value={todayOrdersList.length}/>}
+      {show('new_orders')&&<Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>}
+      {show('overdue')&&<Stat label="طلبات منتظرة أكثر من الحد" value={overdueNew}/>}
+      {show('sales_today')&&<><Stat label="مبيعات اليوم" value={money(todaySales)}/><Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/></>}
+      {show('sales_week')&&<><Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/><Stat label="مقارنة بالأسبوع السابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/></>}
+      {show('avg_order')&&<Stat label="متوسط قيمة الطلب" value={money(avg)}/>}
+      {show('repeat_customers')&&<Stat label="العملاء المتكررون" value={repeat}/>}
+      {show('cancel_rate')&&<Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>}
+      {show('top_product')&&<Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>}
+      {show('peak_hour')&&<Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>}
+      {show('low_stock')&&<Stat label="مخزون منخفض" value={low}/>}
     </div>
 
     {low>0&&can('inventory.manage')&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض.</p><button className="btn secondary" onClick={()=>setTab('inventory')}>فتح المخزون</button></div>}
@@ -215,30 +229,112 @@ export default function AdminPage(){
   }
 
   function Products(){
-    const [editing,setEditing]=useState<Product|null>(null); const [q,setQ]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(''); const list=data!.products.filter(p=>`${p.name_ar} ${p.description_ar}`.includes(q)).sort((a,b)=>a.display_order-b.display_order);
+    const [editing,setEditing]=useState<Product|null>(null);
+    const [q,setQ]=useState('');
+    const [busy,setBusy]=useState(false);
+    const [msg,setMsg]=useState('');
+    const [quickName,setQuickName]=useState('');
+    const [quickPrice,setQuickPrice]=useState(0);
+    const [quickCategory,setQuickCategory]=useState('');
+    const [dragId,setDragId]=useState('');
+    const [pendingDelete,setPendingDelete]=useState<{product:Product,timer:number}|null>(null);
+    const list=data!.products
+      .filter(p=>p.id!==pendingDelete?.product.id)
+      .filter(p=>smartArabicMatch(`${p.name_ar} ${p.description_ar}`,q))
+      .sort((a,b)=>a.display_order-b.display_order);
+
     const validate=(p:Product)=>{if(!p.name_ar.trim())return 'اكتب اسم المنتج.';if(!p.options.length)return 'أضف خيار بيع واحدًا على الأقل.';for(const o of p.options){if(!o.name_ar.trim())return 'كل خيار بيع يجب أن يكون له اسم.';if(Number(o.price)<0)return 'السعر لا يمكن أن يكون سالبًا.';if(o.old_price!==null&&Number(o.old_price)<0)return 'السعر القديم لا يمكن أن يكون سالبًا.';if(o.track_stock&&Number(o.stock_qty??0)<0)return 'المخزون لا يمكن أن يكون سالبًا.';}if(p.track_stock&&Number(p.stock_qty??0)<0)return 'المخزون لا يمكن أن يكون سالبًا.';return '';};
     const save=async(p:Product)=>{const v=validate(p);if(v)return setMsg(v);setBusy(true);setMsg('');const oldImage=data!.products.find(x=>x.id===p.id)?.image_url||'';try{await saveProduct(p);if(oldImage&&oldImage!==p.image_url)await deleteImage(oldImage).catch(()=>{});await refresh();setEditing(null);setMsg('تم حفظ المنتج بنجاح.');}catch(e:any){setMsg(e?.message||'تعذر حفظ المنتج.')}finally{setBusy(false)}};
     const duplicate=(p:Product)=>{const id=uid();setEditing({...structuredClone(p),id,name_ar:`${p.name_ar} - نسخة`,display_order:data!.products.length+1,options:p.options.map(o=>({...o,id:uid(),product_id:id}))})};
     const quick=async(p:Product,field:'available'|'hidden'|'featured',value:boolean)=>{await updateProductFields(p.id,{[field]:value});await refresh()};
     const move=async(p:Product,dir:-1|1)=>{const sorted=[...data!.products].sort((a,b)=>a.display_order-b.display_order);const i=sorted.findIndex(x=>x.id===p.id);const j=i+dir;if(j<0||j>=sorted.length)return;const other=sorted[j];const a=p.display_order,b=other.display_order;await Promise.all([updateProductFields(p.id,{display_order:b}),updateProductFields(other.id,{display_order:a})]);await refresh();};
+    const reorderDrop=async(targetId:string)=>{
+      if(!dragId||dragId===targetId)return setDragId('');
+      const sorted=[...data!.products].sort((a,b)=>a.display_order-b.display_order);
+      const from=sorted.findIndex(x=>x.id===dragId),to=sorted.findIndex(x=>x.id===targetId);
+      if(from<0||to<0)return setDragId('');
+      const [picked]=sorted.splice(from,1);sorted.splice(to,0,picked);
+      setDragId('');setBusy(true);
+      try{await Promise.all(sorted.map((p,i)=>p.display_order===i+1?Promise.resolve():updateProductFields(p.id,{display_order:i+1})));await refresh();setMsg('تم تحديث ترتيب المنتجات.')}
+      catch(e:any){setMsg(e?.message||'تعذر تغيير الترتيب.')}finally{setBusy(false)}
+    };
+    const quickAdd=async()=>{
+      if(!quickName.trim())return setMsg('اكتب اسم المنتج.');
+      if(quickPrice<0)return setMsg('السعر لا يمكن أن يكون سالبًا.');
+      const p=newProduct(data!.products.length+1);p.name_ar=quickName.trim();p.category_id=quickCategory||null;p.options[0].price=quickPrice;
+      setBusy(true);setMsg('');
+      try{await saveProduct(p);setQuickName('');setQuickPrice(0);setQuickCategory('');await refresh();setMsg('تمت إضافة المنتج سريعًا.')}
+      catch(e:any){setMsg(e?.message||'تعذر إضافة المنتج.')}finally{setBusy(false)}
+    };
+    const scheduleDelete=(p:Product)=>{
+      if(pendingDelete)return setMsg('يوجد حذف قابل للتراجع حاليًا. تراجع عنه أو انتظر انتهاء المهلة.');
+      if(!confirm('إخفاء المنتج الآن وحذفه نهائيًا بعد 10 ثوانٍ؟ يمكنك التراجع خلال المهلة.'))return;
+      const timer=window.setTimeout(async()=>{try{await deleteProduct(p.id);if(p.image_url)await deleteImage(p.image_url).catch(()=>{});await refresh();setMsg('تم حذف المنتج.')}catch(e:any){setMsg(e?.message||'تعذر الحذف')}finally{setPendingDelete(null)}},10000);
+      setPendingDelete({product:p,timer});
+    };
+    const undoDelete=()=>{if(!pendingDelete)return;window.clearTimeout(pendingDelete.timer);setPendingDelete(null);setMsg('تم التراجع عن الحذف.');};
     const exportProducts=()=>downloadCsv('products.csv',[['المنتج','القسم','متاح','مخفي','مميز','الترتيب','الخيارات'],...data!.products.map(p=>[p.name_ar,data!.categories.find(c=>c.id===p.category_id)?.name_ar||'',p.available?'نعم':'لا',p.hidden?'نعم':'لا',p.featured?'نعم':'لا',p.display_order,p.options.map(o=>`${o.name_ar}:${o.price}`).join(' | ')])]);
-    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={exportProducts}>تصدير CSV</button><button className="btn" onClick={()=>setEditing(newProduct(data!.products.length+1))}>+ إضافة منتج</button></div>}>المنتجات</PageTitle><ProductBulkTools products={data!.products} categories={data!.categories} onDone={refresh}/>{msg&&<p className={msg.includes('بنجاح')?'success-text':'error-text'}>{msg}</p>}<input className="admin-search" placeholder="ابحث عن منتج" value={q} onChange={e=>setQ(e.target.value)}/><div className="table-wrap"><table className="mobile-card-table product-admin-table"><thead><tr><th>المنتج</th><th>الحالة السريعة</th><th>السعر</th><th>المخزون</th><th>الترتيب</th><th>إجراءات</th></tr></thead><tbody>{list.map(p=>{const stock=productStockValue(p);const low=isLowStock(p,data!.settings.low_stock_threshold);return <tr key={p.id}><td data-label="المنتج"><div className="table-product">{p.image_url?<img src={p.image_url} alt=""/>:<span className="mini-placeholder">صورة</span>}<div><b>{p.name_ar}</b>{low&&<small className="stock-warning">مخزون منخفض</small>}</div></div></td><td data-label="الحالة"><div className="quick-toggles"><button className={p.available?'on':''} onClick={()=>quick(p,'available',!p.available)}>{p.available?'متاح':'غير متاح'}</button><button className={p.hidden?'warn':''} onClick={()=>quick(p,'hidden',!p.hidden)}>{p.hidden?'مخفي':'ظاهر'}</button><button className={p.featured?'on':''} onClick={()=>quick(p,'featured',!p.featured)}>{p.featured?'مميز':'عادي'}</button></div></td><td data-label="السعر">{p.options.length?money(Math.min(...p.options.map(o=>Number(o.price)))):'—'}</td><td data-label="المخزون">{stock===null?'غير متتبع':stock}</td><td data-label="الترتيب"><div className="order-buttons"><button onClick={()=>move(p,-1)}>↑</button><b>{p.display_order}</b><button onClick={()=>move(p,1)}>↓</button></div></td><td data-label="الإجراءات" className="table-actions"><button onClick={()=>setEditing(structuredClone(p))}>تعديل</button><button onClick={()=>duplicate(p)}>نسخ</button><button className="danger" onClick={async()=>{if(confirm('هل أنت متأكد من حذف هذا المنتج؟')){try{await deleteProduct(p.id);if(p.image_url)await deleteImage(p.image_url).catch(()=>{});await refresh();}catch(e:any){setMsg(e?.message||'تعذر الحذف')}}}}>حذف</button></td></tr>})}</tbody></table></div>{editing&&<ProductEditor product={editing} onChange={setEditing} onCancel={()=>setEditing(null)} onSave={()=>save(editing)} busy={busy}/>}</>;
+
+    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={exportProducts}>تصدير CSV</button><button className="btn" onClick={()=>setEditing(newProduct(data!.products.length+1))}>+ إضافة منتج</button></div>}>المنتجات</PageTitle>
+      <section className="panel quick-add-panel"><h3>إضافة سريعة</h3><div className="quick-add-grid"><input placeholder="اسم المنتج" value={quickName} onChange={e=>setQuickName(e.target.value)}/><input type="number" min="0" placeholder="السعر" value={quickPrice||''} onChange={e=>setQuickPrice(Number(e.target.value))}/><select value={quickCategory} onChange={e=>setQuickCategory(e.target.value)}><option value="">بدون قسم</option>{data!.categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name_ar}</option>)}</select><button className="btn" disabled={busy} onClick={()=>void quickAdd()}>إضافة</button></div></section>
+      <ProductBulkTools products={data!.products} categories={data!.categories} onDone={refresh}/>
+      {msg&&<p className={msg.includes('تم')?'success-text':'error-text'}>{msg}</p>}
+      <input className="admin-search" placeholder="ابحث عن منتج" value={q} onChange={e=>setQ(e.target.value)}/>
+      <p className="muted drag-help">يمكنك سحب الصفوف لتغيير ترتيب المنتجات. أزرار الأسهم تظل متاحة أيضًا.</p>
+      <div className="table-wrap"><table className="mobile-card-table product-admin-table"><thead><tr><th>المنتج</th><th>الحالة السريعة</th><th>السعر</th><th>المخزون</th><th>الترتيب</th><th>إجراءات</th></tr></thead><tbody>{list.map(p=>{const stock=productStockValue(p);const low=isLowStock(p,data!.settings.low_stock_threshold);return <tr key={p.id} draggable={!busy} className={dragId===p.id?'dragging-row':''} onDragStart={()=>setDragId(p.id)} onDragEnd={()=>setDragId('')} onDragOver={e=>e.preventDefault()} onDrop={()=>void reorderDrop(p.id)}><td data-label="المنتج"><div className="table-product"><span className="drag-handle" aria-hidden="true">⋮⋮</span>{p.image_url?<img src={p.image_url} alt=""/>:<span className="mini-placeholder">صورة</span>}<div><b>{p.name_ar}</b>{low&&<small className="stock-warning">مخزون منخفض</small>}</div></div></td><td data-label="الحالة"><div className="quick-toggles"><button className={p.available?'on':''} onClick={()=>void quick(p,'available',!p.available)}>{p.available?'متاح':'غير متاح'}</button><button className={p.hidden?'warn':''} onClick={()=>void quick(p,'hidden',!p.hidden)}>{p.hidden?'مخفي':'ظاهر'}</button><button className={p.featured?'on':''} onClick={()=>void quick(p,'featured',!p.featured)}>{p.featured?'مميز':'عادي'}</button></div></td><td data-label="السعر">{p.options.length?money(Math.min(...p.options.map(o=>Number(o.price)))):'—'}</td><td data-label="المخزون">{stock===null?'غير متتبع':stock}</td><td data-label="الترتيب"><div className="order-buttons"><button aria-label="تحريك لأعلى" onClick={()=>void move(p,-1)}>↑</button><b>{p.display_order}</b><button aria-label="تحريك لأسفل" onClick={()=>void move(p,1)}>↓</button></div></td><td data-label="الإجراءات" className="table-actions"><button onClick={()=>setEditing(structuredClone(p))}>تعديل</button><button onClick={()=>duplicate(p)}>نسخ</button><button className="danger" onClick={()=>scheduleDelete(p)}>حذف</button></td></tr>})}</tbody></table></div>
+      {pendingDelete&&<div className="undo-toast" role="status"><span>سيتم حذف «{pendingDelete.product.name_ar}» خلال 10 ثوانٍ.</span><button onClick={undoDelete}>تراجع</button></div>}
+      {editing&&<ProductEditor product={editing} onChange={setEditing} onCancel={()=>setEditing(null)} onSave={()=>save(editing)} busy={busy}/>}
+    </>;
   }
 
   function ProductEditor({product,onChange,onCancel,onSave,busy}:{product:Product,onChange:(p:Product)=>void,onCancel:()=>void,onSave:()=>void,busy:boolean}){
-    const [imageBusy,setImageBusy]=useState(false); const originalImage=data!.products.find(x=>x.id===product.id)?.image_url||''; const set=(k:keyof Product,v:any)=>onChange({...product,[k]:v}); const setOpt=(id:string,k:keyof ProductOption,v:any)=>set('options',product.options.map(o=>o.id===id?{...o,[k]:v}:o));
+    const [imageBusy,setImageBusy]=useState(false);
+    const initialSnapshot=useRef(JSON.stringify(product));
+    const dirty=JSON.stringify(product)!==initialSnapshot.current;
+    useUnsavedChanges(dirty);
+    const originalImage=data!.products.find(x=>x.id===product.id)?.image_url||'';
+    const set=(k:keyof Product,v:any)=>onChange({...product,[k]:v});
+    const setOpt=(id:string,k:keyof ProductOption,v:any)=>set('options',product.options.map(o=>o.id===id?{...o,[k]:v}:o));
     const upload=async(file?:File)=>{if(!file)return;setImageBusy(true);try{const previous=product.image_url;const url=await uploadImage(file);set('image_url',url);if(previous&&previous!==originalImage)await deleteImage(previous).catch(()=>{});}catch(e:any){alert(e?.message||'تعذر رفع الصورة')}finally{setImageBusy(false)}};
-    const cancel=async()=>{if(product.image_url&&product.image_url!==originalImage)await deleteImage(product.image_url).catch(()=>{});onCancel();};
+    const cancel=async()=>{if(dirty&&!confirm('لديك تعديلات غير محفوظة. هل تريد إغلاق المنتج بدون حفظها؟'))return;if(product.image_url&&product.image_url!==originalImage)await deleteImage(product.image_url).catch(()=>{});onCancel();};
     const removeImage=async()=>{if(!confirm('حذف صورة المنتج؟'))return;if(product.image_url&&product.image_url!==originalImage)await deleteImage(product.image_url).catch(()=>{});set('image_url','');};
     return <div className="modal-backdrop"><div className="modal-card large"><div className="modal-head"><h2>{product.name_ar||'منتج جديد'}</h2><button disabled={imageBusy||busy} onClick={()=>void cancel()}>✕</button></div><div className="form-grid"><label>اسم المنتج<input value={product.name_ar} onChange={e=>set('name_ar',e.target.value)}/></label><label>القسم<select value={product.category_id||''} onChange={e=>set('category_id',e.target.value||null)}><option value="">بدون قسم</option>{data!.categories.map(c=><option value={c.id} key={c.id}>{c.name_ar}</option>)}</select></label><label className="full">الوصف<textarea value={product.description_ar} onChange={e=>set('description_ar',e.target.value)}/></label><label>ترتيب الظهور<input type="number" min="0" value={product.display_order} onChange={e=>set('display_order',Number(e.target.value))}/></label><label>صورة المنتج<input disabled={imageBusy} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0])}/><small>يتم ضغط الصورة تلقائيًا لتسريع الموقع.</small></label></div>{product.image_url&&<div className="image-admin-row"><img className="edit-preview" src={product.image_url}/><button className="btn secondary danger" onClick={()=>void removeImage()}>حذف الصورة</button></div>}<div className="toggle-row"><label><input type="checkbox" checked={product.available} onChange={e=>set('available',e.target.checked)}/> متاح</label><label><input type="checkbox" checked={product.featured} onChange={e=>set('featured',e.target.checked)}/> مميز</label><label><input type="checkbox" checked={product.hidden} onChange={e=>set('hidden',e.target.checked)}/> مخفي</label><label><input type="checkbox" checked={product.track_stock} onChange={e=>set('track_stock',e.target.checked)}/> تتبع مخزون المنتج</label>{product.track_stock&&<label>الكمية<input className="stock-input" type="number" min="0" value={product.stock_qty??0} onChange={e=>set('stock_qty',Number(e.target.value))}/></label>}</div><h3>الأوزان / الأحجام / الخيارات</h3><datalist id="selling-units-list">{data!.units.filter(u=>u.active).map(u=><option key={u.id} value={u.name_ar}/>)}</datalist><div className="option-list">{[...product.options].sort((a,b)=>a.display_order-b.display_order).map(o=><div className="option-row final-option-row" key={o.id}><input list="selling-units-list" placeholder="مثال: نصف كيلو" value={o.name_ar} onChange={e=>setOpt(o.id,'name_ar',e.target.value)}/><input type="number" min="0" placeholder="السعر" value={o.price} onChange={e=>setOpt(o.id,'price',Number(e.target.value))}/><input type="number" min="0" placeholder="السعر القديم" value={o.old_price??''} onChange={e=>setOpt(o.id,'old_price',e.target.value===''?null:Number(e.target.value))}/><input type="number" min="0" title="الترتيب" value={o.display_order} onChange={e=>setOpt(o.id,'display_order',Number(e.target.value))}/><label><input type="checkbox" checked={o.available} onChange={e=>setOpt(o.id,'available',e.target.checked)}/> متاح</label><label><input type="checkbox" checked={o.track_stock} onChange={e=>setOpt(o.id,'track_stock',e.target.checked)}/> مخزون</label>{o.track_stock&&<input type="number" min="0" title="الكمية" value={o.stock_qty??0} onChange={e=>setOpt(o.id,'stock_qty',Number(e.target.value))}/>}<button className="danger" onClick={()=>set('options',product.options.filter(x=>x.id!==o.id))}>حذف</button></div>)}</div><button className="btn secondary" onClick={()=>set('options',[...product.options,{id:uid(),product_id:product.id,name_ar:'',price:0,old_price:null,available:true,track_stock:false,stock_qty:null,display_order:product.options.length+1}])}>+ إضافة خيار</button><div className="modal-actions"><button className="btn secondary" disabled={imageBusy||busy} onClick={()=>void cancel()}>إلغاء</button><button className="btn" disabled={busy||imageBusy} onClick={onSave}>{busy?'جاري الحفظ...':'حفظ المنتج'}</button></div></div></div>;
   }
 
   function SimpleManager({kind}:{kind:'categories'|'units'|'areas'}){
     const config=kind==='categories'?{title:'الأقسام',items:data!.categories,newItem:()=>newCategory(data!.categories.length+1),save:saveCategory,del:deleteCategory}:kind==='units'?{title:'وحدات البيع',items:data!.units,newItem:()=>newUnit(data!.units.length+1),save:saveUnit,del:deleteUnit}:{title:'مناطق التوصيل',items:data!.deliveryAreas,newItem:()=>newArea(data!.deliveryAreas.length+1),save:saveDeliveryArea,del:deleteDeliveryArea};
-    const [items,setItems]=useState<any[]>(structuredClone(config.items)); const [msg,setMsg]=useState(''); useEffect(()=>setItems(structuredClone(config.items)),[config.items.length]);
+    const [items,setItems]=useState<any[]>(structuredClone(config.items));
+    const [msg,setMsg]=useState('');
+    const [dragId,setDragId]=useState('');
+    const [pendingDelete,setPendingDelete]=useState<{item:any,timer:number}|null>(null);
+    const sourceSnapshot=JSON.stringify(config.items);
+    const dirty=JSON.stringify(items)!==sourceSnapshot;
+    useUnsavedChanges(dirty);
+    useEffect(()=>setItems(structuredClone(config.items)),[sourceSnapshot]);
+
     const commit=async(item:any)=>{if(!item.name_ar?.trim())return setMsg('اكتب الاسم أولًا.');if(kind==='areas'&&Number(item.fee)<0)return setMsg('رسوم التوصيل لا يمكن أن تكون سالبة.');try{await config.save(item as any);await refresh();setMsg('تم الحفظ بنجاح.')}catch(e:any){setMsg(e?.message||'تعذر الحفظ')}};
-    const remove=async(x:any)=>{let warning='تأكيد الحذف؟';if(kind==='categories'){const used=data!.products.filter(p=>p.category_id===x.id).length;if(used)warning=`هذا القسم مستخدم في ${used} منتج. حذف القسم سيجعل هذه المنتجات بدون قسم. هل تريد المتابعة؟`;}if(kind==='units'){const used=data!.products.flatMap(p=>p.options).filter(o=>o.name_ar===x.name_ar).length;if(used)warning=`هذه الوحدة مستخدمة في ${used} خيار بيع. المنتجات الحالية لن تتعطل لأن اسم الوحدة محفوظ داخل الخيار، لكن لن تظهر الوحدة للاختيار مستقبلًا. هل تريد المتابعة؟`;}if(confirm(warning)){try{await config.del(x.id);await refresh();setMsg('تم الحذف.')}catch(e:any){setMsg(e?.message||'تعذر الحذف')}}};
-    return <><PageTitle actions={<button className="btn" onClick={()=>setItems(x=>[...x,config.newItem()])}>+ إضافة</button>}>{config.title}</PageTitle>{kind==='areas'&&!data!.settings.delivery_enabled&&<div className="info-box">التوصيل غير مفعل حاليًا. يمكنك تجهيز المناطق الآن ولن تظهر للعملاء إلا بعد تفعيل التوصيل.</div>}{msg&&<p className={msg.includes('بنجاح')?'success-text':'info-text'}>{msg}</p>}<div className="list-editor">{items.sort((a,b)=>a.display_order-b.display_order).map(x=><div className="list-edit-row" key={x.id}><input value={x.name_ar} placeholder="الاسم" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,name_ar:e.target.value}:y))}/>{kind==='areas'&&<input type="number" min="0" value={x.fee} placeholder="رسوم التوصيل" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,fee:Number(e.target.value)}:y))}/>}<input className="small-input" type="number" value={x.display_order} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,display_order:Number(e.target.value)}:y))}/><label><input type="checkbox" checked={kind==='categories'?x.visible:kind==='units'?x.active:x.enabled} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,[kind==='categories'?'visible':kind==='units'?'active':'enabled']:e.target.checked}:y))}/> ظاهر/فعال</label><button onClick={()=>commit(x)}>حفظ</button><button className="danger" onClick={()=>void remove(x)}>حذف</button></div>)}</div></>;
+    const warningFor=(x:any)=>{let warning='إخفاء العنصر الآن وحذفه بعد 10 ثوانٍ؟ يمكنك التراجع خلال المهلة.';if(kind==='categories'){const used=data!.products.filter(p=>p.category_id===x.id).length;if(used)warning=`القسم مستخدم في ${used} منتج. بعد الحذف تصبح المنتجات بدون قسم. يمكنك التراجع خلال 10 ثوانٍ.`;}if(kind==='units'){const used=data!.products.flatMap(p=>p.options).filter(o=>o.name_ar===x.name_ar).length;if(used)warning=`الوحدة مستخدمة في ${used} خيار بيع. لن تتعطل الخيارات الحالية، ويمكنك التراجع خلال 10 ثوانٍ.`;}return warning};
+    const remove=(x:any)=>{if(pendingDelete)return setMsg('يوجد حذف قابل للتراجع حاليًا. انتظر أو تراجع أولًا.');if(!confirm(warningFor(x)))return;const timer=window.setTimeout(async()=>{try{await config.del(x.id);await refresh();setMsg('تم الحذف.')}catch(e:any){setMsg(e?.message||'تعذر الحذف')}finally{setPendingDelete(null)}},10000);setPendingDelete({item:x,timer})};
+    const undoDelete=()=>{if(!pendingDelete)return;window.clearTimeout(pendingDelete.timer);setPendingDelete(null);setMsg('تم التراجع عن الحذف.');};
+    const drop=async(targetId:string)=>{
+      if(!dragId||dragId===targetId)return setDragId('');
+      const ordered=[...items].sort((a,b)=>a.display_order-b.display_order);
+      const from=ordered.findIndex(x=>x.id===dragId),to=ordered.findIndex(x=>x.id===targetId);
+      if(from<0||to<0)return setDragId('');
+      const [picked]=ordered.splice(from,1);ordered.splice(to,0,picked);
+      const next=ordered.map((x,i)=>({...x,display_order:i+1}));
+      setItems(next);setDragId('');
+      try{await Promise.all(next.map(x=>config.save(x as any)));await refresh();setMsg('تم تحديث الترتيب.')}catch(e:any){setMsg(e?.message||'تعذر تحديث الترتيب.')}
+    };
+
+    const visible=[...items].filter(x=>x.id!==pendingDelete?.item.id).sort((a,b)=>a.display_order-b.display_order);
+    return <><PageTitle actions={<button className="btn" onClick={()=>setItems(x=>[...x,config.newItem()])}>+ إضافة</button>}>{config.title}</PageTitle>
+      {kind==='areas'&&!data!.settings.delivery_enabled&&<div className="info-box">التوصيل غير مفعل حاليًا. يمكنك تجهيز المناطق الآن ولن تظهر للعملاء إلا بعد تفعيل التوصيل.</div>}
+      {msg&&<p className={msg.includes('تم')?'success-text':'info-text'}>{msg}</p>}
+      <p className="muted drag-help">اسحب أي صف لتغيير ترتيبه، أو عدّل رقم الترتيب يدويًا.</p>
+      <div className="list-editor">{visible.map(x=><div className={dragId===x.id?'list-edit-row dragging-row':'list-edit-row'} draggable onDragStart={()=>setDragId(x.id)} onDragEnd={()=>setDragId('')} onDragOver={e=>e.preventDefault()} onDrop={()=>void drop(x.id)} key={x.id}><span className="drag-handle" aria-hidden="true">⋮⋮</span><input value={x.name_ar} placeholder="الاسم" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,name_ar:e.target.value}:y))}/>{kind==='areas'&&<input type="number" min="0" value={x.fee} placeholder="رسوم التوصيل" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,fee:Number(e.target.value)}:y))}/>}<input className="small-input" aria-label="ترتيب الظهور" type="number" value={x.display_order} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,display_order:Number(e.target.value)}:y))}/><label><input type="checkbox" checked={kind==='categories'?x.visible:kind==='units'?x.active:x.enabled} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,[kind==='categories'?'visible':kind==='units'?'active':'enabled']:e.target.checked}:y))}/> ظاهر/فعال</label><button onClick={()=>void commit(x)}>حفظ</button><button className="danger" onClick={()=>remove(x)}>حذف</button></div>)}</div>
+      {pendingDelete&&<div className="undo-toast" role="status"><span>سيتم حذف «{pendingDelete.item.name_ar}» خلال 10 ثوانٍ.</span><button onClick={undoDelete}>تراجع</button></div>}
+    </>;
   }
 
 

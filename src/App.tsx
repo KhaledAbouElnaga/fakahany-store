@@ -11,9 +11,10 @@ import NotFoundPage from './pages/NotFoundPage';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import NetworkStatus from './components/NetworkStatus';
 import PublicStoreGate from './components/PublicStoreGate';
+import PwaUpdateToast from './components/PwaUpdateToast';
 
 export default function App(){
-  return <AppErrorBoundary><BrowserRouter><StoreProvider><CartProvider><NetworkStatus/><Routes>
+  return <AppErrorBoundary><BrowserRouter><StoreProvider><CartProvider><NetworkStatus/><PwaUpdateToast/><Routes>
     <Route path="/" element={<PublicStoreGate><Storefront/></PublicStoreGate>}/>
     <Route path="/cart" element={<PublicStoreGate><CartPage/></PublicStoreGate>}/>
     <Route path="/checkout" element={<PublicStoreGate><CheckoutPage/></PublicStoreGate>}/>

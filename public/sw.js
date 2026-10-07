@@ -1,4 +1,4 @@
-const CACHE = 'fakahany-final-v2';
+const CACHE = 'fakahany-final-v3';
 const APP_SHELL = ['/', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', event => {
@@ -53,3 +53,5 @@ self.addEventListener('fetch', event => {
     })
   );
 });
+
+self.addEventListener('message',event=>{if(event.data?.type==='SKIP_WAITING')self.skipWaiting();});

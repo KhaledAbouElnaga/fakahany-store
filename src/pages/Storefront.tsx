@@ -7,7 +7,7 @@ import ProductCard from '../components/ProductCard';
 import ProductQuickView from '../components/ProductQuickView';
 import { useCart } from '../contexts/CartContext';
 import { useStore } from '../contexts/StoreContext';
-import { isOutOfStock, normalizeWhatsAppNumber, storeStatusText, updatePageMeta } from '../lib/utils';
+import { getPublicBaseUrl, isOutOfStock, normalizeWhatsAppNumber, smartArabicMatch, storeStatusText, updatePageMeta } from '../lib/utils';
 import { recordVisit } from '../lib/storeApi';
 import type { Order, Product } from '../types';
 
@@ -19,6 +19,8 @@ export default function Storefront() {
   const [availableOnly,setAvailableOnly]=useState(false);
   const [offersOnly,setOffersOnly]=useState(false);
   const [featuredOnly,setFeaturedOnly]=useState(false);
+  const [favoritesOnly,setFavoritesOnly]=useState(false);
+  const [favorites,setFavorites]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('fakahany-favorites')||'[]')}catch{return []}});
   const [sort,setSort]=useState<'display'|'priceAsc'|'priceDesc'|'name'>('display');
   const [quickProduct,setQuickProduct]=useState<Product|null>(null);
   const [qrOpen,setQrOpen]=useState(false);
@@ -27,6 +29,7 @@ export default function Storefront() {
 
   useEffect(()=>{ if(data) updatePageMeta(data.settings); },[data]);
   useEffect(()=>{ void recordVisit(); try{const x=JSON.parse(localStorage.getItem('fakahany-last-order')||'null');setLastOrder(x)}catch{} },[]);
+  useEffect(()=>{localStorage.setItem('fakahany-favorites',JSON.stringify(favorites))},[favorites]);
 
   if (loading) return <Loading/>;
   if (error || !data) return <div className="center-state error-state"><p>{error || 'تعذر تحميل المتجر'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
@@ -34,24 +37,26 @@ export default function Storefront() {
   const visible = data.products.filter(p => !p.hidden);
   const priceOf=(p:typeof visible[number])=>Math.min(...p.options.filter(o=>o.available).map(o=>Number(o.price)),Number.MAX_SAFE_INTEGER);
   const filtered = visible.filter(p => {
-    const matchesSearch = !search.trim() || `${p.name_ar} ${p.description_ar}`.includes(search.trim());
+    const matchesSearch = !search.trim() || smartArabicMatch(`${p.name_ar} ${p.description_ar}`,search);
     const matchesCat = category === 'all' || p.category_id === category;
     const available = p.available && !isOutOfStock(p) && p.options.some(o=>o.available&&(!o.track_stock||Number(o.stock_qty??0)>0));
     const offer=p.options.some(o=>o.old_price&&o.old_price>o.price);
-    return matchesSearch && matchesCat && (!availableOnly||available) && (!offersOnly||offer) && (!featuredOnly||p.featured);
+    return matchesSearch && matchesCat && (!availableOnly||available) && (!offersOnly||offer) && (!featuredOnly||p.featured) && (!favoritesOnly||favorites.includes(p.id));
   }).sort((a,b)=>sort==='priceAsc'?priceOf(a)-priceOf(b):sort==='priceDesc'?priceOf(b)-priceOf(a):sort==='name'?a.name_ar.localeCompare(b.name_ar,'ar'):a.display_order-b.display_order);
   const featured = visible.filter(p => p.featured).sort((a,b) => a.display_order - b.display_order);
   const offers = visible.filter(p => p.options.some(o => o.old_price && o.old_price > o.price)).sort((a,b) => a.display_order - b.display_order);
   const storeOpen = settings.store_status_mode==='open' || settings.store_status_mode==='auto' && storeStatusText(settings).startsWith('مفتوح');
   const wa=normalizeWhatsAppNumber(settings.whatsapp_number);
 
-  const card=(p:Product)=><ProductCard key={p.id} product={p} lowStockThreshold={settings.low_stock_threshold} onQuickView={setQuickProduct}/>;
+  const toggleFavorite=(p:Product)=>setFavorites(v=>v.includes(p.id)?v.filter(x=>x!==p.id):[...v,p.id]);
+  const card=(p:Product)=><ProductCard key={p.id} product={p} lowStockThreshold={settings.low_stock_threshold} onQuickView={setQuickProduct} favorite={favorites.includes(p.id)} onToggleFavorite={settings.feature_flags.favorites?toggleFavorite:undefined}/>;
 
   const shareStore=async()=>{
-    const payload={title:settings.store_name,text:`تسوق من ${settings.store_name}`,url:window.location.origin};
+    const url=getPublicBaseUrl(settings);
+    const payload={title:settings.store_name,text:`تسوق من ${settings.store_name}`,url};
     try{
       if(navigator.share){await navigator.share(payload)}
-      else{await navigator.clipboard.writeText(window.location.origin);setShareMsg('تم نسخ رابط المتجر');setTimeout(()=>setShareMsg(''),1800)}
+      else{await navigator.clipboard.writeText(url);setShareMsg('تم نسخ رابط المتجر');setTimeout(()=>setShareMsg(''),1800)}
     }catch{}
   };
 
@@ -73,7 +78,8 @@ export default function Storefront() {
   return <>
     <Header settings={settings} showCart={false}/>
     <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
-    <main className="container storefront">
+    <a className="skip-link" href="#store-main">تخطي إلى المحتوى</a>
+    <main className="container storefront" id="store-main" tabIndex={-1}>
       <section className="hero" style={settings.banner_url ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.08),rgba(0,0,0,.6)),url(${settings.banner_url})` } : undefined}>
         <div><h1>{settings.hero_title}</h1><p>{settings.hero_subtitle}</p>{settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}</div>
       </section>
@@ -81,16 +87,17 @@ export default function Storefront() {
       <div className="store-action-row">
         <button className="soft-action" onClick={shareStore}>مشاركة المتجر</button>
         <button className="soft-action" onClick={()=>setQrOpen(true)}>رمز المتجر</button>
-        {lastOrder&&<button className="soft-action" onClick={reorder}>إعادة آخر طلب</button>}
+        {settings.feature_flags.reorder&&lastOrder&&<button className="soft-action" onClick={reorder}>إعادة آخر طلب</button>}
         {shareMsg&&<span className="inline-feedback">{shareMsg}</span>}
       </div>
 
-      {settings.show_search && <div className="search-wrap"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث عن منتج"/><span>⌕</span></div>}
-      {settings.show_categories && <div className="category-chips"><button className={category==='all'?'active':''} onClick={()=>setCategory('all')}>الكل</button>{data.categories.filter(c=>c.visible).sort((a,b)=>a.display_order-b.display_order).map(c=><button key={c.id} className={category===c.id?'active':''} onClick={()=>setCategory(c.id)}>{c.name_ar}</button>)}</div>}
+      {settings.show_search && <div className="search-wrap"><label className="sr-only" htmlFor="store-search">ابحث عن منتج</label><input id="store-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث عن منتج"/><span aria-hidden="true">⌕</span></div>}
+      {settings.show_categories && <div className="category-chips"><button aria-pressed={category==='all'} className={category==='all'?'active':''} onClick={()=>setCategory('all')}>الكل</button>{data.categories.filter(c=>c.visible).sort((a,b)=>a.display_order-b.display_order).map(c=><button key={c.id} aria-pressed={category===c.id} className={category===c.id?'active':''} onClick={()=>setCategory(c.id)}>{c.name_ar}</button>)}</div>}
       <div className="store-filters">
         <button type="button" className={`filter-chip ${availableOnly?'active':''}`} aria-pressed={availableOnly} onClick={()=>setAvailableOnly(v=>!v)}>المتاح فقط</button>
         <button type="button" className={`filter-chip ${offersOnly?'active':''}`} aria-pressed={offersOnly} onClick={()=>setOffersOnly(v=>!v)}>العروض</button>
         <button type="button" className={`filter-chip ${featuredOnly?'active':''}`} aria-pressed={featuredOnly} onClick={()=>setFeaturedOnly(v=>!v)}>المميزة</button>
+        {settings.feature_flags.favorites&&<button type="button" className={`filter-chip ${favoritesOnly?'active':''}`} aria-pressed={favoritesOnly} onClick={()=>setFavoritesOnly(v=>!v)}>المفضلة {favorites.length?`(${favorites.length})`:''}</button>}
         <select aria-label="ترتيب المنتجات" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="display">ترتيب المتجر</option><option value="priceAsc">السعر: الأقل أولًا</option><option value="priceDesc">السعر: الأعلى أولًا</option><option value="name">الاسم</option></select>
       </div>
 
@@ -115,6 +122,6 @@ export default function Storefront() {
     </div>
 
     {quickProduct&&<ProductQuickView product={quickProduct} threshold={settings.low_stock_threshold} onClose={()=>setQuickProduct(null)}/>}
-    {qrOpen&&<div className="modal-backdrop" onClick={()=>setQrOpen(false)}><div className="modal-card qr-card" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>رمز المتجر</h2><button onClick={()=>setQrOpen(false)}>✕</button></div><p>امسح الرمز بالكاميرا لفتح المتجر مباشرة.</p><img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(window.location.origin)}`} alt="رمز المتجر"/><button className="btn secondary" onClick={shareStore}>مشاركة الرابط</button></div></div>}
+    {qrOpen&&<div className="modal-backdrop" onClick={()=>setQrOpen(false)}><div className="modal-card qr-card" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>رمز المتجر</h2><button onClick={()=>setQrOpen(false)}>✕</button></div><p>امسح الرمز بالكاميرا لفتح المتجر مباشرة.</p><img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(getPublicBaseUrl(settings))}`} alt="رمز المتجر"/><button className="btn secondary" onClick={shareStore}>مشاركة الرابط</button></div></div>}
   </>;
 }

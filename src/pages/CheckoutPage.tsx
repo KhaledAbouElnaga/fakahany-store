@@ -59,7 +59,7 @@ export default function CheckoutPage(){
     if(data.settings.require_address&&!form.address.trim())missingFields.push('العنوان');
     if(deliveryEnabled&&data.settings.require_area&&areas.length&&!form.areaId)missingFields.push('المنطقة');
     if(data.settings.require_notes&&!form.notes.trim())missingFields.push('الملاحظات');
-    if(data.settings.scheduled_orders_enabled&&form.timing==='scheduled'&&!form.requestedTime)missingFields.push('موعد الطلب');
+    if((data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)&&form.timing==='scheduled'&&!form.requestedTime)missingFields.push('موعد الطلب');
     if(missingFields.length)return setError(`من فضلك أكمل الحقول المطلوبة: ${missingFields.join('، ')}.`);
     if(form.phone.trim()&&!isPlausiblePhone(form.phone))return setError('رقم الهاتف غير صحيح. اكتب رقمًا مكونًا من 10 إلى 15 رقمًا.');
     if(form.timing==='scheduled'&&form.requestedTime&&new Date(form.requestedTime).getTime()<=Date.now())return setError('اختر موعدًا في المستقبل.');
@@ -70,15 +70,15 @@ export default function CheckoutPage(){
     try{
       await validateFreshCart();
       const orderId=uid(), orderNumber=makeOrderNumber();
-      const requestedTime=data.settings.scheduled_orders_enabled?(form.timing==='scheduled'?new Date(form.requestedTime).toLocaleString('ar-EG'):'في أقرب وقت'):'';
-      const requestedFor=data.settings.scheduled_orders_enabled&&form.timing==='scheduled'?new Date(form.requestedTime).toISOString():null;
+      const requestedTime=(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)?(form.timing==='scheduled'?new Date(form.requestedTime).toLocaleString('ar-EG'):'في أقرب وقت'):'';
+      const requestedFor=(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)&&form.timing==='scheduled'?new Date(form.requestedTime).toISOString():null;
       const draft:Order={id:orderId,order_number:orderNumber,created_at:new Date().toISOString(),customer_name:form.name.trim(),customer_phone:form.phone.trim(),address:form.address.trim(),area_id:deliveryEnabled?(area?.id||null):null,area_name:deliveryEnabled?(area?.name_ar||''):'',product_subtotal:subtotal,delivery_fee:deliveryFee,total,notes:form.notes.trim(),requested_time:requestedTime,requested_for:requestedFor,client_token:submissionToken.current,internal_note:'',status:'جديد',items:items.map(i=>({id:uid(),order_id:orderId,product_id:i.product_id,product_name:i.product_name,option_id:i.option_id,option_name:i.option_name,unit_price:i.unit_price,quantity:i.quantity,line_total:i.unit_price*i.quantity}))};
       const order=await saveOrder(draft);
       const values=orderTemplateValues(order,data.settings);
       let message=renderTemplate(data.settings.whatsapp_order_template,values);
       if(!deliveryEnabled){message=message.split('\n').filter(line=>!line.includes('رسوم التوصيل')&&!line.startsWith('المنطقة:')).join('\n');}
-      if(!data.settings.scheduled_orders_enabled){message=message.split('\n').filter(line=>!line.startsWith('موعد الطلب:')).join('\n');}
-      if(order.tracking_token){message+=`\n\nتتبع الطلب: ${getPublicBaseUrl(data.settings)}/track/${order.tracking_token}`;}
+      if(!(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)){message=message.split('\n').filter(line=>!line.startsWith('موعد الطلب:')).join('\n');}
+      if(data.settings.feature_flags.tracking&&order.tracking_token){message+=`\n\nتتبع الطلب: ${getPublicBaseUrl(data.settings)}/track/${order.tracking_token}`;}
       localStorage.setItem('fakahany-last-order',JSON.stringify(order));
       try{
         const now=Date.now();
@@ -100,7 +100,7 @@ export default function CheckoutPage(){
     <label><FieldTitle required={data.settings.require_phone}>رقم الهاتف</FieldTitle><input required={data.settings.require_phone} value={form.phone} onChange={e=>set('phone',e.target.value)} inputMode="tel"/></label>
     <label><FieldTitle required={data.settings.require_address}>العنوان</FieldTitle><textarea required={data.settings.require_address} value={form.address} onChange={e=>set('address',e.target.value)}/></label>
     {deliveryEnabled&&areas.length>0&&<label><FieldTitle required={data.settings.require_area}>المنطقة</FieldTitle><select required={data.settings.require_area} value={form.areaId} onChange={e=>set('areaId',e.target.value)}><option value="">اختر المنطقة</option>{areas.map(a=><option key={a.id} value={a.id}>{a.name_ar} — {money(a.fee)}</option>)}</select></label>}
-    {data.settings.scheduled_orders_enabled&&<div className="timing-box"><FieldTitle required={false}>موعد الطلب</FieldTitle><div className="timing-options"><label><input type="radio" name="timing" checked={form.timing==='asap'} onChange={()=>set('timing','asap')}/> في أقرب وقت</label><label><input type="radio" name="timing" checked={form.timing==='scheduled'} onChange={()=>set('timing','scheduled')}/> اختيار موعد</label></div>{form.timing==='scheduled'&&<><input type="datetime-local" value={form.requestedTime} onChange={e=>set('requestedTime',e.target.value)}/>{data.settings.delivery_capacity_enabled&&<small className="muted">عدد الطلبات في كل فترة محدود. إذا امتلأت الفترة سيطلب منك النظام اختيار موعد آخر.</small>}</>}</div>}
+    {(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)&&<div className="timing-box"><FieldTitle required={false}>موعد الطلب</FieldTitle><div className="timing-options"><label><input type="radio" name="timing" checked={form.timing==='asap'} onChange={()=>set('timing','asap')}/> في أقرب وقت</label><label><input type="radio" name="timing" checked={form.timing==='scheduled'} onChange={()=>set('timing','scheduled')}/> اختيار موعد</label></div>{form.timing==='scheduled'&&<><input type="datetime-local" value={form.requestedTime} onChange={e=>set('requestedTime',e.target.value)}/>{data.settings.delivery_capacity_enabled&&<small className="muted">عدد الطلبات في كل فترة محدود. إذا امتلأت الفترة سيطلب منك النظام اختيار موعد آخر.</small>}</>}</div>}
     <label><FieldTitle required={data.settings.require_notes}>ملاحظات</FieldTitle><textarea required={data.settings.require_notes} value={form.notes} onChange={e=>set('notes',e.target.value)}/></label>
     <label className="bot-trap" aria-hidden="true">الموقع<input tabIndex={-1} autoComplete="off" value={website} onChange={e=>setWebsite(e.target.value)}/></label>
   </div><div className="summary-card checkout-summary"><h3>ملخص الطلب</h3>{items.map(i=><div key={i.key}><span>{i.product_name} ({i.option_name}) × {i.quantity}</span><b>{money(i.unit_price*i.quantity)}</b></div>)}<hr/><div><span>إجمالي المنتجات</span><b>{money(subtotal)}</b></div>{deliveryEnabled&&<div><span>التوصيل</span><b>{money(deliveryFee)}</b></div>}<div className="total-row"><span>الإجمالي</span><b>{money(total)}</b></div><small className="muted">يتم التأكد من السعر والمخزون مرة أخيرة قبل تسجيل الطلب.</small>{error&&<p className="error-text form-error">{error}</p>}<button className="btn whatsapp" disabled={busy} onClick={submit}>{busy?'جاري مراجعة الطلب...':'تسجيل الطلب وفتح واتساب'}</button><Link className="btn secondary block" to="/cart">العودة للسلة</Link></div></div></main></>;

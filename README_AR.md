@@ -34,6 +34,7 @@
 11. `supabase/migrations/20261007_reliability_growth_pack.sql`
 12. `supabase/migrations/20261007_reliability_indexes.sql`
 13. `supabase/migrations/20261007_productization_admin_pack.sql`
+14. `supabase/migrations/20261007_production_polish_suite.sql`
 
 لا تضع مفاتيح Supabase الحقيقية داخل GitHub. ملف `.env` مستبعد من Git.
 
@@ -148,3 +149,26 @@ npm run build
 - تصدير واستيراد قالب المتجر لتسهيل استنساخ الإعدادات والمنتجات.
 - مدد احتفاظ قابلة للتعديل لسجل النشاط وحركات المخزون وإحصاءات الزيارات.
 - المالك يمكنه إيقاف حساب الموظف أو حذفه من نظام المتجر وإلغاء وصوله فورًا. حساب المالك نفسه محمي من الحذف.
+
+
+## Production Polish Suite
+
+- E2E tests آلية لمسار التسوق ولوحة الإدارة وصفحة 404.
+- Visual Regression workflow يحفظ Baseline من main ويقارن به Pull Requests التالية.
+- حماية من فقدان التعديلات غير المحفوظة.
+- حذف قابل للتراجع للمنتجات والأقسام والوحدات والمناطق.
+- Drag & Drop لترتيب المنتجات والقوائم الإدارية.
+- Quick Add للمنتجات، مع بقاء Duplicate Product.
+- بحث عربي محسّن يدعم اختلافات الكتابة وأخطاء بسيطة.
+- Favorites محلية بدون حساب أو جداول إضافية.
+- Reorder للطلب السابق باستخدام الأسعار والمخزون الحاليين.
+- تحسينات Accessibility وKeyboard Focus وReduced Motion.
+- PWA Update Prompt لتحديث النسخة بدون انتظار Cache قديم.
+- Code Splitting لأقسام الإدارة الثقيلة.
+- Error Logging محدود إلى 1000 سجل / 30 يوم بدون تخزين بيانات شخصية مباشرة.
+- MFA TOTP للمالك مع Enforcement في قاعدة البيانات.
+- Clone Import v2 مع Preview وID Mapping وMerge / Replace ودعم v1.
+- Release Notes داخل لوحة الإدارة.
+- Feature Flags لميزات العميل المختلفة.
+- Dashboard Widgets قابلة للتخصيص.
+- حذف حساب الموظف من Supabase Auth عبر Edge Function آمنة ومقصورة على المالك.
