@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { StoreSnapshot } from '../types';
 import { loadStore } from '../lib/storeApi';
+import { applyTheme } from '../lib/utils';
 
 interface StoreContextValue {
   data: StoreSnapshot | null;
@@ -18,7 +19,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const refresh = async () => {
     setLoading(true); setError('');
-    try { setData(await loadStore()); }
+    try { const next=await loadStore(); applyTheme(next.settings); setData(next); }
     catch (e: any) { setError(e?.message || 'تعذر تحميل بيانات المتجر.'); }
     finally { setLoading(false); }
   };
