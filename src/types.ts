@@ -75,6 +75,7 @@ export interface ShopSettings {
     reports: boolean;
     staff: boolean;
     scheduled_prices: boolean;
+    scheduled_orders: boolean;
     inventory: boolean;
     favorites: boolean;
     reorder: boolean;
