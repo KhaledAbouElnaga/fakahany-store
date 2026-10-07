@@ -84,11 +84,20 @@ export default function Storefront() {
         <div><h1>{settings.hero_title}</h1><p>{settings.hero_subtitle}</p>{settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}</div>
       </section>
 
-      <div className="store-action-row">
-        <button className="soft-action" onClick={shareStore}>مشاركة المتجر</button>
-        <button className="soft-action" onClick={()=>setQrOpen(true)}>رمز المتجر</button>
-        {settings.feature_flags.reorder&&lastOrder&&<button className="soft-action" onClick={reorder}>إعادة آخر طلب</button>}
-        {shareMsg&&<span className="inline-feedback">{shareMsg}</span>}
+      <div className="store-action-row" aria-label="إجراءات المتجر">
+        <button type="button" className="soft-action" onClick={shareStore}>
+          <svg className="soft-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a3 3 0 1 0-2.83-4A3 3 0 0 0 15 5c0 .3.04.58.12.85l-6.3 3.15a3 3 0 1 0 0 6l6.3 3.15A3 3 0 0 0 15 19a3 3 0 1 0 .88-2.12l-6.3-3.15a3 3 0 0 0 0-1.46l6.3-3.15A3 3 0 0 0 18 8Z"/></svg>
+          <span>مشاركة المتجر</span>
+        </button>
+        <button type="button" className="soft-action" onClick={()=>setQrOpen(true)} aria-label="عرض رمز QR للمتجر">
+          <svg className="soft-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h2v2h-2v-2Zm4 0h2v4h-2v-4Zm-4 4h4v2h-4v-2Z"/></svg>
+          <span>رمز QR</span>
+        </button>
+        {settings.feature_flags.reorder&&lastOrder&&<button type="button" className="soft-action" onClick={reorder}>
+          <svg className="soft-action-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4v6h6M20 20v-6h-6M5.6 15A7 7 0 0 0 18 17.2M18.4 9A7 7 0 0 0 6 6.8"/></svg>
+          <span>إعادة آخر طلب</span>
+        </button>}
+        {shareMsg&&<span className="inline-feedback" role="status" aria-live="polite">{shareMsg}</span>}
       </div>
 
       {settings.show_search && <div className="search-wrap"><label className="sr-only" htmlFor="store-search">ابحث عن منتج</label><input id="store-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث عن منتج"/><span aria-hidden="true">⌕</span></div>}
@@ -106,7 +115,16 @@ export default function Storefront() {
       <section><div className="section-title"><h2>{search ? 'نتائج البحث' : category==='all' ? 'كل المنتجات' : 'المنتجات'}</h2><small>{filtered.length} منتج</small></div>{filtered.length ? <div className="product-grid">{filtered.map(card)}</div> : <div className="empty-state">لم يتم العثور على نتائج</div>}</section>
     </main>
 
-    <footer className="store-footer"><div className="container footer-inner"><div><strong>{settings.store_name}</strong>{settings.address&&<span>{settings.address}</span>}{settings.phone&&<a href={`tel:${settings.phone}`}>{settings.phone}</a>}</div><InstallPwaButton/></div></footer>
+    <footer className="store-footer"><div className="container footer-inner">
+      <div className="footer-store-card">
+        <div className="footer-store-copy"><strong>{settings.store_name}</strong>{settings.address&&<span className="footer-address">{settings.address}</span>}</div>
+        {settings.phone&&<a className="footer-phone" href={`tel:${settings.phone}`} aria-label={`اتصال بـ ${settings.store_name} على ${settings.phone}`}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24c1.1.36 2.3.55 3.6.55a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.6 21 3 13.4 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.3.2 2.5.56 3.6a1 1 0 0 1-.25 1Z"/></svg>
+          <span dir="ltr">{settings.phone}</span>
+        </a>}
+      </div>
+      <InstallPwaButton/>
+    </div></footer>
 
     <Link to="/cart" className="floating-cart-circle" aria-label={`السلة: ${count} منتج، الإجمالي ${subtotal.toLocaleString('ar-EG')} جنيه`} title="السلة">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 8H7.1M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>
