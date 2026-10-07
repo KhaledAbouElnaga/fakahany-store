@@ -200,7 +200,7 @@ export async function runDataRetentionCleanup():Promise<{audit_deleted:number;in
 
 export async function removeStaffMember(userId:string):Promise<void>{
   if(!supabaseConfigured||!supabase)return;
-  const {error}=await supabase.rpc('remove_staff_member',{user_id_input:userId});
+  const {error}=await supabase.functions.invoke('delete-staff-user',{body:{user_id:userId}});
   if(error)throw error;
 }
 
