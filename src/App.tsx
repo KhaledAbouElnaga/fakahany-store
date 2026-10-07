@@ -14,15 +14,25 @@ import PublicStoreGate from './components/PublicStoreGate';
 import PwaUpdateToast from './components/PwaUpdateToast';
 import PlatformAdminPage from './pages/PlatformAdminPage';
 
-export default function App(){
-  return <AppErrorBoundary><BrowserRouter><StoreProvider><CartProvider><NetworkStatus/><PwaUpdateToast/><Routes>
+function StoreScopedRoutes(){
+  return <StoreProvider><CartProvider><Routes>
     <Route path="/" element={<PublicStoreGate><Storefront/></PublicStoreGate>}/>
     <Route path="/cart" element={<PublicStoreGate><CartPage/></PublicStoreGate>}/>
     <Route path="/checkout" element={<PublicStoreGate><CheckoutPage/></PublicStoreGate>}/>
     <Route path="/order-success" element={<OrderSuccessPage/>}/>
     <Route path="/track/:token" element={<OrderTrackingPage/>}/>
     <Route path="/admin/*" element={<AdminPage/>}/>
-    <Route path="/platform" element={<PlatformAdminPage/>}/>
     <Route path="*" element={<NotFoundPage/>}/>
-  </Routes></CartProvider></StoreProvider></BrowserRouter></AppErrorBoundary>;
+  </Routes></CartProvider></StoreProvider>;
+}
+
+export default function App(){
+  return <AppErrorBoundary><BrowserRouter>
+    <NetworkStatus/>
+    <PwaUpdateToast/>
+    <Routes>
+      <Route path="/platform" element={<PlatformAdminPage/>}/>
+      <Route path="/*" element={<StoreScopedRoutes/>}/>
+    </Routes>
+  </BrowserRouter></AppErrorBoundary>;
 }
