@@ -19,7 +19,7 @@ export default function AdminGlobalSearch({onNavigate}:{onNavigate:(tab:'orders'
 
   const go=(r:AdminSearchResult)=>{onNavigate(r.kind==='order'?'orders':r.kind==='product'?'products':'staff');setOpen(false);setQ('')};
   return <div className="admin-global-search">
-    <button className="admin-search-trigger" type="button" onClick={()=>setOpen(true)}>⌕ بحث شامل</button>
+    <button className="admin-search-trigger" type="button" onClick={()=>setOpen(true)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><span>بحث شامل</span></button>
     {open&&<div className="modal-backdrop" onClick={()=>setOpen(false)}><div className="modal-card global-search-modal" onClick={e=>e.stopPropagation()}>
       <div className="modal-head"><h2>بحث في لوحة الإدارة</h2><button onClick={()=>setOpen(false)}>✕</button></div>
       <input autoFocus value={q} onChange={e=>setQ(e.target.value)} placeholder="رقم طلب، هاتف، منتج أو موظف"/>

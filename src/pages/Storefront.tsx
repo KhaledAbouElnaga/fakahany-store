@@ -100,14 +100,16 @@ export default function Storefront() {
         {shareMsg&&<span className="inline-feedback" role="status" aria-live="polite">{shareMsg}</span>}
       </div>
 
-      {settings.show_search && <div className="search-wrap"><label className="sr-only" htmlFor="store-search">ابحث عن منتج</label><input id="store-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث عن منتج"/><span aria-hidden="true">⌕</span></div>}
+      {settings.show_search && <div className="search-wrap"><label className="sr-only" htmlFor="store-search">ابحث عن منتج</label><input id="store-search" value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث عن منتج"/><svg className="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg></div>}
       {settings.show_categories && <div className="category-chips"><button aria-pressed={category==='all'} className={category==='all'?'active':''} onClick={()=>setCategory('all')}>الكل</button>{data.categories.filter(c=>c.visible).sort((a,b)=>a.display_order-b.display_order).map(c=><button key={c.id} aria-pressed={category===c.id} className={category===c.id?'active':''} onClick={()=>setCategory(c.id)}>{c.name_ar}</button>)}</div>}
-      <div className="store-filters">
-        <button type="button" className={`filter-chip ${availableOnly?'active':''}`} aria-pressed={availableOnly} onClick={()=>setAvailableOnly(v=>!v)}>المتاح فقط</button>
-        <button type="button" className={`filter-chip ${offersOnly?'active':''}`} aria-pressed={offersOnly} onClick={()=>setOffersOnly(v=>!v)}>العروض</button>
-        <button type="button" className={`filter-chip ${featuredOnly?'active':''}`} aria-pressed={featuredOnly} onClick={()=>setFeaturedOnly(v=>!v)}>المميزة</button>
-        {settings.feature_flags.favorites&&<button type="button" className={`filter-chip ${favoritesOnly?'active':''}`} aria-pressed={favoritesOnly} onClick={()=>setFavoritesOnly(v=>!v)}>المفضلة {favorites.length?`(${favorites.length})`:''}</button>}
-        <select aria-label="ترتيب المنتجات" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="display">ترتيب المتجر</option><option value="priceAsc">السعر: الأقل أولًا</option><option value="priceDesc">السعر: الأعلى أولًا</option><option value="name">الاسم</option></select>
+      <div className="store-filters" aria-label="فلترة وترتيب المنتجات">
+        <div className="filter-chip-group">
+          <button type="button" className={`filter-chip ${availableOnly?'active':''}`} aria-pressed={availableOnly} onClick={()=>setAvailableOnly(v=>!v)}>المتاح فقط</button>
+          <button type="button" className={`filter-chip ${offersOnly?'active':''}`} aria-pressed={offersOnly} onClick={()=>setOffersOnly(v=>!v)}>العروض</button>
+          <button type="button" className={`filter-chip ${featuredOnly?'active':''}`} aria-pressed={featuredOnly} onClick={()=>setFeaturedOnly(v=>!v)}>المميزة</button>
+          {settings.feature_flags.favorites&&<button type="button" className={`filter-chip ${favoritesOnly?'active':''}`} aria-pressed={favoritesOnly} onClick={()=>setFavoritesOnly(v=>!v)}>المفضلة {favorites.length?`(${favorites.length})`:''}</button>}
+        </div>
+        <label className="sort-control"><span>الترتيب</span><select aria-label="ترتيب المنتجات" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="display">ترتيب المتجر</option><option value="priceAsc">السعر: الأقل أولًا</option><option value="priceDesc">السعر: الأعلى أولًا</option><option value="name">الاسم</option></select></label>
       </div>
 
       {!search && category==='all' && !offersOnly && !featuredOnly && settings.show_featured && featured.length>0 && <section><div className="section-title"><h2>منتجات مميزة</h2></div><div className="product-grid">{featured.map(card)}</div></section>}
