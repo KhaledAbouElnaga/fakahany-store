@@ -88,10 +88,10 @@ export default function Storefront() {
       {settings.show_search && <div className="search-wrap"><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="ابحث عن منتج"/><span>⌕</span></div>}
       {settings.show_categories && <div className="category-chips"><button className={category==='all'?'active':''} onClick={()=>setCategory('all')}>الكل</button>{data.categories.filter(c=>c.visible).sort((a,b)=>a.display_order-b.display_order).map(c=><button key={c.id} className={category===c.id?'active':''} onClick={()=>setCategory(c.id)}>{c.name_ar}</button>)}</div>}
       <div className="store-filters">
-        <label><input type="checkbox" checked={availableOnly} onChange={e=>setAvailableOnly(e.target.checked)}/> المتاح فقط</label>
-        <label><input type="checkbox" checked={offersOnly} onChange={e=>setOffersOnly(e.target.checked)}/> العروض</label>
-        <label><input type="checkbox" checked={featuredOnly} onChange={e=>setFeaturedOnly(e.target.checked)}/> المميزة</label>
-        <select value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="display">ترتيب المتجر</option><option value="priceAsc">السعر: الأقل أولًا</option><option value="priceDesc">السعر: الأعلى أولًا</option><option value="name">الاسم</option></select>
+        <button type="button" className={`filter-chip ${availableOnly?'active':''}`} aria-pressed={availableOnly} onClick={()=>setAvailableOnly(v=>!v)}>المتاح فقط</button>
+        <button type="button" className={`filter-chip ${offersOnly?'active':''}`} aria-pressed={offersOnly} onClick={()=>setOffersOnly(v=>!v)}>العروض</button>
+        <button type="button" className={`filter-chip ${featuredOnly?'active':''}`} aria-pressed={featuredOnly} onClick={()=>setFeaturedOnly(v=>!v)}>المميزة</button>
+        <select aria-label="ترتيب المنتجات" value={sort} onChange={e=>setSort(e.target.value as typeof sort)}><option value="display">ترتيب المتجر</option><option value="priceAsc">السعر: الأقل أولًا</option><option value="priceDesc">السعر: الأعلى أولًا</option><option value="name">الاسم</option></select>
       </div>
 
       {!search && category==='all' && !offersOnly && !featuredOnly && settings.show_featured && featured.length>0 && <section><div className="section-title"><h2>منتجات مميزة</h2></div><div className="product-grid">{featured.map(card)}</div></section>}
