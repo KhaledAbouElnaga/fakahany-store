@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadOrders, loadOrderStatuses, updateOrderStatus } from '../../lib/storeApi';
-import { downloadCsv, downloadText, money, orderTemplateValues, printOrder, renderTemplate } from '../../lib/utils';
+import { downloadCsv, downloadText, money, orderTemplateValues, printOrder, printThermalReceipt, renderTemplate } from '../../lib/utils';
 import type { Order, OrderStatusDefinition, ShopSettings } from '../../types';
 import OrderEditModal from './OrderEditModal';
 import OrderOperationsDetails from './OrderOperationsDetails';
@@ -14,6 +14,7 @@ export default function OrdersManager({settings,onNewCount,onOpenStatuses,canMan
   const [from,setFrom]=useState('');
   const [to,setTo]=useState('');
   const [msg,setMsg]=useState('');
+  const [now,setNow]=useState(()=>Date.now());
 
   const reload=async()=>{
     const [current,statusList]=await Promise.all([loadOrders(),loadOrderStatuses()]);
@@ -23,6 +24,7 @@ export default function OrdersManager({settings,onNewCount,onOpenStatuses,canMan
   };
 
   useEffect(()=>{void reload()},[]);
+  useEffect(()=>{const id=window.setInterval(()=>setNow(Date.now()),60000);return()=>window.clearInterval(id)},[]);
 
   const filtered=useMemo(()=>{
     if(!orders)return [];
@@ -69,15 +71,17 @@ export default function OrdersManager({settings,onNewCount,onOpenStatuses,canMan
 
     {!filtered.length?<div className="empty-state">لا توجد طلبات مطابقة.</div>:<div className="table-wrap"><table className="mobile-card-table orders-admin-table"><thead><tr><th>رقم الطلب</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة والإجراءات</th></tr></thead><tbody>{filtered.map(o=>{
       const definition=statusMap.get(o.status);
+      const ageMinutes=Math.floor((now-new Date(o.created_at).getTime())/60000);
+      const overdue=Boolean(definition?.is_new&&ageMinutes>=Math.max(1,settings.order_alert_minutes||15));
       const options=activeStatuses.some(s=>s.name===o.status)?activeStatuses:[{id:'legacy-'+o.id,name:o.status,note:'',display_order:-1,active:false,is_new:false,is_completed:false,is_cancelled:false},...activeStatuses];
-      return <tr key={o.id}>
-        <td data-label="رقم الطلب">#{o.order_number}</td>
+      return <tr key={o.id} className={overdue?'order-overdue':''}>
+        <td data-label="رقم الطلب"><b>#{o.order_number}</b>{overdue&&<small className="order-age-alert">منتظر منذ {ageMinutes} دقيقة</small>}</td>
         <td data-label="العميل">{o.customer_name||'—'}<small className="block">{o.customer_phone||'—'}</small></td>
         <td data-label="التاريخ">{new Date(o.created_at).toLocaleString('ar-EG')}</td>
         <td data-label="الإجمالي">{money(o.total)}</td>
         <td data-label="الحالة والإجراءات">
           <div className="order-status-box">{canManage?<select value={o.status} onChange={e=>void changeStatus(o,e.target.value)}>{options.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}</select>:<b>{o.status}</b>}{definition?.note&&<small className="status-note">{definition.note}</small>}</div>
-          <div className="order-action-row">{canManage&&<button onClick={()=>setEditing(o)}>تعديل الطلب</button>}<button onClick={()=>printOrder(o,settings)}>طباعة</button><button onClick={()=>downloadOrder(o)}>تنزيل</button></div>
+          <div className="order-action-row">{canManage&&<button onClick={()=>setEditing(o)}>تعديل الطلب</button>}<button onClick={()=>printOrder(o,settings)}>طباعة A4</button><button onClick={()=>printThermalReceipt(o,settings)}>فاتورة 80mm</button><button onClick={()=>downloadOrder(o)}>تنزيل</button></div>
           <details><summary>التفاصيل والسجل</summary><div className="order-details">
             {o.items.map(i=><p key={i.id}>{i.product_name} — {i.option_name} × {i.quantity} = {money(i.line_total)}</p>)}
             <p><b>العنوان:</b> {o.address||'—'}</p>

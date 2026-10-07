@@ -5,6 +5,16 @@ export const moneyEn = (value: number) => `${Number(value || 0).toLocaleString('
 
 export const uid = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+
+export function applyTheme(settings: Pick<ShopSettings,'theme_preset'>) {
+  document.documentElement.dataset.theme = settings.theme_preset || 'green';
+}
+
+export function getPublicBaseUrl(settings?: Pick<ShopSettings,'public_site_url'>) {
+  const configured=(settings?.public_site_url||'').trim().replace(/\/$/,'');
+  return configured || window.location.origin;
+}
+
 export const normalizeWhatsAppNumber = (input: string) => {
   let digits = (input || '').replace(/\D/g, '');
   if (digits.startsWith('0020')) digits = digits.slice(2);
@@ -128,10 +138,11 @@ export function updatePageMeta(settings: ShopSettings) {
   setMeta('meta[property="og:description"]','property','og:description',description);
   if (settings.share_image_url || settings.banner_url || settings.logo_url) setMeta('meta[property="og:image"]','property','og:image',settings.share_image_url || settings.banner_url || settings.logo_url);
   setMeta('meta[property="og:type"]','property','og:type','website');
-  setMeta('meta[property="og:url"]','property','og:url',window.location.origin+window.location.pathname);
+  const publicBase=getPublicBaseUrl(settings);
+  setMeta('meta[property="og:url"]','property','og:url',publicBase+window.location.pathname);
   let canonical=document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
-  canonical.href=window.location.origin+window.location.pathname;
+  canonical.href=publicBase+window.location.pathname;
   if (settings.logo_url) { let icon=document.head.querySelector<HTMLLinkElement>('link[rel="icon"]'); if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon);} icon.href=settings.logo_url; }
 
   let structured=document.head.querySelector<HTMLScriptElement>('script[data-store-schema]');
@@ -140,7 +151,7 @@ export function updatePageMeta(settings: ShopSettings) {
     '@context':'https://schema.org',
     '@type':'GroceryStore',
     name:settings.store_name,
-    url:window.location.origin,
+    url:publicBase,
     description,
     ...(settings.logo_url?{logo:settings.logo_url,image:settings.share_image_url||settings.banner_url||settings.logo_url}:{}),
     ...(settings.phone?{telephone:settings.phone}:{}),
@@ -207,6 +218,19 @@ const escapeHtml = (value: unknown) => String(value ?? '')
   .replaceAll('>','&gt;')
   .replaceAll('"','&quot;')
   .replaceAll("'","&#039;");
+
+export function printThermalReceipt(order: Order, settings: ShopSettings) {
+  const w=window.open('','_blank','width=420,height=800'); if(!w)return;
+  const items=order.items.map(i=>`<tr><td>${escapeHtml(i.product_name)}<small>${escapeHtml(i.option_name)}</small></td><td>${escapeHtml(i.quantity)}</td><td>${escapeHtml(moneyEn(i.line_total))}</td></tr>`).join('');
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>فاتورة ${escapeHtml(order.order_number)}</title><style>
+  @page{size:80mm auto;margin:3mm}*{box-sizing:border-box}body{width:74mm;margin:0 auto;font-family:Arial,sans-serif;color:#000;font-size:12px}h1{font-size:18px;text-align:center;margin:0 0 4px}h2{font-size:14px;text-align:center;margin:0 0 8px}.center{text-align:center}.line{border-top:1px dashed #000;margin:7px 0}.meta{line-height:1.7}.meta b{display:inline-block;min-width:48px}table{width:100%;border-collapse:collapse}th,td{padding:5px 2px;border-bottom:1px dashed #bbb;text-align:right;vertical-align:top}th:nth-child(2),td:nth-child(2){width:28px;text-align:center}th:last-child,td:last-child{text-align:left;white-space:nowrap}td small{display:block;font-size:10px}.total{font-size:15px;font-weight:bold;display:flex;justify-content:space-between;margin-top:7px}.footer{text-align:center;margin-top:12px;font-size:10px}</style></head><body>
+  <h1>${escapeHtml(settings.store_name)}</h1><h2>طلب #${escapeHtml(order.order_number)}</h2><div class="center">${escapeHtml(new Date(order.created_at).toLocaleString('ar-EG'))}</div>
+  <div class="line"></div><div class="meta"><div><b>العميل:</b> ${escapeHtml(order.customer_name||'—')}</div><div><b>الهاتف:</b> ${escapeHtml(order.customer_phone||'—')}</div><div><b>العنوان:</b> ${escapeHtml(order.address||'—')}</div></div>
+  <div class="line"></div><table><thead><tr><th>الصنف</th><th>ع</th><th>الإجمالي</th></tr></thead><tbody>${items}</tbody></table>
+  <div class="line"></div><div class="meta"><div>المنتجات: ${escapeHtml(moneyEn(order.product_subtotal))}</div>${settings.delivery_enabled?`<div>التوصيل: ${escapeHtml(moneyEn(order.delivery_fee))}</div>`:''}</div><div class="total"><span>الإجمالي</span><span>${escapeHtml(moneyEn(order.total))}</span></div>
+  ${order.notes?`<div class="line"></div><div><b>ملاحظات:</b> ${escapeHtml(order.notes)}</div>`:''}<div class="footer">شكرًا لتعاملكم معنا</div><script>window.onload=()=>window.print()</script></body></html>`);
+  w.document.close();
+}
 
 export function printOrder(order: Order, settings: ShopSettings) {
   const w = window.open('','_blank','width=760,height=800'); if(!w) return;

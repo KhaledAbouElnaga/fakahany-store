@@ -16,7 +16,7 @@ export async function onRequest(context) {
 
   try {
     const settingsResponse = await fetch(
-      `${baseUrl}/rest/v1/shop_settings?id=eq.main&select=store_name,site_name,site_description,hero_subtitle,share_image_url,banner_url,logo_url,phone,address`,
+      `${baseUrl}/rest/v1/shop_settings?id=eq.main&select=store_name,site_name,site_description,hero_subtitle,share_image_url,banner_url,logo_url,phone,address,public_site_url`,
       {
         headers: {
           apikey: anonKey,
@@ -36,12 +36,14 @@ export async function onRequest(context) {
     const description = settings.site_description || settings.hero_subtitle || settings.store_name || '';
     const image = settings.share_image_url || settings.banner_url || settings.logo_url || '';
     const requestUrl = new URL(context.request.url);
-    const canonicalUrl = `${requestUrl.origin}${requestUrl.pathname}`;
+    const configuredBase = (settings.public_site_url || '').trim().replace(/\/$/,'');
+    const canonicalBase = configuredBase || requestUrl.origin;
+    const canonicalUrl = `${canonicalBase}${requestUrl.pathname}`;
     const schema = JSON.stringify({
       '@context':'https://schema.org',
       '@type':'GroceryStore',
       name:settings.store_name || title,
-      url:requestUrl.origin,
+      url:canonicalBase,
       description,
       ...(image?{image}:{}),
       ...(settings.logo_url?{logo:settings.logo_url}:{}),

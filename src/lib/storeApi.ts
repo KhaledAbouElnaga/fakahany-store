@@ -1,4 +1,4 @@
-import type { Category, DeliveryArea, InventoryAdjustment, Order, OrderCleanupLog, OrderEvent, OrderStatusDefinition, Product, ProductOption, ScheduledPrice, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
+import type { AdminAuditLog, AdminSearchResult, Category, DeliveryArea, InventoryAdjustment, Order, OrderCleanupLog, OrderEvent, OrderStatusDefinition, Product, ProductOption, ScheduledPrice, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
 import { supabase, supabaseConfigured } from './supabase';
 import { getDemoOrders, getDemoSnapshot, setDemoOrders, setDemoSnapshot } from './demoData';
 import { compressImage, fileToDataUrl, uid } from './utils';
@@ -21,7 +21,7 @@ export const DEFAULT_ORDER_STATUSES: OrderStatusDefinition[] = [
 
 function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): ShopSettings {
   const defaults: ShopSettings = {
-    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', announcement_enabled:false, announcement_text:'', maintenance_mode:false, maintenance_message:'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.', min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
+    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', announcement_enabled:false, announcement_text:'', maintenance_mode:false, maintenance_message:'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.', setup_completed:false, theme_preset:'green', public_site_url:'', order_alert_minutes:15, audit_retention_days:180, inventory_retention_days:365, visit_retention_days:180, min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
   };
   const s = settings || {};
   const merged = { ...defaults, ...s } as ShopSettings;
@@ -29,6 +29,13 @@ function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): 
   merged.announcement_text = s.announcement_text ?? '';
   merged.maintenance_mode = s.maintenance_mode ?? false;
   merged.maintenance_message = s.maintenance_message ?? 'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.';
+  merged.setup_completed = s.setup_completed ?? false;
+  merged.theme_preset = (s.theme_preset as ShopSettings['theme_preset']) || 'green';
+  merged.public_site_url = s.public_site_url ?? '';
+  merged.order_alert_minutes = Number(s.order_alert_minutes ?? 15);
+  merged.audit_retention_days = Number(s.audit_retention_days ?? 180);
+  merged.inventory_retention_days = Number(s.inventory_retention_days ?? 365);
+  merged.visit_retention_days = Number(s.visit_retention_days ?? 180);
   merged.delivery_enabled = s.delivery_enabled ?? true;
   merged.store_status_mode = s.store_status_mode ?? (s.manual_open === false ? 'closed' : 'auto');
   merged.low_stock_threshold = Number(s.low_stock_threshold ?? 5);
@@ -140,6 +147,43 @@ export async function saveOrder(order: Order):Promise<Order>{
     if(!track.error)trackingToken=String(track.data||'');
   }catch{}
   return {...order,id:String(result.order_id??order.id),order_number:String(result.order_number??order.order_number),tracking_token:trackingToken||order.tracking_token||'',product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
+}
+
+
+export async function globalAdminSearch(query:string):Promise<AdminSearchResult[]>{
+  const q=query.trim();
+  if(q.length<2)return [];
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.rpc('admin_global_search',{query_input:q});
+  if(error)throw error;
+  return (Array.isArray(data)?data:[]) as AdminSearchResult[];
+}
+
+export async function loadAdminAuditLogs(limit=250):Promise<AdminAuditLog[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.from('admin_audit_log').select('*').order('created_at',{ascending:false}).limit(limit);
+  if(error)throw error;
+  const logs=(data||[]) as AdminAuditLog[];
+  const ids=[...new Set(logs.map(x=>x.actor_user_id).filter(Boolean))] as string[];
+  if(!ids.length)return logs;
+  const staff=await supabase.from('staff_profiles').select('user_id,email,display_name').in('user_id',ids);
+  if(staff.error)return logs;
+  const map=new Map((staff.data||[]).map((x:any)=>[String(x.user_id),String(x.display_name||x.email||'')]));
+  return logs.map(x=>({...x,actor_email:x.actor_user_id?(map.get(x.actor_user_id)||'حساب سابق'):'النظام'}));
+}
+
+export async function runDataRetentionCleanup():Promise<{audit_deleted:number;inventory_deleted:number;visits_deleted:number}>{
+  if(!supabaseConfigured||!supabase)return {audit_deleted:0,inventory_deleted:0,visits_deleted:0};
+  const {data,error}=await supabase.rpc('run_data_retention_cleanup');
+  if(error)throw error;
+  const x=(data||{}) as any;
+  return {audit_deleted:Number(x.audit_deleted||0),inventory_deleted:Number(x.inventory_deleted||0),visits_deleted:Number(x.visits_deleted||0)};
+}
+
+export async function removeStaffMember(userId:string):Promise<void>{
+  if(!supabaseConfigured||!supabase)return;
+  const {error}=await supabase.rpc('remove_staff_member',{user_id_input:userId});
+  if(error)throw error;
 }
 
 export async function loadOrders(includeArchived=false):Promise<Order[]>{
