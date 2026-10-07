@@ -3,6 +3,7 @@ import { changeAdminPassword, currentAdminEmail, signOutOtherSessions } from '..
 import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
 import type { ShopSettings, StoreSnapshot } from '../../types';
+import { useUnsavedChanges } from '../../lib/unsaved';
 import StoreTransferPanel from './StoreTransferPanel';
 
 export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh:()=>Promise<void>}){
@@ -14,6 +15,8 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
   const [password2,setPassword2]=useState('');
   const [email,setEmail]=useState('');
   const pendingUploads=useRef<Partial<Record<'logo_url'|'banner_url'|'share_image_url',string>>>({});
+  const dirty=JSON.stringify(s)!==JSON.stringify(data.settings);
+  useUnsavedChanges(dirty);
   useEffect(()=>{void currentAdminEmail().then(setEmail)},[]);
   useEffect(()=>{setS(structuredClone(data.settings))},[data.settings]);
   useEffect(()=>()=>{for(const url of Object.values(pendingUploads.current)){if(url)void deleteImage(url).catch(()=>{})}},[]);
