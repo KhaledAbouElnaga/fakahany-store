@@ -28,13 +28,13 @@ test('storefront mobile visual',async({page})=>{
 test('admin desktop visual',async({page})=>{
   await page.setViewportSize({width:1366,height:900});
   await page.goto('/admin');
-  await page.getByRole('heading',{name:'الرئيسية'}).waitFor();
+  await page.getByRole('heading',{name:'الرئيسية',exact:true}).waitFor();
   await expect(page).toHaveScreenshot('admin-desktop.png',{fullPage:true,maxDiffPixelRatio:0.015});
 });
 
 test('admin mobile visual',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await page.goto('/admin');
-  await page.getByRole('heading',{name:'الرئيسية'}).waitFor();
+  await page.getByRole('heading',{name:'الرئيسية',exact:true}).waitFor();
   await expect(page).toHaveScreenshot('admin-mobile.png',{fullPage:true,maxDiffPixelRatio:0.015});
 });
