@@ -34,15 +34,29 @@ function editDistanceAtMostOne(a:string,b:string){
   return diffs+(i<a.length||j<b.length?1:0)<=1;
 }
 
+const ARABIC_SEARCH_SYNONYM_GROUPS = [
+  ['طماطم','بندوره'],
+  ['باذنجان','بتنجان'],
+  ['كوسا','كوسه'],
+  ['بازلاء','بسله','بزلا'],
+  ['فاصوليا','فاصوليه'],
+  ['ذره','دره'],
+] as const;
+
+function arabicSearchAlternatives(word:string){
+  const group=ARABIC_SEARCH_SYNONYM_GROUPS.find(words=>(words as readonly string[]).includes(word));
+  return group ? [...group] : [word];
+}
+
 export function smartArabicMatch(text:string,query:string){
   const t=normalizeArabicText(text),q=normalizeArabicText(query);
   if(!q)return true;
   if(t.includes(q))return true;
   const textWords=t.split(' ').filter(Boolean);
-  return q.split(' ').filter(Boolean).every(word=>{
-    if(textWords.some(x=>x.includes(word)||word.includes(x)))return true;
-    return word.length>=4&&textWords.some(x=>Math.abs(x.length-word.length)<=1&&editDistanceAtMostOne(x,word));
-  });
+  return q.split(' ').filter(Boolean).every(word=>arabicSearchAlternatives(word).some(alternative=>{
+    if(textWords.some(x=>x.includes(alternative)||alternative.includes(x)))return true;
+    return alternative.length>=4&&textWords.some(x=>Math.abs(x.length-alternative.length)<=1&&editDistanceAtMostOne(x,alternative));
+  }));
 }
 
 
