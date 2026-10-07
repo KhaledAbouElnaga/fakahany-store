@@ -69,12 +69,14 @@ export async function createFirstAdmin(email: string, password: string) {
   if (!data.session) throw new Error('تم إنشاء الحساب. افتح رسالة التأكيد في بريدك ثم ارجع وسجل الدخول، وبعدها اضغط خيار تفعيل المدير الأول.');
   const { error: claimError } = await supabase.rpc('claim_first_admin');
   if (claimError) throw claimError;
+  try{await supabase.rpc('record_staff_login');}catch{}
 }
 
 export async function claimFirstAdminAfterLogin() {
   if (!supabaseConfigured || !supabase) return;
   const { error } = await supabase.rpc('claim_first_admin');
   if (error) throw error;
+  try{await supabase.rpc('record_staff_login');}catch{}
 }
 
 export async function changeAdminPassword(currentPassword:string,newPassword:string) {
@@ -132,6 +134,7 @@ export async function joinStaffWithInvite(email:string,password:string,code:stri
 
   const {error}=await supabase.rpc('claim_staff_invite',{code_input:code.trim(),display_name_input:displayName.trim()});
   if(error)throw error;
+  try{await supabase.rpc('record_staff_login');}catch{}
   localStorage.removeItem('fakahany-pending-staff-invite');
 }
 
