@@ -66,7 +66,8 @@ export function applyTheme(settings: Pick<ShopSettings,'theme_preset'>) {
 
 export function getPublicBaseUrl(settings?: Pick<ShopSettings,'public_site_url'>) {
   const configured=(settings?.public_site_url||'').trim().replace(/\/$/,'');
-  return configured || window.location.origin;
+  if(!configured)return window.location.origin;
+  return /^https?:\/\//i.test(configured)?configured:'https://'+configured;
 }
 
 export const normalizeWhatsAppNumber = (input: string) => {
