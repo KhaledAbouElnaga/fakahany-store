@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { listPlatformAudit, listPlatformNotifications, listPlatformSupportTickets, replyPlatformSupportTicket } from '../lib/platformApi';
+import { listPlatformAudit, listPlatformNotifications, listPlatformSupportTickets, replyPlatformSupportTicket, startPlatformSupport } from '../lib/platformApi';
 import type { PlatformAuditEntry, PlatformNotification, SupportTicket } from '../types';
 
 function when(value:string|null|undefined){
@@ -33,6 +33,20 @@ export default function PlatformOperationsPanel(){
 
   const openTickets=useMemo(()=>tickets.filter(t=>t.status!=='resolved').length,[tickets]);
 
+  const openSupport=async(ticket:SupportTicket)=>{
+    if(!ticket.store_id||!ticket.store_slug)return;
+    const tab=window.open('about:blank','_blank');
+    setBusy(true);setMsg('');
+    try{
+      await startPlatformSupport(ticket.store_id);
+      const url='/admin?store='+encodeURIComponent(ticket.store_slug)+'&support=1';
+      if(tab)tab.location.href=url;else location.assign(url);
+    }catch(e:any){
+      if(tab)tab.close();
+      setMsg(e?.message||'تعذر فتح جلسة الدعم.');
+    }finally{setBusy(false)}
+  };
+
   const saveTicket=async(ticket:SupportTicket,status:SupportTicket['status'])=>{
     setBusy(true);setMsg('');
     try{
@@ -59,7 +73,7 @@ export default function PlatformOperationsPanel(){
       {!notifications.length&&<div className="empty-state">لا توجد تنبيهات تحتاج تدخل حاليًا.</div>}
       {notifications.map(n=><article key={n.id} className={'platform-notification '+n.severity}>
         <div><b>{n.title}</b><span>{n.message}</span></div>
-        <div>{n.store_slug&&<a href={'/admin?store='+encodeURIComponent(n.store_slug)} target="_blank" rel="noreferrer">{n.store_name||n.store_slug}</a>}<small>{when(n.refreshed_at)}</small></div>
+        <div>{n.store_slug&&<a href={'/?store='+encodeURIComponent(n.store_slug)} target="_blank" rel="noreferrer">{n.store_name||n.store_slug}</a>}<small>{when(n.refreshed_at)}</small></div>
       </article>)}
     </div>}
 
@@ -70,7 +84,7 @@ export default function PlatformOperationsPanel(){
         <p>{t.message}</p>
         <textarea rows={3} placeholder="اكتب رد إدارة المنصة..." value={drafts[t.id]||''} onChange={e=>setDrafts(v=>({...v,[t.id]:e.target.value}))}/>
         <div className="platform-ticket-actions">
-          <a className="btn secondary" href={'/admin?store='+encodeURIComponent(t.store_slug||'')} target="_blank" rel="noreferrer">فتح المتجر</a>
+          <button className="btn secondary" disabled={busy} onClick={()=>void openSupport(t)}>دخول دعم</button>
           <button className="btn secondary" disabled={busy} onClick={()=>void saveTicket(t,'in_progress')}>قيد المتابعة</button>
           <button className="btn" disabled={busy} onClick={()=>void saveTicket(t,'resolved')}>حفظ الرد وحل الطلب</button>
         </div>
