@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminExists, claimFirstAdminAfterLogin, createFirstAdmin, joinStaffWithInvite, mfaChallengeNeeded, signInAdmin, verifyMfaLogin } from '../../lib/auth';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
+import { updateNeutralPageMeta } from '../../lib/utils';
 
 export default function AdminLogin({ onDone }: { onDone: () => void }) {
   const [exists,setExists]=useState<boolean|null>(null);
@@ -14,7 +15,11 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
   const [mfaMode,setMfaMode]=useState(false);
   const [mfaCode,setMfaCode]=useState('');
 
-  useEffect(()=>{sessionStorage.removeItem('fakahany-idle-logout');adminExists().then(setExists).catch(e=>setMsg(e.message));},[]);
+  useEffect(()=>{
+    updateNeutralPageMeta('دخول الإدارة — Fakahany SaaS','تسجيل الدخول إلى لوحة إدارة المتجر.');
+    sessionStorage.removeItem('fakahany-idle-logout');
+    adminExists().then(setExists).catch(e=>setMsg(e.message));
+  },[]);
 
   const run=async(fn:()=>Promise<void>)=>{
     setBusy(true);setMsg('');
