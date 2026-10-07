@@ -10,6 +10,10 @@ import StoreSettings from './StoreSettings';
 import StaffManager from './StaffManager';
 import InventoryPanel from './InventoryPanel';
 import ScheduledPrices from './ScheduledPrices';
+import SetupWizard from './SetupWizard';
+import AdminGlobalSearch from './AdminGlobalSearch';
+import SystemHealth from './SystemHealth';
+import AuditLog from './AuditLog';
 import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
@@ -18,7 +22,7 @@ import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TE
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
 
-type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'settings';
+type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'audit'|'health'|'settings';
 
 export default function AdminPage(){
   const [authorized,setAuthorized]=useState<boolean|null>(null);
@@ -114,8 +118,11 @@ export default function AdminPage(){
     {can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}
     {can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}
     {profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}
+    {profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}
+    {profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}
     {can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}
   </nav><div className="side-bottom"><Link to="/" onClick={()=>setMobileNavOpen(false)}>عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
+    <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {data.settings.maintenance_mode&&<div className="demo-banner maintenance-admin-banner">وضع الصيانة مفعل حاليًا — العملاء لا يمكنهم إنشاء طلبات جديدة.</div>}
     {tab==='home'&&<Dashboard/>}
@@ -176,6 +183,7 @@ export default function AdminPage(){
     for(const o of orders){const p=(o.customer_phone||'').replace(/\D/g,'');if(p)customers.set(p,(customers.get(p)||0)+1)}
     const repeat=[...customers.values()].filter(n=>n>1).length;
     const cancelRate=orders.length?Math.round(orders.filter(o=>cancelledNames.has(o.status)).length/orders.length*100):0;
+    const overdueNew=orders.filter(o=>newNames.has(o.status)&&(Date.now()-new Date(o.created_at).getTime())>=Math.max(1,data!.settings.order_alert_minutes||15)*60000).length;
 
     return <><PageTitle actions={<div className="page-actions">
       {!alertsEnabled&&can('orders.view')&&<button className="btn secondary" onClick={()=>void enableAlerts()}>تفعيل تنبيهات الطلبات</button>}
@@ -186,6 +194,7 @@ export default function AdminPage(){
     <div className="stats-grid">
       <Stat label="طلبات اليوم" value={todayOrdersList.length}/>
       <Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>
+      <Stat label="طلبات منتظرة أكثر من الحد" value={overdueNew}/>
       <Stat label="مبيعات اليوم" value={money(todaySales)}/>
       <Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/>
       <Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/>
