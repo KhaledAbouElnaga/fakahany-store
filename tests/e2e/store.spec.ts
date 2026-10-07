@@ -29,7 +29,7 @@ test('storefront to cart to checkout works',async({page})=>{
 test('admin demo login and product tools load',async({page})=>{
   await page.goto('/admin');
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
-  await expect(page.getByRole('heading',{name:'الرئيسية'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'الرئيسية',exact:true})).toBeVisible();
   await page.getByRole('button',{name:'المنتجات'}).click();
   await expect(page.getByRole('heading',{name:'المنتجات',exact:true})).toBeVisible();
   await expect(page.getByText('إضافة سريعة')).toBeVisible();
@@ -58,7 +58,7 @@ test('full order lifecycle reaches admin status and public tracking',async({page
 
   await page.goto('/admin');
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
-  await expect(page.getByRole('heading',{name:'الرئيسية'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'الرئيسية',exact:true})).toBeVisible();
   await page.locator('.admin-side nav').getByRole('button',{name:/^الطلبات/}).click();
   await expect(page.getByRole('heading',{name:'الطلبات',exact:true})).toBeVisible();
   const firstOrder=page.locator('.orders-admin-table tbody tr').first();
