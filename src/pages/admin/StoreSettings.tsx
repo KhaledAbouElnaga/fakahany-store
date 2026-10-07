@@ -3,6 +3,7 @@ import { changeAdminPassword, currentAdminEmail, signOutOtherSessions } from '..
 import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
 import type { ShopSettings, StoreSnapshot } from '../../types';
+import StoreTransferPanel from './StoreTransferPanel';
 
 export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh:()=>Promise<void>}){
   const [s,setS]=useState<ShopSettings>(structuredClone(data.settings));
@@ -29,7 +30,11 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     }catch(e:any){alert(e?.message||'تعذر رفع الصورة')}
   };
   const save=async()=>{
-    if(Number(s.min_order)<0||Number(s.default_delivery_fee)<0||Number(s.low_stock_threshold)<0||Number(s.delivery_slot_capacity)<0)return setOk('القيم الرقمية لا يمكن أن تكون سالبة.');if(s.delivery_capacity_enabled&&(Number(s.delivery_slot_minutes)<15||Number(s.delivery_slot_minutes)>240))return setOk('مدة فترة التوصيل يجب أن تكون بين 15 و240 دقيقة.');
+    if(Number(s.min_order)<0||Number(s.default_delivery_fee)<0||Number(s.low_stock_threshold)<0||Number(s.delivery_slot_capacity)<0)return setOk('القيم الرقمية لا يمكن أن تكون سالبة.');
+    if(s.delivery_capacity_enabled&&(Number(s.delivery_slot_minutes)<15||Number(s.delivery_slot_minutes)>240))return setOk('مدة فترة التوصيل يجب أن تكون بين 15 و240 دقيقة.');
+    if(Number(s.order_alert_minutes)<1||Number(s.order_alert_minutes)>240)return setOk('تنبيه الطلب المنتظر يجب أن يكون بين دقيقة و240 دقيقة.');
+    for(const n of [s.audit_retention_days,s.inventory_retention_days,s.visit_retention_days])if(Number(n)<30||Number(n)>3650)return setOk('مدة الاحتفاظ بالبيانات يجب أن تكون بين 30 و3650 يومًا.');
+    if(s.public_site_url.trim()){try{const u=new URL(s.public_site_url.trim());if(!['http:','https:'].includes(u.protocol))throw new Error()}catch{return setOk('رابط الموقع العام غير صحيح. اكتب رابطًا كاملًا يبدأ بـ https://');}}
     setBusy(true);setOk('');
     const originals={logo_url:data.settings.logo_url,banner_url:data.settings.banner_url,share_image_url:data.settings.share_image_url};
     try{
@@ -56,6 +61,13 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     catch(e:any){setOk(e?.message||'تعذر إنهاء الجلسات الأخرى.')}
   };
 
+  const restartWizard=async()=>{
+    if(!confirm('تشغيل معالج الإعداد من جديد؟ لن يتم حذف أي بيانات موجودة.'))return;
+    setBusy(true);setOk('');
+    try{await saveSettings({...s,setup_completed:false});await refresh();}
+    catch(e:any){setOk(e?.message||'تعذر تشغيل معالج الإعداد.')}finally{setBusy(false)}
+  };
+
   const changePassword=async()=>{
     if(!currentPassword)return setOk('اكتب كلمة المرور الحالية أولًا.');
     if(password!==password2)return setOk('كلمتا المرور غير متطابقتين.');
@@ -75,6 +87,11 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label>صورة مشاركة الرابط<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0],'share_image_url')}/></label>
     </div></section>
 
+    <section className="panel"><h3>المظهر والدومين</h3><div className="form-grid">
+      <label>قالب الألوان<select value={s.theme_preset} onChange={e=>set('theme_preset',e.target.value as ShopSettings['theme_preset'])}><option value="green">أخضر كلاسيك</option><option value="orange">برتقالي دافئ</option><option value="navy">كحلي احترافي</option><option value="plum">بنفسجي فاخر</option></select></label>
+      <label>رابط الموقع العام<input dir="ltr" value={s.public_site_url} onChange={e=>set('public_site_url',e.target.value)} placeholder="https://example.com"/></label>
+    </div><div className="domain-readiness"><b>{location.hostname.endsWith('.pages.dev')?'الموقع يعمل حاليًا على Cloudflare Pages':'تم اكتشاف Custom Domain'}</b><p className="muted">لو ربطت دومين مخصص من Cloudflare Pages، اكتب رابطه هنا ليستخدمه النظام في الروابط وSEO. ربط الدومين نفسه يتم مرة واحدة من Cloudflare.</p></div><div className="theme-preview-row"><span data-preview-theme="green"/><span data-preview-theme="orange"/><span data-preview-theme="navy"/><span data-preview-theme="plum"/></div></section>
+
     <section className="panel"><h3>الصفحة الرئيسية</h3><div className="form-grid">
       <label>عنوان الغلاف<input value={s.hero_title} onChange={e=>set('hero_title',e.target.value)}/></label>
       <label>النص أسفل العنوان<input value={s.hero_subtitle} onChange={e=>set('hero_subtitle',e.target.value)}/></label>
@@ -93,6 +110,7 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label>الحد الأدنى للطلب<input type="number" min="0" value={s.min_order} onChange={e=>set('min_order',Number(e.target.value))}/></label>
       {s.delivery_enabled&&<label>رسوم التوصيل الافتراضية<input type="number" min="0" value={s.default_delivery_fee} onChange={e=>set('default_delivery_fee',Number(e.target.value))}/></label>}
       <label>حد تنبيه المخزون المنخفض<input type="number" min="0" value={s.low_stock_threshold} onChange={e=>set('low_stock_threshold',Number(e.target.value))}/></label>
+      <label>تنبيه الطلب المنتظر بعد (دقيقة)<input type="number" min="1" max="240" value={s.order_alert_minutes} onChange={e=>set('order_alert_minutes',Number(e.target.value))}/></label>
       {s.scheduled_orders_enabled&&s.delivery_capacity_enabled&&<><label>مدة فترة التوصيل بالدقائق<input type="number" min="15" max="240" step="15" value={s.delivery_slot_minutes} onChange={e=>set('delivery_slot_minutes',Number(e.target.value))}/></label><label>أقصى عدد طلبات في الفترة<input type="number" min="1" value={s.delivery_slot_capacity} onChange={e=>set('delivery_slot_capacity',Number(e.target.value))}/></label></>}
       <label>حالة المتجر<select value={s.store_status_mode} onChange={e=>set('store_status_mode',e.target.value)}><option value="auto">تلقائي حسب الأيام والمواعيد</option><option value="open">مفتوح يدويًا الآن</option><option value="closed">مغلق يدويًا الآن</option></select></label>
       <label>وقت الفتح<input type="time" value={s.opening_time} onChange={e=>set('opening_time',e.target.value)}/></label>
@@ -118,6 +136,16 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label><input type="checkbox" checked={s.show_featured} onChange={e=>set('show_featured',e.target.checked)}/> المنتجات المميزة</label>
       <label><input type="checkbox" checked={s.show_offers} onChange={e=>set('show_offers',e.target.checked)}/> العروض</label>
     </div></section>
+
+    <section className="panel"><h3>الاحتفاظ بالبيانات</h3><p className="muted">الطلبات لا تُحذف تلقائيًا. الإعدادات دي تخص السجلات المساعدة فقط لتقليل نمو قاعدة البيانات.</p><div className="form-grid">
+      <label>سجل النشاط (يوم)<input type="number" min="30" max="3650" value={s.audit_retention_days} onChange={e=>set('audit_retention_days',Number(e.target.value))}/></label>
+      <label>حركات المخزون (يوم)<input type="number" min="30" max="3650" value={s.inventory_retention_days} onChange={e=>set('inventory_retention_days',Number(e.target.value))}/></label>
+      <label>إحصاءات الزيارات (يوم)<input type="number" min="30" max="3650" value={s.visit_retention_days} onChange={e=>set('visit_retention_days',Number(e.target.value))}/></label>
+    </div></section>
+
+    <StoreTransferPanel data={data} refresh={refresh}/>
+
+    <section className="panel"><h3>إعداد أول تشغيل</h3><p className="muted">يمكنك تشغيل المعالج مرة أخرى لعرض خطوات الإعداد للعميل بدون حذف المنتجات أو الطلبات الحالية.</p><button className="btn secondary" disabled={busy} onClick={()=>void restartWizard()}>تشغيل معالج الإعداد من جديد</button></section>
 
     <section className="panel"><h3>حساب المدير</h3><p className="muted">الحساب الحالي: {email||'—'}</p><p className="muted">كلمة المرور الجديدة يجب أن تكون 12 حرفًا على الأقل وتحتوي على حرف كبير وصغير ورقم ورمز.</p><div className="form-grid">
       <label>كلمة المرور الحالية<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
