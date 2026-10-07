@@ -118,22 +118,12 @@ export default function AdminPage(){
       {newOrderCount>0&&can('orders.view')?<button className="admin-mobile-orders" onClick={()=>chooseTab('orders')}>طلبات <b>{newOrderCount}</b></button>:<span className="admin-mobile-spacer"/>}
     </div>
     {mobileNavOpen&&<button className="admin-drawer-backdrop" aria-label="إغلاق القائمة" onClick={()=>setMobileNavOpen(false)}/>}
-    <aside className={`admin-side ${mobileNavOpen?'open':''}`}><div className="admin-brand"><b>{data.settings.store_name}</b><small>{profile?.display_name||profile?.email||'لوحة الإدارة'}</small></div><nav>
-    <Nav t="home" active={tab} set={chooseTab}>الرئيسية</Nav>
-    {can('products.manage')&&<><Nav t="products" active={tab} set={chooseTab}>المنتجات</Nav><Nav t="categories" active={tab} set={chooseTab}>الأقسام</Nav><Nav t="units" active={tab} set={chooseTab}>وحدات البيع</Nav></>}
-    {can('settings.manage')&&<Nav t="areas" active={tab} set={chooseTab}>مناطق التوصيل</Nav>}
-    {can('orders.view')&&<Nav t="orders" active={tab} set={chooseTab} badge={newOrderCount}>الطلبات</Nav>}
-    {can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}
-    {profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}
-    {data.settings.feature_flags.inventory&&can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}
-    {data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}
-    {data.settings.feature_flags.reports&&can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}
-    {data.settings.feature_flags.staff&&profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}
-    {profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}
-    {profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}
-    <Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>
-    {can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}
-  </nav><div className="side-bottom"><Link to="/" onClick={()=>setMobileNavOpen(false)}>عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
+    <aside className={`admin-side ${mobileNavOpen?'open':''}`}><div className="admin-brand"><b>{data.settings.store_name}</b><small>{profile?.display_name||profile?.email||'لوحة الإدارة'}</small></div><nav className="admin-nav-scroll">
+    <div className="admin-nav-group"><span className="nav-section">نظرة عامة</span><Nav t="home" active={tab} set={chooseTab}>الرئيسية</Nav>{can('orders.view')&&<Nav t="orders" active={tab} set={chooseTab} badge={newOrderCount}>الطلبات</Nav>}{data.settings.feature_flags.reports&&can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}</div>
+    {(can('products.manage')||can('inventory.manage')||can('prices.manage'))&&<div className="admin-nav-group"><span className="nav-section">الكتالوج</span>{can('products.manage')&&<><Nav t="products" active={tab} set={chooseTab}>المنتجات</Nav><Nav t="categories" active={tab} set={chooseTab}>الأقسام</Nav><Nav t="units" active={tab} set={chooseTab}>وحدات البيع</Nav></>}{data.settings.feature_flags.inventory&&can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}{data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}</div>}
+    {(can('settings.manage')||profile?.role==='owner')&&<div className="admin-nav-group"><span className="nav-section">التشغيل</span>{can('settings.manage')&&<Nav t="areas" active={tab} set={chooseTab}>مناطق التوصيل</Nav>}{can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}{profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}{data.settings.feature_flags.staff&&profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}</div>}
+    <div className="admin-nav-group"><span className="nav-section">النظام</span>{profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}{profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}<Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>{can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}</div>
+  </nav><div className="side-bottom"><Link to="/" onClick={()=>setMobileNavOpen(false)}><span>عرض المتجر</span></Link><button onClick={logout}><span>تسجيل الخروج</span></button></div></aside><main className="admin-main">
     <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {data.settings.maintenance_mode&&<div className="demo-banner maintenance-admin-banner">وضع الصيانة مفعل حاليًا — العملاء لا يمكنهم إنشاء طلبات جديدة.</div>}
@@ -209,19 +199,29 @@ export default function AdminPage(){
       {can('orders.view')&&<button className="btn" onClick={()=>setTab('orders')}>عرض الطلبات</button>}
     </div>}>الرئيسية</PageTitle>
 
-    <div className="stats-grid">
-      {show('orders_today')&&<Stat label="طلبات اليوم" value={todayOrdersList.length}/>}
-      {show('new_orders')&&<Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>}
-      {show('overdue')&&<Stat label="طلبات منتظرة أكثر من الحد" value={overdueNew}/>}
-      {show('sales_today')&&<><Stat label="مبيعات اليوم" value={money(todaySales)}/><Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/></>}
-      {show('sales_week')&&<><Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/><Stat label="مقارنة بالأسبوع السابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/></>}
-      {show('avg_order')&&<Stat label="متوسط قيمة الطلب" value={money(avg)}/>}
-      {show('repeat_customers')&&<Stat label="العملاء المتكررون" value={repeat}/>}
-      {show('cancel_rate')&&<Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>}
-      {show('top_product')&&<Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>}
-      {show('peak_hour')&&<Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>}
-      {show('low_stock')&&<Stat label="مخزون منخفض" value={low}/>}
-    </div>
+    <section className="dashboard-kpi-section" aria-label="المؤشرات الرئيسية">
+      <div className="dashboard-section-head"><div><h2>المؤشرات الرئيسية</h2><p>أهم الأرقام التي تحتاجها في بداية اليوم.</p></div></div>
+      <div className="stats-grid primary-stats">
+        {show('orders_today')&&<Stat label="طلبات اليوم" value={todayOrdersList.length}/>}
+        {show('new_orders')&&<Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>}
+        {show('overdue')&&<Stat label="طلبات منتظرة" value={overdueNew}/>}
+        {show('sales_today')&&<Stat label="مبيعات اليوم" value={money(todaySales)}/>}
+        {show('sales_week')&&<Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/>}
+      </div>
+    </section>
+    <section className="dashboard-kpi-section secondary-kpi-section" aria-label="مؤشرات إضافية">
+      <div className="dashboard-section-head"><div><h2>مؤشرات إضافية</h2><p>اتجاهات ومقارنات تساعدك في المتابعة.</p></div></div>
+      <div className="stats-grid secondary-stats">
+        {show('sales_today')&&<Stat label="اليوم مقارنة بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/>}
+        {show('sales_week')&&<Stat label="الأسبوع مقارنة بالسابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/>}
+        {show('avg_order')&&<Stat label="متوسط قيمة الطلب" value={money(avg)}/>}
+        {show('repeat_customers')&&<Stat label="العملاء المتكررون" value={repeat}/>}
+        {show('cancel_rate')&&<Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>}
+        {show('top_product')&&<Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>}
+        {show('peak_hour')&&<Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>}
+        {show('low_stock')&&<Stat label="مخزون منخفض" value={low}/>}
+      </div>
+    </section>
 
     {low>0&&can('inventory.manage')&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض.</p><button className="btn secondary" onClick={()=>setTab('inventory')}>فتح المخزون</button></div>}
     <div className="panel"><h3>حالة المتجر</h3><p>وضع الفتح الحالي: <b>{data!.settings.store_status_mode==='open'?'مفتوح يدويًا':data!.settings.store_status_mode==='closed'?'مغلق يدويًا':'تلقائي حسب المواعيد'}</b> · التوصيل: <b>{data!.settings.delivery_enabled?'مفعل':'غير مفعل'}</b> · تنبيهات الطلبات: <b>{alertsEnabled?'مفعلة':'غير مفعلة'}</b></p></div>
@@ -340,6 +340,28 @@ export default function AdminPage(){
 
 }
 
-function Nav({t,active,set,children,badge}:{t:Tab,active:Tab,set:(t:Tab)=>void,children:ReactNode,badge?:number}){return <button className={active===t?'active':''} onClick={()=>set(t)}><span>{children}</span>{Boolean(badge)&&<b className="nav-badge">{badge}</b>}</button>}
+function AdminNavIcon({tab}:{tab:Tab}){
+  const common={viewBox:'0 0 24 24','aria-hidden':true} as const;
+  const paths:Record<Tab,ReactNode>={
+    home:<><path d="M4 11.5 12 4l8 7.5"/><path d="M6.5 10.5V20h11v-9.5M10 20v-6h4v6"/></>,
+    products:<><path d="M4 7.5 12 4l8 3.5-8 3.5-8-3.5Z"/><path d="M4 7.5V16l8 4 8-4V7.5M12 11v9"/></>,
+    categories:<><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></>,
+    units:<><path d="M5 7h14M7 4v6M17 4v6"/><path d="M6 13h12v7H6z"/></>,
+    areas:<><path d="M12 21s6-5.2 6-11a6 6 0 1 0-12 0c0 5.8 6 11 6 11Z"/><circle cx="12" cy="10" r="2"/></>,
+    orders:<><path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
+    statuses:<><circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.2 2.2L15.8 9"/></>,
+    archive:<><path d="M5 8h14v12H5zM4 4h16v4H4z"/><path d="M9 12h6"/></>,
+    inventory:<><path d="M4 6h16v14H4z"/><path d="M8 6V4h8v2M4 11h16"/></>,
+    prices:<><path d="M4 12 12 4h6l2 2v6l-8 8-8-8Z"/><circle cx="16" cy="8" r="1"/></>,
+    reports:<><path d="M5 20V10M12 20V4M19 20v-7"/></>,
+    staff:<><circle cx="9" cy="9" r="3"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 8h4M18 6v4"/></>,
+    audit:<><path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
+    health:<><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/><path d="M8 12h2l1-2 2 4 1-2h2"/></>,
+    release:<><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M5 19h14"/></>,
+    settings:<><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.4 3h-4.8L9.3 6a8 8 0 0 0-1.8 1l-2.4-1-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.3 3.1h4.8l.3-3.1a8 8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z"/></>
+  };
+  return <svg className="admin-nav-icon" {...common}>{paths[tab]}</svg>;
+}
+function Nav({t,active,set,children,badge}:{t:Tab,active:Tab,set:(t:Tab)=>void,children:ReactNode,badge?:number}){return <button className={active===t?'active':''} onClick={()=>set(t)}><AdminNavIcon tab={t}/><span>{children}</span>{Boolean(badge)&&<b className="nav-badge">{badge}</b>}</button>}
 function PageTitle({children,actions}:{children:ReactNode,actions?:ReactNode}){return <div className="page-title"><h1>{children}</h1>{actions}</div>}
 function Stat({label,value}:{label:string,value:string|number}){return <div className="stat-card"><small>{label}</small><strong>{value}</strong></div>}
