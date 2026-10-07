@@ -178,6 +178,28 @@ export function orderTemplateValues(order: Order, settings: ShopSettings) {
   };
 }
 
+export function updateNeutralPageMeta(title='Fakahany SaaS',description='منصة لإدارة وتشغيل المتاجر الإلكترونية') {
+  document.title=title;
+  const setMeta=(selector:string,attr:'name'|'property',key:string,content:string)=>{
+    let el=document.head.querySelector<HTMLMetaElement>(selector);
+    if(!el){el=document.createElement('meta');el.setAttribute(attr,key);document.head.appendChild(el);}
+    el.content=content;
+  };
+  setMeta('meta[name="description"]','name','description',description);
+  setMeta('meta[name="application-name"]','name','application-name','Fakahany SaaS');
+  setMeta('meta[name="apple-mobile-web-app-title"]','name','apple-mobile-web-app-title','Fakahany SaaS');
+  setMeta('meta[property="og:title"]','property','og:title',title);
+  setMeta('meta[property="og:description"]','property','og:description',description);
+  setMeta('meta[property="og:type"]','property','og:type','website');
+  setMeta('meta[property="og:url"]','property','og:url',window.location.origin+window.location.pathname);
+  document.head.querySelector('meta[property="og:image"]')?.remove();
+  document.head.querySelector('script[data-store-schema]')?.remove();
+  document.head.querySelector('link[rel="canonical"]')?.remove();
+  const icon=document.head.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if(icon)icon.href='/icon-192.png';
+  document.documentElement.dataset.theme='green';
+}
+
 export function updatePageMeta(settings: ShopSettings) {
   document.title = settings.site_name || settings.store_name;
   const setMeta = (selector: string, attr: 'name'|'property', key: string, content: string) => {
