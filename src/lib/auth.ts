@@ -1,5 +1,6 @@
 import { supabase, supabaseConfigured } from './supabase';
 import type { StaffProfile, StaffRole } from '../types';
+import { requireTenantId } from './tenant';
 
 const DEMO_KEY = 'fakahany-demo-admin';
 
@@ -21,10 +22,19 @@ export async function isAdmin(): Promise<boolean> {
   if (!supabaseConfigured || !supabase) return sessionStorage.getItem(DEMO_KEY) === '1';
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return false;
-  const staff=await supabase.rpc('is_staff');
+  const storeId=await requireTenantId();
+  const staff=await supabase.rpc('is_staff_for_store',{store_id_input:storeId});
   if(!staff.error)return Boolean(staff.data);
-  const legacy=await supabase.rpc('is_admin');
+  const legacy=await supabase.rpc('is_staff');
   return !legacy.error&&Boolean(legacy.data);
+}
+
+export async function isPlatformAdmin():Promise<boolean>{
+  if(!supabaseConfigured||!supabase)return sessionStorage.getItem(DEMO_KEY)==='1';
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session)return false;
+  const {data,error}=await supabase.rpc('is_platform_admin');
+  return !error&&Boolean(data);
 }
 
 export async function signInAdmin(email: string, password: string) {
@@ -38,7 +48,7 @@ export async function signInAdmin(email: string, password: string) {
     if(raw){
       try{
         const pending=JSON.parse(raw);
-        const claim=await supabase.rpc('claim_staff_invite',{code_input:pending.code,display_name_input:pending.name||''});
+        const storeId=await requireTenantId(); const claim=await supabase.rpc('claim_staff_invite',{store_id_input:storeId,code_input:pending.code,display_name_input:pending.name||''});
         if(!claim.error){localStorage.removeItem('fakahany-pending-staff-invite');ok=await isAdmin();}
       }catch{}
     }
@@ -149,14 +159,14 @@ export async function currentAdminEmail() {
 
 export async function currentStaffProfile():Promise<StaffProfile|null>{
   if(!supabaseConfigured||!supabase){
-    return {user_id:'demo',email:'وضع تجريبي',display_name:'المدير',job_title:'مالك',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
+    return {store_id:'demo-store',user_id:'demo',email:'وضع تجريبي',display_name:'المدير',job_title:'مالك',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
   }
   const {data,error}=await supabase.rpc('current_staff_profile');
   if(!error&&data)return data as StaffProfile;
   const {data:user}=await supabase.auth.getUser();
   const legacy=await supabase.rpc('is_admin');
   if(!legacy.error&&legacy.data&&user.user){
-    return {user_id:user.user.id,email:user.user.email||'',display_name:'المالك',job_title:'مالك',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
+    const storeId=await requireTenantId(); return {store_id:storeId,user_id:user.user.id,email:user.user.email||'',display_name:'المالك',job_title:'مالك',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
   }
   return null;
 }
@@ -181,7 +191,8 @@ export async function joinStaffWithInvite(email:string,password:string,code:stri
 
   if(!session)throw new Error('تم إنشاء الحساب. فعّل البريد الإلكتروني ثم ارجع وسجل الدخول بنفس البيانات لإكمال الدعوة.');
 
-  const {error}=await supabase.rpc('claim_staff_invite',{code_input:code.trim(),display_name_input:displayName.trim()});
+  const storeId=await requireTenantId();
+  const {error}=await supabase.rpc('claim_staff_invite',{store_id_input:storeId,code_input:code.trim(),display_name_input:displayName.trim()});
   if(error)throw error;
   try{await supabase.rpc('record_staff_login');}catch{}
   localStorage.removeItem('fakahany-pending-staff-invite');

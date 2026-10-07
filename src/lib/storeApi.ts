@@ -2,6 +2,7 @@ import type { AdminAuditLog, AdminSearchResult, Category, ClientErrorLog, Delive
 import { supabase, supabaseConfigured } from './supabase';
 import { getDemoOrders, getDemoSnapshot, setDemoOrders, setDemoSnapshot } from './demoData';
 import { compressImage, fileToDataUrl, uid } from './utils';
+import { requireTenantId } from './tenant';
 
 const demoWait = () => new Promise(r => setTimeout(r, 80));
 
@@ -69,10 +70,16 @@ function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): 
 }
 
 export async function loadStore(): Promise<StoreSnapshot> {
-  if (supabaseConfigured && supabase) { try { await supabase.rpc('apply_due_scheduled_prices'); } catch {} }
   if (!supabaseConfigured || !supabase) { await demoWait(); const snap=getDemoSnapshot(); return {...snap,settings:normalizeSettings(snap.settings)}; }
+  const storeId=await requireTenantId();
+  try { await supabase.rpc('apply_due_scheduled_prices',{store_id_input:storeId}); } catch {}
   const [{ data: categories, error: e1 }, { data: units, error: e2 }, { data: products, error: e3 }, { data: options, error: e4 }, { data: settings, error: e5 }, { data: areas, error: e6 }] = await Promise.all([
-    supabase.from('categories').select('*').order('display_order'), supabase.from('selling_units').select('*').order('display_order'), supabase.from('products').select('*').order('display_order'), supabase.from('product_options').select('*').order('display_order'), supabase.from('shop_settings').select('*').eq('id', 'main').single(), supabase.from('delivery_areas').select('*').order('display_order'),
+    supabase.from('categories').select('*').eq('store_id',storeId).order('display_order'),
+    supabase.from('selling_units').select('*').eq('store_id',storeId).order('display_order'),
+    supabase.from('products').select('*').eq('store_id',storeId).order('display_order'),
+    supabase.from('product_options').select('*').eq('store_id',storeId).order('display_order'),
+    supabase.from('shop_settings').select('*').eq('store_id',storeId).single(),
+    supabase.from('delivery_areas').select('*').eq('store_id',storeId).order('display_order'),
   ]);
   const err = e1 || e2 || e3 || e4 || e5 || e6; if (err) throw err;
   const grouped = new Map<string, ProductOption[]>();
@@ -82,37 +89,38 @@ export async function loadStore(): Promise<StoreSnapshot> {
 
 export async function saveSettings(settings: ShopSettings) {
   if (!supabaseConfigured || !supabase) { const s=getDemoSnapshot(); s.settings=settings; setDemoSnapshot(s); return; }
-  const { error }=await supabase.from('shop_settings').upsert(settings); if(error) throw error;
+  const storeId=await requireTenantId(); const { error }=await supabase.from('shop_settings').upsert({...settings,store_id:storeId}); if(error) throw error;
 }
 
 export async function saveCategory(category: Category) {
   if (!supabaseConfigured || !supabase) { const s=getDemoSnapshot(); const i=s.categories.findIndex(x=>x.id===category.id); if(i>=0)s.categories[i]=category;else s.categories.push(category);setDemoSnapshot(s);return category; }
-  const {data,error}=await supabase.from('categories').upsert(category).select().single(); if(error)throw error; return data as Category;
+  const storeId=await requireTenantId(); const {data,error}=await supabase.from('categories').upsert({...category,store_id:storeId}).select().single(); if(error)throw error; return data as Category;
 }
 export async function deleteCategory(id:string){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.categories=s.categories.filter(x=>x.id!==id);s.products=s.products.map(p=>p.category_id===id?{...p,category_id:null}:p);setDemoSnapshot(s);return;} const {error}=await supabase.from('categories').delete().eq('id',id);if(error)throw error; }
-export async function saveUnit(unit:SellingUnit){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();const i=s.units.findIndex(x=>x.id===unit.id);if(i>=0)s.units[i]=unit;else s.units.push(unit);setDemoSnapshot(s);return unit;} const {data,error}=await supabase.from('selling_units').upsert(unit).select().single();if(error)throw error;return data as SellingUnit; }
+export async function saveUnit(unit:SellingUnit){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();const i=s.units.findIndex(x=>x.id===unit.id);if(i>=0)s.units[i]=unit;else s.units.push(unit);setDemoSnapshot(s);return unit;} const storeId=await requireTenantId(); const {data,error}=await supabase.from('selling_units').upsert({...unit,store_id:storeId}).select().single();if(error)throw error;return data as SellingUnit; }
 export async function deleteUnit(id:string){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.units=s.units.filter(x=>x.id!==id);setDemoSnapshot(s);return;} const {error}=await supabase.from('selling_units').delete().eq('id',id);if(error)throw error; }
-export async function saveDeliveryArea(area:DeliveryArea){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();const i=s.deliveryAreas.findIndex(x=>x.id===area.id);if(i>=0)s.deliveryAreas[i]=area;else s.deliveryAreas.push(area);setDemoSnapshot(s);return area;} const {data,error}=await supabase.from('delivery_areas').upsert(area).select().single();if(error)throw error;return data as DeliveryArea; }
+export async function saveDeliveryArea(area:DeliveryArea){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();const i=s.deliveryAreas.findIndex(x=>x.id===area.id);if(i>=0)s.deliveryAreas[i]=area;else s.deliveryAreas.push(area);setDemoSnapshot(s);return area;} const storeId=await requireTenantId(); const {data,error}=await supabase.from('delivery_areas').upsert({...area,store_id:storeId}).select().single();if(error)throw error;return data as DeliveryArea; }
 export async function deleteDeliveryArea(id:string){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.deliveryAreas=s.deliveryAreas.filter(x=>x.id!==id);setDemoSnapshot(s);return;} const {error}=await supabase.from('delivery_areas').delete().eq('id',id);if(error)throw error; }
 
 export async function saveProduct(product: Product) {
   if (!supabaseConfigured || !supabase) { const s=getDemoSnapshot(); const i=s.products.findIndex(x=>x.id===product.id); if(i>=0)s.products[i]=product;else s.products.push(product);setDemoSnapshot(s);return product; }
+  const storeId=await requireTenantId();
 
   const [oldProductResult,oldOptionsResult]=await Promise.all([
-    supabase.from('products').select('id,name_ar,track_stock,stock_qty').eq('id',product.id).maybeSingle(),
-    supabase.from('product_options').select('id,name_ar,track_stock,stock_qty').eq('product_id',product.id)
+    supabase.from('products').select('id,name_ar,track_stock,stock_qty').eq('store_id',storeId).eq('id',product.id).maybeSingle(),
+    supabase.from('product_options').select('id,name_ar,track_stock,stock_qty').eq('store_id',storeId).eq('product_id',product.id)
   ]);
 
   const oldProduct=oldProductResult.data as any;
   const oldOptions=(oldOptionsResult.data||[]) as any[];
 
   const {options,...row}=product;
-  const {error}=await supabase.from('products').upsert(row);if(error)throw error;
-  const existing=await supabase.from('product_options').select('id').eq('product_id',product.id);if(existing.error)throw existing.error;
+  const {error}=await supabase.from('products').upsert({...row,store_id:storeId});if(error)throw error;
+  const existing=await supabase.from('product_options').select('id').eq('store_id',storeId).eq('product_id',product.id);if(existing.error)throw existing.error;
   const incoming=new Set(options.map(o=>o.id));
   const toDelete=(existing.data||[]).filter(x=>!incoming.has(x.id)).map(x=>x.id);
-  if(toDelete.length){const d=await supabase.from('product_options').delete().in('id',toDelete);if(d.error)throw d.error;}
-  if(options.length){const up=await supabase.from('product_options').upsert(options);if(up.error)throw up.error;}
+  if(toDelete.length){const d=await supabase.from('product_options').delete().eq('store_id',storeId).in('id',toDelete);if(d.error)throw d.error;}
+  if(options.length){const up=await supabase.from('product_options').upsert(options.map(o=>({...o,store_id:storeId})));if(up.error)throw up.error;}
 
   const logChange=async(optionId:string|null,before:number|null,after:number|null)=>{
     if(before===after)return;
@@ -143,14 +151,14 @@ export async function bulkUpdateProductFields(ids:string[], fields:Partial<Pick<
 
 export async function deleteProduct(id:string){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.products=s.products.filter(x=>x.id!==id);setDemoSnapshot(s);return;} const {error}=await supabase.from('products').delete().eq('id',id);if(error)throw error; }
 
-export async function uploadImage(file: File, folder='products'):Promise<string>{ const optimized=await compressImage(file); if(!supabaseConfigured||!supabase)return fileToDataUrl(optimized); const ext=optimized.name.split('.').pop()?.toLowerCase()||'webp'; const path=`${folder}/${uid()}.${ext}`; const {error}=await supabase.storage.from('store-images').upload(path,optimized,{cacheControl:'3600',upsert:false,contentType:optimized.type});if(error)throw error;return supabase.storage.from('store-images').getPublicUrl(path).data.publicUrl; }
+export async function uploadImage(file: File, folder='products'):Promise<string>{ const optimized=await compressImage(file); if(!supabaseConfigured||!supabase)return fileToDataUrl(optimized); const storeId=await requireTenantId(); const ext=optimized.name.split('.').pop()?.toLowerCase()||'webp'; const path=storeId+'/'+folder+'/'+uid()+'.'+ext; const {error}=await supabase.storage.from('store-images').upload(path,optimized,{cacheControl:'3600',upsert:false,contentType:optimized.type});if(error)throw error;return supabase.storage.from('store-images').getPublicUrl(path).data.publicUrl; }
 export async function deleteImage(publicUrl:string){ if(!publicUrl||!supabaseConfigured||!supabase)return; const marker='/storage/v1/object/public/store-images/'; const idx=publicUrl.indexOf(marker); if(idx<0)return; const path=decodeURIComponent(publicUrl.slice(idx+marker.length)); const {error}=await supabase.storage.from('store-images').remove([path]);if(error)throw error; }
 
 export async function saveOrder(order: Order):Promise<Order>{
   if(!supabaseConfigured||!supabase){const orders=getDemoOrders();orders.unshift(order);setDemoOrders(orders);return order;}
   const payload={id:order.id,order_number:order.order_number,customer_name:order.customer_name,customer_phone:order.customer_phone,address:order.address,area_id:order.area_id,notes:order.notes,requested_time:order.requested_time||'',requested_for:order.requested_for||'',client_token:order.client_token||''};
   const itemPayload=order.items.map(i=>({id:i.id,product_id:i.product_id,option_id:i.option_id,quantity:i.quantity}));
-  const {data,error}=await supabase.rpc('create_store_order',{order_payload:payload,items_payload:itemPayload}); if(error)throw error;
+  const storeId=await requireTenantId(); const {data,error}=await supabase.rpc('create_store_order',{store_id_input:storeId,order_payload:payload,items_payload:itemPayload}); if(error)throw error;
   const result=(data||{}) as any;
   let trackingToken='';
   try{
@@ -298,7 +306,7 @@ export async function recordVisit():Promise<void>{
     const ua=navigator.userAgent.toLowerCase();
     const device:SiteVisit['device_type']=/ipad|tablet/.test(ua)?'جهاز لوحي':/mobile|iphone|android/.test(ua)?'هاتف':'كمبيوتر';
     const referrer=document.referrer ? (()=>{try{return new URL(document.referrer).hostname}catch{return ''}})() : '';
-    await supabase.rpc('record_store_visit',{country_input:country,device_input:device,referrer_input:referrer});
+    const storeId=await requireTenantId(); await supabase.rpc('record_store_visit',{store_id_input:storeId,country_input:country,device_input:device,referrer_input:referrer});
   }catch{
     sessionStorage.removeItem('fakahany-visit-recorded');
   }
