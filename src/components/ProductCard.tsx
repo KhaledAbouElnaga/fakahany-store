@@ -28,9 +28,9 @@ export default function ProductCard({ product, lowStockThreshold=5, onQuickView,
   };
 
   return <article className="product-card">
+    {onToggleFavorite&&<button type="button" className={favorite?'favorite-btn active':'favorite-btn'} aria-label={favorite?`إزالة ${product.name_ar} من المفضلة`:`إضافة ${product.name_ar} للمفضلة`} aria-pressed={favorite} onClick={()=>onToggleFavorite(product)}>{favorite?'♥':'♡'}</button>}
     <button className="product-image-button" type="button" onClick={()=>onQuickView?.(product)} aria-label={`عرض تفاصيل ${product.name_ar}`}>
       <div className="product-image-wrap">
-        {onToggleFavorite&&<button type="button" className={favorite?'favorite-btn active':'favorite-btn'} aria-label={favorite?`إزالة ${product.name_ar} من المفضلة`:`إضافة ${product.name_ar} للمفضلة`} aria-pressed={favorite} onClick={e=>{e.stopPropagation();onToggleFavorite(product)}}>{favorite?'♥':'♡'}</button>}
         {hasSale && <span className="sale-badge">خصم {discount}٪</span>}
         {out ? <span className="stock-badge out">نفد مؤقتًا</span> : low ? <span className="stock-badge low">كمية قليلة</span> : null}
         {product.image_url ? <img src={product.image_url} alt={product.name_ar} loading="lazy"/> : <div className="image-fallback">صورة المنتج</div>}
