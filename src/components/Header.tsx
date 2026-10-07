@@ -12,7 +12,7 @@ export default function Header({ settings, showCart=true }: { settings: ShopSett
         <strong>{settings.store_name}</strong>
       </Link>
       {showCart&&<Link className="cart-link" to="/cart" aria-label="سلة التسوق">
-        <span>🛒</span>{count > 0 && <b>{count}</b>}
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 8H7.1M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>{count > 0 && <b>{count}</b>}
       </Link>}
     </div>
   </header>;
