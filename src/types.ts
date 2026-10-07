@@ -177,6 +177,23 @@ export interface OrderItem {
   line_total: number;
 }
 
+export interface TenantInfo {
+  id: string;
+  slug: string;
+  name: string;
+  custom_domain: string | null;
+  status: 'active' | 'suspended';
+  plan: string;
+}
+
+export interface PlatformStore extends TenantInfo {
+  created_at: string;
+  owner_email: string;
+  products_count: number;
+  orders_count: number;
+  staff_count: number;
+}
+
 export interface StoreSnapshot {
   categories: Category[];
   units: SellingUnit[];
@@ -214,6 +231,7 @@ export interface OrderCleanupLog {
 export type StaffRole = 'owner' | 'manager' | 'orders' | 'inventory' | 'viewer';
 
 export interface StaffProfile {
+  store_id: string;
   user_id: string;
   email: string;
   display_name: string;
