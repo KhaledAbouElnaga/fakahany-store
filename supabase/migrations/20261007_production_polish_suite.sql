@@ -3,7 +3,7 @@
 
 alter table public.shop_settings
   add column if not exists feature_flags jsonb not null default
-    '{"tracking":true,"reports":true,"staff":true,"scheduled_prices":true,"inventory":true,"favorites":true,"reorder":true}'::jsonb,
+    '{"tracking":true,"reports":true,"staff":true,"scheduled_prices":true,"scheduled_orders":true,"inventory":true,"favorites":true,"reorder":true}'::jsonb,
   add column if not exists dashboard_widgets text[] not null default
     array['orders_today','new_orders','overdue','sales_today','sales_week','avg_order','repeat_customers','cancel_rate','top_product','peak_hour','low_stock'];
 
