@@ -34,6 +34,7 @@ test('admin demo login and product tools load',async({page})=>{
   await expect(page.getByRole('heading',{name:'المنتجات',exact:true})).toBeVisible();
   await expect(page.getByText('إضافة سريعة')).toBeVisible();
   await expect(page.getByRole('button',{name:'نسخ'}).first()).toBeVisible();
+  await expect(page.getByText('إدارة المنصة',{exact:true})).toHaveCount(0);
 });
 
 test('full order lifecycle reaches admin status and public tracking',async({page})=>{
