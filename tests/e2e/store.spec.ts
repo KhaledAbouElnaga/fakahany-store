@@ -20,7 +20,7 @@ test('storefront to cart to checkout works',async({page})=>{
   await page.getByLabel(/الاسم/).fill('اختبار تلقائي');
   await page.getByLabel(/رقم الهاتف/).fill('01012345678');
   await page.getByLabel(/العنوان/).fill('عنوان اختبار');
-  await page.getByRole('button',{name:/تأكيد الطلب|إرسال الطلب|إتمام الطلب/}).click();
+  await page.getByRole('button',{name:'تسجيل الطلب وفتح واتساب'}).click();
   await expect(page.getByText(/تم استلام طلبك|تم تسجيل طلبك/)).toBeVisible();
 });
 
@@ -29,7 +29,7 @@ test('admin demo login and product tools load',async({page})=>{
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
   await expect(page.getByRole('heading',{name:'الرئيسية'})).toBeVisible();
   await page.getByRole('button',{name:'المنتجات'}).click();
-  await expect(page.getByRole('heading',{name:'المنتجات'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'المنتجات',exact:true})).toBeVisible();
   await expect(page.getByText('إضافة سريعة')).toBeVisible();
   await expect(page.getByRole('button',{name:'نسخ'}).first()).toBeVisible();
 });
