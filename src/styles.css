@@ -471,3 +471,26 @@ input,select,textarea{min-height:var(--control-h)}
 }
 
 .brand-mark svg{width:24px;height:24px;fill:none;stroke:white;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+
+
+/* MULTI-TENANT SAAS PLATFORM */
+.platform-login{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#eef7ec,#f7faf6)}
+.platform-shell{min-height:100vh;background:#f4f7f3}
+.platform-topbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(16px,3vw,34px);background:#fff;border-bottom:1px solid var(--border);box-shadow:0 7px 24px #16352308}
+.platform-topbar>div:first-child{display:grid;gap:2px}.platform-topbar>div:first-child strong{font-size:1.05rem}.platform-topbar>div:first-child span{font-size:.78rem;color:var(--muted)}
+.platform-top-actions{display:flex;gap:8px;flex-wrap:wrap}
+.platform-main{width:min(1320px,calc(100% - 28px));margin:auto;padding:28px 0 60px}
+.platform-create-panel{margin-bottom:20px}.platform-create-panel h2{margin-top:0}
+.platform-create-grid{display:grid;grid-template-columns:1.2fr .8fr 1fr 1fr auto;gap:10px;align-items:end}
+.platform-create-grid label{display:grid;gap:6px;font-weight:700;font-size:.84rem}.platform-create-grid button{min-width:145px}
+.platform-created{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;margin:0 0 18px;padding:16px;border:1px solid #b9dfc2;border-radius:16px;background:#f2faf3}
+.platform-created>div:first-child{display:grid;gap:4px}.platform-created>div:first-child span{color:var(--muted);font-size:.84rem}.platform-created .invite-code-box{grid-column:1/-1;margin:0}
+.platform-store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.platform-store-card{background:#fff;border:1px solid var(--border);border-radius:18px;padding:16px;display:grid;gap:14px;box-shadow:0 8px 24px #16352308}
+.platform-store-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.platform-store-head h3{margin:0 0 4px}.platform-store-head code{direction:ltr;color:var(--muted);font-size:.8rem}
+.platform-status{display:inline-flex;align-items:center;justify-content:center;min-height:28px;padding:4px 9px;border-radius:999px;font-size:.76rem;font-weight:800}.platform-status.active{background:#edf8ef;color:#176735}.platform-status.suspended{background:#fff0ee;color:#aa3429}
+.platform-store-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;font-size:.82rem;color:#53655a}.platform-store-meta b{color:var(--text)}
+.platform-domain{display:grid;gap:4px;padding:10px 12px;border:1px dashed var(--border);border-radius:12px;background:#fafcf9}.platform-domain small{color:var(--muted)}.platform-domain strong{font-size:.86rem;overflow-wrap:anywhere}
+.platform-card-actions{display:flex;gap:8px;flex-wrap:wrap}.platform-card-actions .btn{flex:1;min-width:90px}
+@media(max-width:980px){.platform-create-grid{grid-template-columns:1fr 1fr}.platform-create-grid button{grid-column:1/-1}}
+@media(max-width:700px){.platform-topbar{align-items:flex-start}.platform-top-actions{justify-content:flex-end}.platform-main{padding-top:18px}.platform-create-grid{grid-template-columns:1fr}.platform-create-grid button{grid-column:auto}.platform-created{grid-template-columns:1fr}.platform-created .invite-code-box{grid-column:auto}.platform-store-grid{grid-template-columns:1fr}}
