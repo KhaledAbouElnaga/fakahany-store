@@ -153,16 +153,37 @@ export async function exportPlatformStore(storeId:string):Promise<unknown>{
   return data;
 }
 
-export async function deletePlatformStore(storeId:string,confirmSlug:string):Promise<void>{
+export async function requestPlatformDeleteCode():Promise<{email:string}>{
+  if(!supabaseConfigured||!supabase)throw new Error('إرسال كود التأكيد يحتاج Supabase.');
+  const {data:{user}}=await supabase.auth.getUser();
+  if(!user?.email)throw new Error('لا يوجد بريد إلكتروني لحساب إدارة المنصة.');
+  const {error}=await supabase.auth.reauthenticate();
+  if(error)throw error;
+  return {email:user.email};
+}
+
+async function functionsErrorMessage(error:any):Promise<string>{
+  let message=error?.message||'تعذر تنفيذ العملية.';
+  try{
+    const response=error?.context;
+    if(response&&typeof response.clone==='function'){
+      const payload=await response.clone().json();
+      if(payload?.error)message=String(payload.error);
+    }
+  }catch{}
+  return message;
+}
+
+export async function deletePlatformStore(storeId:string,confirmSlug:string,confirmationCode:string):Promise<void>{
   if(!supabaseConfigured||!supabase)return;
   const {data:{session}}=await supabase.auth.getSession();
   if(!session)throw new Error('انتهت جلسة تسجيل الدخول.');
   const {data,error}=await supabase.functions.invoke('platform-delete-store',{
-    body:{store_id:storeId,confirm_slug:confirmSlug},
+    body:{store_id:storeId,confirm_slug:confirmSlug,confirmation_code:confirmationCode.trim()},
     headers:{Authorization:`Bearer ${session.access_token}`}
   });
-  if(error)throw error;
-  if(data?.error)throw new Error(data.error);
+  if(error)throw new Error(await functionsErrorMessage(error));
+  if(data?.error)throw new Error(String(data.error));
 }
 
 export function platformStoreUrl(origin:string,store:Pick<PlatformStore,'slug'>,settings:PlatformSettings){

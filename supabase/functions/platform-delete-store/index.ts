@@ -44,20 +44,28 @@ Deno.serve(async req=>{
   try{body=await req.json()}catch{return json({error:"Invalid request body"},400)}
   const storeId=String(body.store_id||"");
   const confirmSlug=String(body.confirm_slug||"").trim().toLowerCase();
-  if(!storeId||!confirmSlug)return json({error:"Store id and confirmation are required"},400);
+  const confirmationCode=String(body.confirmation_code||"").trim();
+  if(!storeId||!confirmSlug||!confirmationCode)return json({error:"بيانات الحذف أو كود التأكيد غير مكتملة"},400);
 
-  const target=await adminClient.from("stores").select("id,slug,status").eq("id",storeId).maybeSingle();
-  if(target.error)return json({error:target.error.message},400);
-  if(!target.data)return json({error:"Store not found"},404);
-  if(target.data.status!=="suspended")return json({error:"Suspend the store before deleting it"},400);
-  if(target.data.slug!==confirmSlug)return json({error:"Confirmation slug does not match"},400);
+  const authorization=await userClient.rpc("platform_authorize_store_delete",{
+    store_id_input:storeId,
+    confirm_slug_input:confirmSlug,
+    code_input:confirmationCode
+  });
+  if(authorization.error){
+    console.error("delete authorization failed",authorization.error.message);
+    return json({error:authorization.error.message},400);
+  }
 
   const backup=await userClient.rpc("platform_create_backup",{
     store_id_input:storeId,
     label_input:"نسخة تلقائية قبل الحذف النهائي",
     kind_input:"pre_delete"
   });
-  if(backup.error)return json({error:"Backup before deletion failed: "+backup.error.message},500);
+  if(backup.error){
+    console.error("backup before delete failed",backup.error.message);
+    return json({error:"تعذر إنشاء النسخة الاحتياطية قبل الحذف: "+backup.error.message},500);
+  }
 
   let deletedFiles=0;
   try{
@@ -69,11 +77,16 @@ Deno.serve(async req=>{
       deletedFiles+=batch.length;
     }
   }catch(e){
-    return json({error:"Storage cleanup failed: "+(e instanceof Error?e.message:String(e))},500);
+    const message=e instanceof Error?e.message:String(e);
+    console.error("storage cleanup failed",message);
+    return json({error:"تعذر تنظيف ملفات المتجر: "+message},500);
   }
 
   const removed=await userClient.rpc("platform_delete_store_record",{store_id_input:storeId,confirm_slug_input:confirmSlug});
-  if(removed.error)return json({error:removed.error.message},400);
+  if(removed.error){
+    console.error("store record delete failed",removed.error.message);
+    return json({error:removed.error.message},400);
+  }
 
   return json({ok:true,deleted_files:deletedFiles});
 });

@@ -4,7 +4,7 @@ import {
   getPlatformOverview, getPlatformSettings, isPlatformAdmin, listPlatformPlans,
   listPlatformStores, platformAdminUrl, platformStoreUrl, savePlatformSettings,
   setPlatformStorePlan, setPlatformStoreStatus, setPlatformSubscription,
-  platformAccessUnlocked, signInPlatform, signOutPlatform, startPlatformSupport, transferPlatformStoreOwner
+  platformAccessUnlocked, requestPlatformDeleteCode, signInPlatform, signOutPlatform, startPlatformSupport, transferPlatformStoreOwner
 } from '../lib/platformApi';
 import type { PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore } from '../types';
 import { clearResolvedTenant } from '../lib/tenant';
@@ -158,10 +158,19 @@ export default function PlatformAdminPage(){
     if(store.status!=='suspended')return setError('أوقف المتجر أولًا قبل الحذف النهائي.');
     const slug=window.prompt(`حذف نهائي لكل بيانات «${store.name}». للتأكيد اكتب: ${store.slug}`,'');
     if(slug!==store.slug)return;
-    if(!confirm('هذا حذف نهائي ولا يمكن التراجع عنه. هل تريد المتابعة؟'))return;
+    if(!confirm('هذا حذف نهائي ولا يمكن التراجع عنه. سيتم إرسال كود تأكيد إلى بريد حساب إدارة المنصة. هل تريد المتابعة؟'))return;
+
     setBusy(true);setError('');setOk('');
-    try{await deletePlatformStore(store.id,slug);await refresh();setOk('تم حذف المتجر وبياناته نهائيًا.')}
-    catch(e:any){setError(e?.message||'تعذر حذف المتجر.')}finally{setBusy(false)}
+    try{
+      const {email}=await requestPlatformDeleteCode();
+      const code=window.prompt(`تم إرسال كود تأكيد من 6 أرقام إلى: ${email}\nاكتب الكود لإتمام الحذف النهائي.`,'');
+      if(!code){setOk('تم إلغاء الحذف قبل التنفيذ.');return;}
+      await deletePlatformStore(store.id,slug,code);
+      await refresh();
+      setOk('تم حذف المتجر وبياناته نهائيًا بعد تأكيد البريد الإلكتروني.');
+    }catch(e:any){
+      setError(e?.message||'تعذر حذف المتجر.');
+    }finally{setBusy(false)}
   };
 
   const saveSettings=async()=>{
