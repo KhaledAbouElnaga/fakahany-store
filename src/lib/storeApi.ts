@@ -1,4 +1,4 @@
-import type { AdminAuditLog, AdminSearchResult, Category, DeliveryArea, InventoryAdjustment, Order, OrderCleanupLog, OrderEvent, OrderStatusDefinition, Product, ProductOption, ScheduledPrice, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
+import type { AdminAuditLog, AdminSearchResult, Category, ClientErrorLog, DeliveryArea, InventoryAdjustment, Order, OrderCleanupLog, OrderEvent, OrderStatusDefinition, Product, ProductOption, ScheduledPrice, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
 import { supabase, supabaseConfigured } from './supabase';
 import { getDemoOrders, getDemoSnapshot, setDemoOrders, setDemoSnapshot } from './demoData';
 import { compressImage, fileToDataUrl, uid } from './utils';
@@ -180,6 +180,13 @@ export async function loadAdminAuditLogs(limit=250):Promise<AdminAuditLog[]>{
   if(staff.error)return logs;
   const map=new Map((staff.data||[]).map((x:any)=>[String(x.user_id),String(x.display_name||x.email||'')]));
   return logs.map(x=>({...x,actor_email:x.actor_user_id?(map.get(x.actor_user_id)||'حساب سابق'):'النظام'}));
+}
+
+export async function loadClientErrors(limit=50):Promise<ClientErrorLog[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.from('client_error_log').select('*').order('created_at',{ascending:false}).limit(limit);
+  if(error)throw error;
+  return (data||[]) as ClientErrorLog[];
 }
 
 export async function runDataRetentionCleanup():Promise<{audit_deleted:number;inventory_deleted:number;visits_deleted:number}>{
