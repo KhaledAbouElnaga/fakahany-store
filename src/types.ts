@@ -70,6 +70,16 @@ export interface ShopSettings {
   audit_retention_days: number;
   inventory_retention_days: number;
   visit_retention_days: number;
+  feature_flags: {
+    tracking: boolean;
+    reports: boolean;
+    staff: boolean;
+    scheduled_prices: boolean;
+    inventory: boolean;
+    favorites: boolean;
+    reorder: boolean;
+  };
+  dashboard_widgets: string[];
   min_order: number;
   delivery_enabled: boolean;
   default_delivery_fee: number;
@@ -277,4 +287,13 @@ export interface AdminSearchResult {
   id: string;
   title: string;
   subtitle: string;
+}
+
+
+export interface ClientErrorLog {
+  id: string;
+  created_at: string;
+  message: string;
+  path: string;
+  source: string;
 }
