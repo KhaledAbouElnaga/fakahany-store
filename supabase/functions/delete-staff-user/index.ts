@@ -16,6 +16,9 @@ Deno.serve(async(req:Request)=>{
 
   const ownerCheck=await userClient.rpc("is_admin");
   if(ownerCheck.error||ownerCheck.data!==true)return json({error:"Owner authorization required"},403);
+  const callerProfile=await userClient.rpc("current_staff_profile");
+  const callerStoreId=callerProfile.data?.store_id;
+  if(callerProfile.error||!callerStoreId)return json({error:"Store context unavailable"},403);
 
   const userResult=await userClient.auth.getUser();
   const callerId=userResult.data.user?.id;
@@ -26,17 +29,18 @@ Deno.serve(async(req:Request)=>{
   const targetId=String(body.user_id||"");
   if(!targetId||targetId===callerId)return json({error:"Invalid target"},400);
 
-  const target=await adminClient.from("staff_profiles").select("user_id,role,email").eq("user_id",targetId).maybeSingle();
+  const target=await adminClient.from("staff_profiles").select("user_id,store_id,role,email").eq("user_id",targetId).maybeSingle();
   if(target.error)return json({error:"Unable to read target account"},500);
   if(!target.data)return json({error:"Account not found"},404);
+  if(target.data.store_id!==callerStoreId)return json({error:"Cross-store operation denied"},403);
   if(target.data.role==="owner")return json({error:"Owner accounts cannot be deleted here"},400);
 
   const deleted=await adminClient.auth.admin.deleteUser(targetId);
   if(deleted.error)return json({error:deleted.error.message},400);
 
-  await adminClient.from("admins").delete().eq("user_id",targetId);
-  await adminClient.from("staff_profiles").delete().eq("user_id",targetId);
-  await adminClient.from("staff_invites").delete().eq("email",target.data.email);
+  await adminClient.from("admins").delete().eq("user_id",targetId).eq("store_id",callerStoreId);
+  await adminClient.from("staff_profiles").delete().eq("user_id",targetId).eq("store_id",callerStoreId);
+  await adminClient.from("staff_invites").delete().eq("store_id",callerStoreId).eq("email",target.data.email);
 
   return json({success:true});
 });
