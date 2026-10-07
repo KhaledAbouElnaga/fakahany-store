@@ -10,5 +10,6 @@ export function stableDemoSnapshot(){
   snapshot.settings.announcement_enabled=false;
   snapshot.settings.maintenance_mode=false;
   snapshot.settings.public_site_url='';
+  snapshot.settings.whatsapp_number='201012345678';
   return snapshot;
 }
