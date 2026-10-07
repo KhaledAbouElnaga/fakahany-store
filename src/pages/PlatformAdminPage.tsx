@@ -4,7 +4,7 @@ import {
   getPlatformOverview, getPlatformSettings, isPlatformAdmin, listPlatformPlans,
   listPlatformStores, platformAdminUrl, platformStoreUrl, savePlatformSettings,
   setPlatformStorePlan, setPlatformStoreStatus, setPlatformSubscription,
-  signInPlatform, signOutPlatform, startPlatformSupport, transferPlatformStoreOwner
+  platformAccessUnlocked, signInPlatform, signOutPlatform, startPlatformSupport, transferPlatformStoreOwner
 } from '../lib/platformApi';
 import type { PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore } from '../types';
 import { clearResolvedTenant } from '../lib/tenant';
@@ -64,6 +64,10 @@ export default function PlatformAdminPage(){
     clearResolvedTenant({forgetPreview:true});
     updateNeutralPageMeta('Fakahany SaaS — إدارة المنصة','إدارة جميع المتاجر من منصة واحدة.');
     void endPlatformSupport().catch(()=>{}).finally(()=>{
+      if(!platformAccessUnlocked()){
+        setAuthorized(false);
+        return;
+      }
       void isPlatformAdmin().then(async ok=>{setAuthorized(ok);if(ok)await refresh()}).catch(()=>setAuthorized(false));
     });
   },[]);
