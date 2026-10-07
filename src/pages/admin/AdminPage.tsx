@@ -295,10 +295,38 @@ export default function AdminPage(){
 
   function SimpleManager({kind}:{kind:'categories'|'units'|'areas'}){
     const config=kind==='categories'?{title:'الأقسام',items:data!.categories,newItem:()=>newCategory(data!.categories.length+1),save:saveCategory,del:deleteCategory}:kind==='units'?{title:'وحدات البيع',items:data!.units,newItem:()=>newUnit(data!.units.length+1),save:saveUnit,del:deleteUnit}:{title:'مناطق التوصيل',items:data!.deliveryAreas,newItem:()=>newArea(data!.deliveryAreas.length+1),save:saveDeliveryArea,del:deleteDeliveryArea};
-    const [items,setItems]=useState<any[]>(structuredClone(config.items)); const [msg,setMsg]=useState(''); useEffect(()=>setItems(structuredClone(config.items)),[config.items.length]);
+    const [items,setItems]=useState<any[]>(structuredClone(config.items));
+    const [msg,setMsg]=useState('');
+    const [dragId,setDragId]=useState('');
+    const [pendingDelete,setPendingDelete]=useState<{item:any,timer:number}|null>(null);
+    const sourceSnapshot=JSON.stringify(config.items);
+    const dirty=JSON.stringify(items)!==sourceSnapshot;
+    useUnsavedChanges(dirty);
+    useEffect(()=>setItems(structuredClone(config.items)),[sourceSnapshot]);
+
     const commit=async(item:any)=>{if(!item.name_ar?.trim())return setMsg('اكتب الاسم أولًا.');if(kind==='areas'&&Number(item.fee)<0)return setMsg('رسوم التوصيل لا يمكن أن تكون سالبة.');try{await config.save(item as any);await refresh();setMsg('تم الحفظ بنجاح.')}catch(e:any){setMsg(e?.message||'تعذر الحفظ')}};
-    const remove=async(x:any)=>{let warning='تأكيد الحذف؟';if(kind==='categories'){const used=data!.products.filter(p=>p.category_id===x.id).length;if(used)warning=`هذا القسم مستخدم في ${used} منتج. حذف القسم سيجعل هذه المنتجات بدون قسم. هل تريد المتابعة؟`;}if(kind==='units'){const used=data!.products.flatMap(p=>p.options).filter(o=>o.name_ar===x.name_ar).length;if(used)warning=`هذه الوحدة مستخدمة في ${used} خيار بيع. المنتجات الحالية لن تتعطل لأن اسم الوحدة محفوظ داخل الخيار، لكن لن تظهر الوحدة للاختيار مستقبلًا. هل تريد المتابعة؟`;}if(confirm(warning)){try{await config.del(x.id);await refresh();setMsg('تم الحذف.')}catch(e:any){setMsg(e?.message||'تعذر الحذف')}}};
-    return <><PageTitle actions={<button className="btn" onClick={()=>setItems(x=>[...x,config.newItem()])}>+ إضافة</button>}>{config.title}</PageTitle>{kind==='areas'&&!data!.settings.delivery_enabled&&<div className="info-box">التوصيل غير مفعل حاليًا. يمكنك تجهيز المناطق الآن ولن تظهر للعملاء إلا بعد تفعيل التوصيل.</div>}{msg&&<p className={msg.includes('بنجاح')?'success-text':'info-text'}>{msg}</p>}<div className="list-editor">{items.sort((a,b)=>a.display_order-b.display_order).map(x=><div className="list-edit-row" key={x.id}><input value={x.name_ar} placeholder="الاسم" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,name_ar:e.target.value}:y))}/>{kind==='areas'&&<input type="number" min="0" value={x.fee} placeholder="رسوم التوصيل" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,fee:Number(e.target.value)}:y))}/>}<input className="small-input" type="number" value={x.display_order} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,display_order:Number(e.target.value)}:y))}/><label><input type="checkbox" checked={kind==='categories'?x.visible:kind==='units'?x.active:x.enabled} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,[kind==='categories'?'visible':kind==='units'?'active':'enabled']:e.target.checked}:y))}/> ظاهر/فعال</label><button onClick={()=>commit(x)}>حفظ</button><button className="danger" onClick={()=>void remove(x)}>حذف</button></div>)}</div></>;
+    const warningFor=(x:any)=>{let warning='إخفاء العنصر الآن وحذفه بعد 10 ثوانٍ؟ يمكنك التراجع خلال المهلة.';if(kind==='categories'){const used=data!.products.filter(p=>p.category_id===x.id).length;if(used)warning=`القسم مستخدم في ${used} منتج. بعد الحذف تصبح المنتجات بدون قسم. يمكنك التراجع خلال 10 ثوانٍ.`;}if(kind==='units'){const used=data!.products.flatMap(p=>p.options).filter(o=>o.name_ar===x.name_ar).length;if(used)warning=`الوحدة مستخدمة في ${used} خيار بيع. لن تتعطل الخيارات الحالية، ويمكنك التراجع خلال 10 ثوانٍ.`;}return warning};
+    const remove=(x:any)=>{if(pendingDelete)return setMsg('يوجد حذف قابل للتراجع حاليًا. انتظر أو تراجع أولًا.');if(!confirm(warningFor(x)))return;const timer=window.setTimeout(async()=>{try{await config.del(x.id);await refresh();setMsg('تم الحذف.')}catch(e:any){setMsg(e?.message||'تعذر الحذف')}finally{setPendingDelete(null)}},10000);setPendingDelete({item:x,timer})};
+    const undoDelete=()=>{if(!pendingDelete)return;window.clearTimeout(pendingDelete.timer);setPendingDelete(null);setMsg('تم التراجع عن الحذف.');};
+    const drop=async(targetId:string)=>{
+      if(!dragId||dragId===targetId)return setDragId('');
+      const ordered=[...items].sort((a,b)=>a.display_order-b.display_order);
+      const from=ordered.findIndex(x=>x.id===dragId),to=ordered.findIndex(x=>x.id===targetId);
+      if(from<0||to<0)return setDragId('');
+      const [picked]=ordered.splice(from,1);ordered.splice(to,0,picked);
+      const next=ordered.map((x,i)=>({...x,display_order:i+1}));
+      setItems(next);setDragId('');
+      try{await Promise.all(next.map(x=>config.save(x as any)));await refresh();setMsg('تم تحديث الترتيب.')}catch(e:any){setMsg(e?.message||'تعذر تحديث الترتيب.')}
+    };
+
+    const visible=[...items].filter(x=>x.id!==pendingDelete?.item.id).sort((a,b)=>a.display_order-b.display_order);
+    return <><PageTitle actions={<button className="btn" onClick={()=>setItems(x=>[...x,config.newItem()])}>+ إضافة</button>}>{config.title}</PageTitle>
+      {kind==='areas'&&!data!.settings.delivery_enabled&&<div className="info-box">التوصيل غير مفعل حاليًا. يمكنك تجهيز المناطق الآن ولن تظهر للعملاء إلا بعد تفعيل التوصيل.</div>}
+      {msg&&<p className={msg.includes('تم')?'success-text':'info-text'}>{msg}</p>}
+      <p className="muted drag-help">اسحب أي صف لتغيير ترتيبه، أو عدّل رقم الترتيب يدويًا.</p>
+      <div className="list-editor">{visible.map(x=><div className={dragId===x.id?'list-edit-row dragging-row':'list-edit-row'} draggable onDragStart={()=>setDragId(x.id)} onDragEnd={()=>setDragId('')} onDragOver={e=>e.preventDefault()} onDrop={()=>void drop(x.id)} key={x.id}><span className="drag-handle" aria-hidden="true">⋮⋮</span><input value={x.name_ar} placeholder="الاسم" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,name_ar:e.target.value}:y))}/>{kind==='areas'&&<input type="number" min="0" value={x.fee} placeholder="رسوم التوصيل" onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,fee:Number(e.target.value)}:y))}/>}<input className="small-input" aria-label="ترتيب الظهور" type="number" value={x.display_order} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,display_order:Number(e.target.value)}:y))}/><label><input type="checkbox" checked={kind==='categories'?x.visible:kind==='units'?x.active:x.enabled} onChange={e=>setItems(v=>v.map(y=>y.id===x.id?{...y,[kind==='categories'?'visible':kind==='units'?'active':'enabled']:e.target.checked}:y))}/> ظاهر/فعال</label><button onClick={()=>void commit(x)}>حفظ</button><button className="danger" onClick={()=>remove(x)}>حذف</button></div>)}</div>
+      {pendingDelete&&<div className="undo-toast" role="status"><span>سيتم حذف «{pendingDelete.item.name_ar}» خلال 10 ثوانٍ.</span><button onClick={undoDelete}>تراجع</button></div>}
+    </>;
   }
 
 
