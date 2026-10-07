@@ -12,6 +12,7 @@ import AppErrorBoundary from './components/AppErrorBoundary';
 import NetworkStatus from './components/NetworkStatus';
 import PublicStoreGate from './components/PublicStoreGate';
 import PwaUpdateToast from './components/PwaUpdateToast';
+import PlatformAdminPage from './pages/PlatformAdminPage';
 
 export default function App(){
   return <AppErrorBoundary><BrowserRouter><StoreProvider><CartProvider><NetworkStatus/><PwaUpdateToast/><Routes>
@@ -21,6 +22,7 @@ export default function App(){
     <Route path="/order-success" element={<OrderSuccessPage/>}/>
     <Route path="/track/:token" element={<OrderTrackingPage/>}/>
     <Route path="/admin/*" element={<AdminPage/>}/>
+    <Route path="/platform" element={<PlatformAdminPage/>}/>
     <Route path="*" element={<NotFoundPage/>}/>
   </Routes></CartProvider></StoreProvider></BrowserRouter></AppErrorBoundary>;
 }
