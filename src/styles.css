@@ -469,3 +469,5 @@ input,select,textarea{min-height:var(--control-h)}
   .primary-stats .stat-card strong{font-size:1.3rem}
   .secondary-stats .stat-card strong{font-size:1.05rem}
 }
+
+.brand-mark svg{width:24px;height:24px;fill:none;stroke:white;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
