@@ -5,7 +5,7 @@ import { useCart } from '../contexts/CartContext';
 
 function optionUsable(o: ProductOption) { return o.available && (!o.track_stock || Number(o.stock_qty ?? 0) > 0); }
 
-export default function ProductCard({ product, lowStockThreshold=5, onQuickView }: { product: Product; lowStockThreshold?:number; onQuickView?:(p:Product)=>void }) {
+export default function ProductCard({ product, lowStockThreshold=5, onQuickView, favorite=false, onToggleFavorite }: { product: Product; lowStockThreshold?:number; onQuickView?:(p:Product)=>void; favorite?:boolean; onToggleFavorite?:(p:Product)=>void }) {
   const { add, items } = useCart();
   const opts = useMemo(()=>[...product.options].sort((a,b) => a.display_order - b.display_order).filter(optionUsable),[product.options]);
   const [optionId, setOptionId] = useState(opts[0]?.id || '');
@@ -30,6 +30,7 @@ export default function ProductCard({ product, lowStockThreshold=5, onQuickView 
   return <article className="product-card">
     <button className="product-image-button" type="button" onClick={()=>onQuickView?.(product)} aria-label={`عرض تفاصيل ${product.name_ar}`}>
       <div className="product-image-wrap">
+        {onToggleFavorite&&<button type="button" className={favorite?'favorite-btn active':'favorite-btn'} aria-label={favorite?`إزالة ${product.name_ar} من المفضلة`:`إضافة ${product.name_ar} للمفضلة`} aria-pressed={favorite} onClick={e=>{e.stopPropagation();onToggleFavorite(product)}}>{favorite?'♥':'♡'}</button>}
         {hasSale && <span className="sale-badge">خصم {discount}٪</span>}
         {out ? <span className="stock-badge out">نفد مؤقتًا</span> : low ? <span className="stock-badge low">كمية قليلة</span> : null}
         {product.image_url ? <img src={product.image_url} alt={product.name_ar} loading="lazy"/> : <div className="image-fallback">صورة المنتج</div>}
@@ -37,9 +38,9 @@ export default function ProductCard({ product, lowStockThreshold=5, onQuickView 
     </button>
     <div className="product-body">
       <button className="product-title-button" type="button" onClick={()=>onQuickView?.(product)}><h3>{product.name_ar}</h3></button>
-      {opts.length > 1 ? <select value={option?.id || ''} onChange={e => setOptionId(e.target.value)}>{opts.map(o => <option key={o.id} value={o.id}>{o.name_ar}</option>)}</select> : <small>{option?.name_ar}</small>}
+      {opts.length > 1 ? <select aria-label={`اختر خيار ${product.name_ar}`} value={option?.id || ''} onChange={e => setOptionId(e.target.value)}>{opts.map(o => <option key={o.id} value={o.id}>{o.name_ar}</option>)}</select> : <small>{option?.name_ar}</small>}
       {option && <div className="price-line"><strong>{money(option.price)}</strong>{hasSale && <del>{money(option.old_price!)}</del>}</div>}
-      <button disabled={!usable} onClick={addToCart}>{usable ? 'أضف للسلة +' : 'غير متوفر حاليًا'}</button>
+      <button disabled={!usable} onClick={addToCart} aria-label={usable?`أضف ${product.name_ar} للسلة`:`${product.name_ar} غير متوفر حاليًا`}>{usable ? 'أضف للسلة +' : 'غير متوفر حاليًا'}</button>
       {onQuickView&&<button type="button" className="details-link" onClick={()=>onQuickView(product)}>عرض التفاصيل</button>}
       <div className={`add-feedback ${feedback ? 'show' : ''}`} role="status" aria-live="polite">{feedback}</div>
     </div>
