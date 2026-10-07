@@ -63,6 +63,13 @@ export interface ShopSettings {
   announcement_text: string;
   maintenance_mode: boolean;
   maintenance_message: string;
+  setup_completed: boolean;
+  theme_preset: 'green'|'orange'|'navy'|'plum';
+  public_site_url: string;
+  order_alert_minutes: number;
+  audit_retention_days: number;
+  inventory_retention_days: number;
+  visit_retention_days: number;
   min_order: number;
   delivery_enabled: boolean;
   default_delivery_fee: number;
@@ -251,4 +258,23 @@ export interface DailyReport {
   delivery_fees: number;
   average_order: number;
   top_products: Array<{name:string;quantity:number;value:number}>;
+}
+
+
+export interface AdminAuditLog {
+  id: string;
+  created_at: string;
+  actor_user_id: string | null;
+  actor_email?: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  label: string;
+}
+
+export interface AdminSearchResult {
+  kind: 'order'|'product'|'staff';
+  id: string;
+  title: string;
+  subtitle: string;
 }
