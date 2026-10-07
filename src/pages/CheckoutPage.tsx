@@ -14,7 +14,16 @@ export default function CheckoutPage(){
   const {data,loading,refresh}=useStore(); const {items,subtotal,clear}=useCart(); const nav=useNavigate();
   const [form,setForm]=useState({name:'',phone:'',address:'',areaId:'',notes:'',timing:'asap',requestedTime:''});
   const [website,setWebsite]=useState('');
-  const [busy,setBusy]=useState(false); const [error,setError]=useState(''); const sending=useRef(false); const submissionToken=useRef(globalThis.crypto?.randomUUID?globalThis.crypto.randomUUID():uid());
+  const [busy,setBusy]=useState(false); const [error,setError]=useState(''); const sending=useRef(false);
+  const submissionToken=useRef((()=>{
+    let device='';
+    try{
+      device=localStorage.getItem('fakahany-device-id')||'';
+      if(!device){device=(globalThis.crypto?.randomUUID?globalThis.crypto.randomUUID():uid()).replaceAll('.','-');localStorage.setItem('fakahany-device-id',device);}
+    }catch{device=(globalThis.crypto?.randomUUID?globalThis.crypto.randomUUID():uid()).replaceAll('.','-');}
+    const submission=(globalThis.crypto?.randomUUID?globalThis.crypto.randomUUID():uid()).replaceAll('.','-');
+    return device+'.'+submission;
+  })());
   const areas=useMemo(()=>data?.deliveryAreas.filter(a=>a.enabled).sort((a,b)=>a.display_order-b.display_order)||[],[data]);
   if(loading||!data)return <Loading/>;
   if(!items.length)return <main className="container narrow"><div className="empty-state">السلة فارغة.<br/><Link to="/">العودة للمتجر</Link></div></main>;
