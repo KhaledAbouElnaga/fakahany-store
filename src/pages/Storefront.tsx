@@ -10,6 +10,7 @@ import { useStore } from '../contexts/StoreContext';
 import { getPublicBaseUrl, isOutOfStock, normalizeWhatsAppNumber, smartArabicMatch, storeStatusText, updatePageMeta } from '../lib/utils';
 import { recordVisit } from '../lib/storeApi';
 import type { Order, Product } from '../types';
+import { tenantHref } from '../lib/tenant';
 
 export default function Storefront() {
   const { data, loading, error, refresh } = useStore();
@@ -128,7 +129,7 @@ export default function Storefront() {
       <InstallPwaButton/>
     </div></footer>
 
-    <Link to="/cart" className="floating-cart-circle" aria-label={`السلة: ${count} منتج، الإجمالي ${subtotal.toLocaleString('ar-EG')} جنيه`} title="السلة">
+    <Link to={tenantHref('/cart')} className="floating-cart-circle" aria-label={`السلة: ${count} منتج، الإجمالي ${subtotal.toLocaleString('ar-EG')} جنيه`} title="السلة">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 8H7.1M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>
       <b>{count}</b>
     </Link>
