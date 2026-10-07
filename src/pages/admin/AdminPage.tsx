@@ -1,19 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLogin from './AdminLogin';
 import ProductBulkTools from './ProductBulkTools';
-import Reports from './Reports';
-import ArchiveCleanup from './ArchiveCleanup';
-import OrderStatuses from './OrderStatuses';
-import OrdersManager from './OrdersManager';
-import StoreSettings from './StoreSettings';
-import StaffManager from './StaffManager';
-import InventoryPanel from './InventoryPanel';
-import ScheduledPrices from './ScheduledPrices';
-import SetupWizard from './SetupWizard';
 import AdminGlobalSearch from './AdminGlobalSearch';
-import SystemHealth from './SystemHealth';
-import AuditLog from './AuditLog';
+import { confirmUnsavedNavigation, useUnsavedChanges } from '../../lib/unsaved';
 import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
@@ -22,7 +12,20 @@ import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TE
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
 
-type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'audit'|'health'|'settings';
+const Reports=lazy(()=>import('./Reports'));
+const ArchiveCleanup=lazy(()=>import('./ArchiveCleanup'));
+const OrderStatuses=lazy(()=>import('./OrderStatuses'));
+const OrdersManager=lazy(()=>import('./OrdersManager'));
+const StoreSettings=lazy(()=>import('./StoreSettings'));
+const StaffManager=lazy(()=>import('./StaffManager'));
+const InventoryPanel=lazy(()=>import('./InventoryPanel'));
+const ScheduledPrices=lazy(()=>import('./ScheduledPrices'));
+const SetupWizard=lazy(()=>import('./SetupWizard'));
+const SystemHealth=lazy(()=>import('./SystemHealth'));
+const AuditLog=lazy(()=>import('./AuditLog'));
+const ReleaseNotes=lazy(()=>import('./ReleaseNotes'));
+
+type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'audit'|'health'|'release'|'settings';
 
 export default function AdminPage(){
   const [authorized,setAuthorized]=useState<boolean|null>(null);
@@ -35,7 +38,7 @@ export default function AdminPage(){
   const audioRef=useRef<AudioContext|null>(null);
 
   const can=(permission:string)=>hasStaffPermission(profile,permission);
-  const chooseTab=(next:Tab)=>{setTab(next);setMobileNavOpen(false)};
+  const chooseTab=(next:Tab)=>{if(next!==tab&&!confirmUnsavedNavigation())return;setTab(next);setMobileNavOpen(false)};
 
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
   useEffect(()=>{if(authorized)void currentStaffProfile().then(setProfile)},[authorized]);
@@ -114,33 +117,37 @@ export default function AdminPage(){
     {can('orders.view')&&<Nav t="orders" active={tab} set={chooseTab} badge={newOrderCount}>الطلبات</Nav>}
     {can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}
     {profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}
-    {can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}
-    {can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}
-    {can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}
-    {profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}
+    {data.settings.feature_flags.inventory&&can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}
+    {data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}
+    {data.settings.feature_flags.reports&&can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}
+    {data.settings.feature_flags.staff&&profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}
     {profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}
     {profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}
+    <Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>
     {can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}
   </nav><div className="side-bottom"><Link to="/" onClick={()=>setMobileNavOpen(false)}>عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
     <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {data.settings.maintenance_mode&&<div className="demo-banner maintenance-admin-banner">وضع الصيانة مفعل حاليًا — العملاء لا يمكنهم إنشاء طلبات جديدة.</div>}
-    {tab==='home'&&<Dashboard/>}
-    {tab==='products'&&can('products.manage')&&<Products/>}
-    {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
-    {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
-    {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
-    {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>setTab('statuses')} canManage={can('orders.manage')} canConfigureStatuses={can('settings.manage')}/>}
-    {tab==='statuses'&&can('settings.manage')&&<OrderStatuses/>}
-    {tab==='archive'&&profile?.role==='owner'&&<ArchiveCleanup/>}
-    {tab==='inventory'&&can('inventory.manage')&&<InventoryPanel/>}
-    {tab==='prices'&&can('prices.manage')&&<ScheduledPrices/>}
-    {tab==='reports'&&can('reports.view')&&<Reports/>}
-    {tab==='staff'&&profile?.role==='owner'&&<StaffManager/>}
-    {tab==='audit'&&profile?.role==='owner'&&<AuditLog/>}
-    {tab==='health'&&profile?.role==='owner'&&<SystemHealth data={data}/>}
-    {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh}/>}
-  </main>{profile?.role==='owner'&&!data.settings.setup_completed&&<SetupWizard data={data} refresh={refresh}/>}</div>;
+    <Suspense fallback={<Loading text="جاري تحميل القسم..."/>}>
+      {tab==='home'&&<Dashboard/>}
+      {tab==='products'&&can('products.manage')&&<Products/>}
+      {tab==='categories'&&can('products.manage')&&<SimpleManager kind="categories"/>}
+      {tab==='units'&&can('products.manage')&&<SimpleManager kind="units"/>}
+      {tab==='areas'&&can('settings.manage')&&<SimpleManager kind="areas"/>}
+      {tab==='orders'&&can('orders.view')&&<OrdersManager settings={data.settings} onNewCount={setNewOrderCount} onOpenStatuses={()=>chooseTab('statuses')} canManage={can('orders.manage')} canConfigureStatuses={can('settings.manage')}/>}
+      {tab==='statuses'&&can('settings.manage')&&<OrderStatuses/>}
+      {tab==='archive'&&profile?.role==='owner'&&<ArchiveCleanup/>}
+      {tab==='inventory'&&data.settings.feature_flags.inventory&&can('inventory.manage')&&<InventoryPanel/>}
+      {tab==='prices'&&data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<ScheduledPrices/>}
+      {tab==='reports'&&data.settings.feature_flags.reports&&can('reports.view')&&<Reports/>}
+      {tab==='staff'&&data.settings.feature_flags.staff&&profile?.role==='owner'&&<StaffManager/>}
+      {tab==='audit'&&profile?.role==='owner'&&<AuditLog/>}
+      {tab==='health'&&profile?.role==='owner'&&<SystemHealth data={data}/>}
+      {tab==='release'&&<ReleaseNotes/>}
+      {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh} owner={profile?.role==='owner'}/>}
+    </Suspense>
+  </main>{profile?.role==='owner'&&!data.settings.setup_completed&&<Suspense fallback={null}><SetupWizard data={data} refresh={refresh}/></Suspense>}</div>;
 
   function Dashboard(){
     const [orders,setOrders]=useState<Order[]|null>(null);
