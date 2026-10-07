@@ -52,6 +52,13 @@ Deno.serve(async req=>{
   if(target.data.status!=="suspended")return json({error:"Suspend the store before deleting it"},400);
   if(target.data.slug!==confirmSlug)return json({error:"Confirmation slug does not match"},400);
 
+  const backup=await userClient.rpc("platform_create_backup",{
+    store_id_input:storeId,
+    label_input:"نسخة تلقائية قبل الحذف النهائي",
+    kind_input:"pre_delete"
+  });
+  if(backup.error)return json({error:"Backup before deletion failed: "+backup.error.message},500);
+
   let deletedFiles=0;
   try{
     const files=await listFiles(adminClient,"store-images",storeId);

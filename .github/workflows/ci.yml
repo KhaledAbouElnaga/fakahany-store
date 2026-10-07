@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: ["main", "final-review"]
+    branches: ["main", "staging", "final-review"]
   pull_request:
     branches: ["main"]
 

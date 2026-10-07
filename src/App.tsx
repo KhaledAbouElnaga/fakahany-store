@@ -13,6 +13,7 @@ import NetworkStatus from './components/NetworkStatus';
 import PublicStoreGate from './components/PublicStoreGate';
 import PwaUpdateToast from './components/PwaUpdateToast';
 import PlatformAdminPage from './pages/PlatformAdminPage';
+import SignupPage from './pages/SignupPage';
 
 function StoreScopedRoutes(){
   return <StoreProvider><CartProvider><Routes>
@@ -32,6 +33,7 @@ export default function App(){
     <PwaUpdateToast/>
     <Routes>
       <Route path="/platform" element={<PlatformAdminPage/>}/>
+      <Route path="/signup" element={<SignupPage/>}/>
       <Route path="/*" element={<StoreScopedRoutes/>}/>
     </Routes>
   </BrowserRouter></AppErrorBoundary>;

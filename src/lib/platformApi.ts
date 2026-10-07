@@ -1,5 +1,5 @@
 import { supabase, supabaseConfigured } from './supabase';
-import type { PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore, PlatformSupportStatus } from '../types';
+import type { PlatformAuditEntry, PlatformBackup, PlatformNotification, PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore, PlatformSupportStatus, SupportTicket } from '../types';
 
 export async function isPlatformAdmin():Promise<boolean>{
   if(!supabaseConfigured||!supabase)return true;
@@ -152,4 +152,56 @@ export function platformStoreUrl(origin:string,store:Pick<PlatformStore,'slug'>,
 
 export function platformAdminUrl(origin:string,store:Pick<PlatformStore,'slug'>){
   return `${origin}/admin?store=${encodeURIComponent(store.slug)}`;
+}
+
+
+export async function createPlatformBackup(storeId:string,label=''):Promise<PlatformBackup>{
+  if(!supabaseConfigured||!supabase)throw new Error('النسخ الاحتياطي يحتاج Supabase.');
+  const {data,error}=await supabase.rpc('platform_create_backup',{store_id_input:storeId,label_input:label,kind_input:'manual'});
+  if(error)throw error;
+  return data as PlatformBackup;
+}
+
+export async function listPlatformBackups(storeId:string):Promise<PlatformBackup[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.rpc('platform_list_backups',{store_id_input:storeId});
+  if(error)throw error;
+  return (Array.isArray(data)?data:[]) as PlatformBackup[];
+}
+
+export async function restorePlatformBackup(backupId:string):Promise<void>{
+  if(!supabaseConfigured||!supabase)return;
+  const {error}=await supabase.rpc('platform_restore_backup',{backup_id_input:backupId});
+  if(error)throw error;
+}
+
+export async function listPlatformNotifications():Promise<PlatformNotification[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.rpc('platform_list_notifications');
+  if(error)throw error;
+  return (Array.isArray(data)?data:[]) as PlatformNotification[];
+}
+
+export async function listPlatformAudit(limit=150):Promise<PlatformAuditEntry[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.rpc('platform_list_audit',{limit_input:limit});
+  if(error)throw error;
+  return (Array.isArray(data)?data:[]) as PlatformAuditEntry[];
+}
+
+export async function listPlatformSupportTickets():Promise<SupportTicket[]>{
+  if(!supabaseConfigured||!supabase)return [];
+  const {data,error}=await supabase.rpc('platform_list_support_tickets');
+  if(error)throw error;
+  return (Array.isArray(data)?data:[]) as SupportTicket[];
+}
+
+export async function replyPlatformSupportTicket(ticketId:string,status:SupportTicket['status'],reply:string):Promise<void>{
+  if(!supabaseConfigured||!supabase)return;
+  const {error}=await supabase.rpc('platform_reply_support_ticket',{
+    ticket_id_input:ticketId,
+    status_input:status,
+    reply_input:reply
+  });
+  if(error)throw error;
 }

@@ -29,8 +29,9 @@ const SetupWizard=lazy(()=>import('./SetupWizard'));
 const SystemHealth=lazy(()=>import('./SystemHealth'));
 const AuditLog=lazy(()=>import('./AuditLog'));
 const ReleaseNotes=lazy(()=>import('./ReleaseNotes'));
+const SupportCenter=lazy(()=>import('./SupportCenter'));
 
-type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'audit'|'health'|'release'|'settings';
+type Tab='home'|'products'|'categories'|'units'|'areas'|'orders'|'statuses'|'archive'|'inventory'|'prices'|'reports'|'staff'|'audit'|'health'|'release'|'support'|'settings';
 
 export default function AdminPage(){
   const [authorized,setAuthorized]=useState<boolean|null>(null);
@@ -144,12 +145,14 @@ export default function AdminPage(){
     <div className="admin-nav-group"><span className="nav-section">نظرة عامة</span><Nav t="home" active={tab} set={chooseTab}>الرئيسية</Nav>{can('orders.view')&&<Nav t="orders" active={tab} set={chooseTab} badge={newOrderCount}>الطلبات</Nav>}{data.settings.feature_flags.reports&&can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}</div>
     {(can('products.manage')||can('inventory.manage')||can('prices.manage'))&&<div className="admin-nav-group"><span className="nav-section">الكتالوج</span>{can('products.manage')&&<><Nav t="products" active={tab} set={chooseTab}>المنتجات</Nav><Nav t="categories" active={tab} set={chooseTab}>الأقسام</Nav><Nav t="units" active={tab} set={chooseTab}>وحدات البيع</Nav></>}{data.settings.feature_flags.inventory&&can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}{data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}</div>}
     {(can('settings.manage')||profile?.role==='owner')&&<div className="admin-nav-group"><span className="nav-section">التشغيل</span>{can('settings.manage')&&<Nav t="areas" active={tab} set={chooseTab}>مناطق التوصيل</Nav>}{can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}{profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}{data.settings.feature_flags.staff&&profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}</div>}
-    <div className="admin-nav-group"><span className="nav-section">النظام</span>{profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}{profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}<Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>{can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}</div>
+    <div className="admin-nav-group"><span className="nav-section">النظام</span><Nav t="support" active={tab} set={chooseTab}>الدعم</Nav>{profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}{profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}<Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>{can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}</div>
   </nav><div className="side-bottom"><Link to={tenantHref('/')} onClick={()=>setMobileNavOpen(false)}><span>عرض المتجر</span></Link>{platformAdmin&&<Link to="/platform" onClick={()=>setMobileNavOpen(false)}><span>إدارة المنصة</span></Link>}<button onClick={logout}><span>تسجيل الخروج</span></button></div></aside><main className="admin-main">
     <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {supportStatus.active&&<div className="demo-banner support-admin-banner"><div><b>وضع دعم المنصة</b><span>أنت داخل متجر «{supportStatus.store_name||data.settings.store_name}» بصلاحيات دعم مؤقتة.</span></div><button className="btn secondary" onClick={()=>void endPlatformSupport().then(()=>location.assign('/platform'))}>إنهاء الدعم والعودة للمنصة</button></div>}
     {data.settings.maintenance_mode&&<div className="demo-banner maintenance-admin-banner">وضع الصيانة مفعل حاليًا — العملاء لا يمكنهم إنشاء طلبات جديدة.</div>}
+    {planStatus&&planStatus.max_products&&planStatus.products_count/planStatus.max_products>=.8&&<div className="demo-banner usage-warning-banner">تنبيه استخدام: لديك {planStatus.products_count} من {planStatus.max_products} منتج في الباقة الحالية.</div>}
+    {planStatus&&planStatus.max_staff&&planStatus.staff_count/planStatus.max_staff>=.8&&<div className="demo-banner usage-warning-banner">تنبيه استخدام: لديك {planStatus.staff_count} من {planStatus.max_staff} حساب في الباقة الحالية.</div>}
     <Suspense fallback={<Loading text="جاري تحميل القسم..."/>}>
       {tab==='home'&&<Dashboard/>}
       {tab==='products'&&can('products.manage')&&<Products/>}
@@ -166,7 +169,8 @@ export default function AdminPage(){
       {tab==='audit'&&profile?.role==='owner'&&<AuditLog/>}
       {tab==='health'&&profile?.role==='owner'&&<SystemHealth data={data}/>}
       {tab==='release'&&<ReleaseNotes/>}
-      {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh} owner={profile?.role==='owner'}/>}
+      {tab==='support'&&<SupportCenter/>}
+      {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh} owner={profile?.role==='owner'}/>} 
     </Suspense>
   </main>{profile?.role==='owner'&&!data.settings.setup_completed&&<Suspense fallback={null}><SetupWizard data={data} refresh={refresh}/></Suspense>}</div>;
 
@@ -382,6 +386,7 @@ function AdminNavIcon({tab}:{tab:Tab}){
     audit:<><path d="M6 4h12v16H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
     health:<><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.7A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/><path d="M8 12h2l1-2 2 4 1-2h2"/></>,
     release:<><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M5 19h14"/></>,
+    support:<><path d="M4 12a8 8 0 1 1 16 0v5a3 3 0 0 1-3 3h-2"/><path d="M4 12v4M20 12v4"/><path d="M8 20h7"/></>,
     settings:<><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.4 1a8 8 0 0 0-1.8-1L14.4 3h-4.8L9.3 6a8 8 0 0 0-1.8 1l-2.4-1-2 3.4L5.1 11a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.4-1a8 8 0 0 0 1.8 1l.3 3.1h4.8l.3-3.1a8 8 0 0 0 1.8-1l2.4 1 2-3.4-2-1.5c.1-.3.1-.7.1-1Z"/></>
   };
   return <svg className="admin-nav-icon" {...common}>{paths[tab]}</svg>;
