@@ -113,12 +113,17 @@ export default function PlatformAdminPage(){
   };
 
   const support=async(store:PlatformStore)=>{
+    const tab=window.open('about:blank','_blank');
     setBusy(true);setError('');setOk('');
     try{
       const session=await startPlatformSupport(store.id);
-      window.open(platformAdminUrl(origin,store)+'&support=1','_blank','noopener,noreferrer');
+      const url=platformAdminUrl(origin,store)+'&support=1';
+      if(tab)tab.location.href=url;else location.assign(url);
       setOk(`تم فتح جلسة دعم لـ «${store.name}» حتى ${when(session.expires_at)}.`);
-    }catch(e:any){setError(e?.message||'تعذر بدء جلسة الدعم.')}finally{setBusy(false)}
+    }catch(e:any){
+      if(tab)tab.close();
+      setError(e?.message||'تعذر بدء جلسة الدعم.');
+    }finally{setBusy(false)}
   };
 
   const transferOwner=async(store:PlatformStore)=>{
