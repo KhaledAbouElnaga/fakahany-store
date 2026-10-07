@@ -8,7 +8,7 @@ export default function StoreTransferPanel({data,refresh}:{data:StoreSnapshot,re
   const [msg,setMsg]=useState('');
 
   const exportTemplate=()=>{
-    const payload={format:'fakahany-store-template',version:1,exported_at:new Date().toISOString(),settings:{...data.settings,setup_completed:true},categories:data.categories,units:data.units,deliveryAreas:data.deliveryAreas,products:data.products};
+    const payload={format:'fakahany-store-template',version:1,exported_at:new Date().toISOString(),settings:{...data.settings,setup_completed:true,public_site_url:''},categories:data.categories,units:data.units,deliveryAreas:data.deliveryAreas,products:data.products};
     downloadText(`store-template-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(payload,null,2),'application/json;charset=utf-8');
   };
 
