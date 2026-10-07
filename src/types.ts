@@ -257,6 +257,58 @@ export interface StorePlanStatus {
   features: Record<string,boolean>;
 }
 
+export interface PlatformBackup {
+  id: string;
+  store_id: string | null;
+  store_slug: string;
+  store_name: string;
+  kind: 'manual'|'pre_restore'|'pre_delete';
+  label: string;
+  created_at: string;
+  size_bytes: number;
+}
+
+export interface PlatformNotification {
+  id: string;
+  notification_key: string;
+  store_id: string | null;
+  store_name: string;
+  store_slug: string;
+  severity: 'info'|'warning'|'critical';
+  kind: string;
+  title: string;
+  message: string;
+  created_at: string;
+  refreshed_at: string;
+}
+
+export interface PlatformAuditEntry {
+  id: string;
+  actor_user_id: string | null;
+  store_id: string | null;
+  store_slug: string;
+  action: string;
+  label: string;
+  details: Record<string,unknown>;
+  created_at: string;
+}
+
+export interface SupportTicket {
+  id: string;
+  store_id?: string;
+  store_name?: string;
+  store_slug?: string;
+  created_by?: string | null;
+  subject: string;
+  message: string;
+  priority: 'normal'|'high';
+  status: 'open'|'in_progress'|'resolved';
+  admin_reply: string;
+  replied_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface StoreSnapshot {
   categories: Category[];
   units: SellingUnit[];
