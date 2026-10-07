@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import Loading from '../components/Loading';
 import { useCart } from '../contexts/CartContext';
 import { useStore } from '../contexts/StoreContext';
-import { getPublicBaseUrl, isPlausiblePhone, isStoreOpenNow, makeOrderNumber, money, normalizeWhatsAppNumber, openWhatsApp, orderTemplateValues, renderTemplate, uid } from '../lib/utils';
+import { getPublicPageUrl, isPlausiblePhone, isStoreOpenNow, makeOrderNumber, money, normalizeWhatsAppNumber, openWhatsApp, orderTemplateValues, renderTemplate, uid } from '../lib/utils';
 import { loadStore, saveOrder } from '../lib/storeApi';
 import type { Order } from '../types';
 import { tenantHref } from '../lib/tenant';
@@ -79,7 +79,7 @@ export default function CheckoutPage(){
       let message=renderTemplate(data.settings.whatsapp_order_template,values);
       if(!deliveryEnabled){message=message.split('\n').filter(line=>!line.includes('رسوم التوصيل')&&!line.startsWith('المنطقة:')).join('\n');}
       if(!(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)){message=message.split('\n').filter(line=>!line.startsWith('موعد الطلب:')).join('\n');}
-      if(data.settings.feature_flags.tracking&&order.tracking_token){message+=`\n\nتتبع الطلب: ${getPublicBaseUrl(data.settings)}/track/${order.tracking_token}`;}
+      if(data.settings.feature_flags.tracking&&order.tracking_token){message+=`\n\nتتبع الطلب: ${getPublicPageUrl(data.settings,`/track/${order.tracking_token}`)}`;}
       localStorage.setItem('fakahany-last-order',JSON.stringify(order));
       try{
         const now=Date.now();
