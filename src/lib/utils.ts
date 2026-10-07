@@ -44,7 +44,7 @@ const ARABIC_SEARCH_SYNONYM_GROUPS = [
 ] as const;
 
 function arabicSearchAlternatives(word:string){
-  const group=ARABIC_SEARCH_SYNONYM_GROUPS.find(words=>words.includes(word as never));
+  const group=ARABIC_SEARCH_SYNONYM_GROUPS.find(words=>(words as readonly string[]).includes(word));
   return group ? [...group] : [word];
 }
 
