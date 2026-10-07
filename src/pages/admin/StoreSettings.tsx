@@ -8,6 +8,7 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
   const [s,setS]=useState<ShopSettings>(structuredClone(data.settings));
   const [busy,setBusy]=useState(false);
   const [ok,setOk]=useState('');
+  const [currentPassword,setCurrentPassword]=useState('');
   const [password,setPassword]=useState('');
   const [password2,setPassword2]=useState('');
   const [email,setEmail]=useState('');
@@ -33,8 +34,9 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     downloadText(`fakahany-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({exported_at:new Date().toISOString(),store:data,orders},null,2),'application/json;charset=utf-8');
   };
   const changePassword=async()=>{
+    if(!currentPassword)return setOk('اكتب كلمة المرور الحالية أولًا.');
     if(password!==password2)return setOk('كلمتا المرور غير متطابقتين.');
-    try{await changeAdminPassword(password);setPassword('');setPassword2('');setOk('تم تغيير كلمة المرور بنجاح.')}
+    try{await changeAdminPassword(currentPassword,password);setCurrentPassword('');setPassword('');setPassword2('');setOk('تم تغيير كلمة المرور بنجاح.')}
     catch(e:any){setOk(e?.message||'تعذر تغيير كلمة المرور')}
   };
 
@@ -91,10 +93,11 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label><input type="checkbox" checked={s.show_offers} onChange={e=>set('show_offers',e.target.checked)}/> العروض</label>
     </div></section>
 
-    <section className="panel"><h3>حساب المدير</h3><p className="muted">الحساب الحالي: {email||'—'}</p><div className="form-grid">
-      <label>كلمة مرور جديدة<input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="8 أحرف على الأقل"/></label>
-      <label>تأكيد كلمة المرور<input type="password" value={password2} onChange={e=>setPassword2(e.target.value)}/></label>
-    </div><button className="btn secondary" disabled={!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button></section>
+    <section className="panel"><h3>حساب المدير</h3><p className="muted">الحساب الحالي: {email||'—'}</p><p className="muted">كلمة المرور الجديدة يجب أن تكون 12 حرفًا على الأقل وتحتوي على حرف كبير وصغير ورقم ورمز.</p><div className="form-grid">
+      <label>كلمة المرور الحالية<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
+      <label>كلمة مرور جديدة<input type="password" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="12 حرفًا على الأقل"/></label>
+      <label>تأكيد كلمة المرور<input type="password" autoComplete="new-password" value={password2} onChange={e=>setPassword2(e.target.value)}/></label>
+    </div><button className="btn secondary" disabled={!currentPassword||!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button></section>
 
     {ok&&<p className={ok.includes('بنجاح')?'success-text':'error-text'}>{ok}</p>}
     <button className="btn save-all" disabled={busy} onClick={()=>void save()}>{busy?'جاري الحفظ...':'حفظ كل الإعدادات'}</button>
