@@ -48,7 +48,7 @@ export default function PlatformBackupManager({store,onClose,onDone}:{store:Plat
     <div className="platform-backup-list">
       {!backups.length&&<div className="empty-state">لا توجد نسخ احتياطية بعد.</div>}
       {backups.map(b=><div key={b.id} className="platform-backup-row">
-        <div><b>{b.label|| (b.kind==='manual'?'نسخة يدوية':b.kind==='pre_restore'?'قبل الاسترجاع':'قبل الحذف')}</b><span>{when(b.created_at)} · {bytes(b.size_bytes)}</span></div>
+        <div><b>{b.label|| (b.kind==='manual'?'نسخة يدوية':b.kind==='scheduled'?'نسخة يومية تلقائية':b.kind==='pre_restore'?'قبل الاسترجاع':'قبل الحذف')}</b><span>{when(b.created_at)} · {bytes(b.size_bytes)}</span></div>
         <button className="btn secondary" disabled={busy} onClick={()=>void restore(b)}>استرجاع</button>
       </div>)}
     </div>
