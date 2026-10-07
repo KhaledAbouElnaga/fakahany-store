@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { changeAdminPassword, currentAdminEmail, signOutOtherSessions } from '../../lib/auth';
-import { DEFAULT_ORDER_TEMPLATE, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
+import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
 import type { ShopSettings, StoreSnapshot } from '../../types';
 
@@ -12,21 +12,38 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
   const [password,setPassword]=useState('');
   const [password2,setPassword2]=useState('');
   const [email,setEmail]=useState('');
+  const pendingUploads=useRef<Partial<Record<'logo_url'|'banner_url'|'share_image_url',string>>>({});
   useEffect(()=>{void currentAdminEmail().then(setEmail)},[]);
   useEffect(()=>{setS(structuredClone(data.settings))},[data.settings]);
+  useEffect(()=>()=>{for(const url of Object.values(pendingUploads.current)){if(url)void deleteImage(url).catch(()=>{})}},[]);
 
   const set=(k:keyof ShopSettings,v:any)=>setS(x=>({...x,[k]:v}));
   const upload=async(file:File|undefined,field:'logo_url'|'banner_url'|'share_image_url')=>{
     if(!file)return;
     try{
       const url=await uploadImage(file,field==='logo_url'?'branding':field==='banner_url'?'banners':'sharing');
+      const previous=pendingUploads.current[field];
+      pendingUploads.current[field]=url;
       set(field,url);
+      if(previous&&previous!==url)await deleteImage(previous).catch(()=>{});
     }catch(e:any){alert(e?.message||'تعذر رفع الصورة')}
   };
   const save=async()=>{
     if(Number(s.min_order)<0||Number(s.default_delivery_fee)<0||Number(s.low_stock_threshold)<0||Number(s.delivery_slot_capacity)<0)return setOk('القيم الرقمية لا يمكن أن تكون سالبة.');if(s.delivery_capacity_enabled&&(Number(s.delivery_slot_minutes)<15||Number(s.delivery_slot_minutes)>240))return setOk('مدة فترة التوصيل يجب أن تكون بين 15 و240 دقيقة.');
     setBusy(true);setOk('');
-    try{await saveSettings(s);document.title=s.site_name||s.store_name;await refresh();setOk('تم حفظ التعديلات بنجاح');}
+    const originals={logo_url:data.settings.logo_url,banner_url:data.settings.banner_url,share_image_url:data.settings.share_image_url};
+    try{
+      await saveSettings(s);
+      for(const field of ['logo_url','banner_url','share_image_url'] as const){
+        const pending=pendingUploads.current[field];
+        if(pending&&pending===s[field]){
+          const old=originals[field];
+          if(old&&old!==pending)await deleteImage(old).catch(()=>{});
+          delete pendingUploads.current[field];
+        }
+      }
+      document.title=s.site_name||s.store_name;await refresh();setOk('تم حفظ التعديلات بنجاح');
+    }
     catch(e:any){setOk(e?.message||'تعذر الحفظ')}finally{setBusy(false)}
   };
   const backup=async()=>{
