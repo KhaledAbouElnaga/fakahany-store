@@ -69,6 +69,7 @@ export default function CheckoutPage(){
       let message=renderTemplate(data.settings.whatsapp_order_template,values);
       if(!deliveryEnabled){message=message.split('\n').filter(line=>!line.includes('رسوم التوصيل')&&!line.startsWith('المنطقة:')).join('\n');}
       if(!data.settings.scheduled_orders_enabled){message=message.split('\n').filter(line=>!line.startsWith('موعد الطلب:')).join('\n');}
+      if(order.tracking_token){message+=`\n\nتتبع الطلب: ${window.location.origin}/track/${order.tracking_token}`;}
       localStorage.setItem('fakahany-last-order',JSON.stringify(order));
       try{
         const now=Date.now();
