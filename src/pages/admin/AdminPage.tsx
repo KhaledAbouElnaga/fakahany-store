@@ -4,9 +4,10 @@ import AdminLogin from './AdminLogin';
 import ProductBulkTools from './ProductBulkTools';
 import AdminGlobalSearch from './AdminGlobalSearch';
 import { confirmUnsavedNavigation, useUnsavedChanges } from '../../lib/unsaved';
-import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, signOutAdmin } from '../../lib/auth';
+import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, mfaChallengeNeeded, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
+import MfaChallengeGate from '../../components/MfaChallengeGate';
 import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings, StaffProfile } from '../../types';
 import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, loadOrderStatuses, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, smartArabicMatch, uid } from '../../lib/utils';
@@ -35,6 +36,7 @@ export default function AdminPage(){
   const [newOrderCount,setNewOrderCount]=useState(0);
   const [alertsEnabled,setAlertsEnabled]=useState(()=>sessionStorage.getItem('fakahany-admin-alerts')==='1');
   const [mobileNavOpen,setMobileNavOpen]=useState(false);
+  const [mfaReady,setMfaReady]=useState<boolean|null>(null);
   const audioRef=useRef<AudioContext|null>(null);
 
   const can=(permission:string)=>hasStaffPermission(profile,permission);
@@ -42,6 +44,11 @@ export default function AdminPage(){
 
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
   useEffect(()=>{if(authorized)void currentStaffProfile().then(setProfile)},[authorized]);
+  useEffect(()=>{
+    if(!authorized||!profile){setMfaReady(null);return}
+    if(profile.role!=='owner'){setMfaReady(true);return}
+    void mfaChallengeNeeded().then(required=>setMfaReady(!required)).catch(()=>setMfaReady(false));
+  },[authorized,profile]);
 
   useEffect(()=>{
     if(!authorized)return;
@@ -97,7 +104,8 @@ export default function AdminPage(){
     }catch{setAlertsEnabled(true)}
   };
 
-  if(authorized===null||loading||(authorized&&profile===null))return <Loading text="جاري فتح لوحة الإدارة..."/>;
+  if(authorized===null||loading||(authorized&&profile===null)||(authorized&&profile?.role==='owner'&&mfaReady===null))return <Loading text="جاري فتح لوحة الإدارة..."/>;
+  if(authorized&&profile?.role==='owner'&&mfaReady===false)return <MfaChallengeGate onDone={()=>setMfaReady(true)}/>;
   if(!authorized)return <AdminLogin onDone={()=>setAuthorized(true)}/>;
   if(error||!data)return <div className="center-state error-state"><p>{error||'تعذر تحميل البيانات'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
   const logout=async()=>{await signOutAdmin();setAuthorized(false);setProfile(null)};
