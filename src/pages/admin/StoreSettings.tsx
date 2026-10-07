@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { changeAdminPassword, currentAdminEmail } from '../../lib/auth';
+import { changeAdminPassword, currentAdminEmail, signOutOtherSessions } from '../../lib/auth';
 import { DEFAULT_ORDER_TEMPLATE, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
 import type { ShopSettings, StoreSnapshot } from '../../types';
@@ -33,6 +33,12 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     const orders=await loadOrders(true);
     downloadText(`fakahany-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({exported_at:new Date().toISOString(),store:data,orders},null,2),'application/json;charset=utf-8');
   };
+  const endOtherSessions=async()=>{
+    setOk('');
+    try{await signOutOtherSessions();setOk('تم إنهاء الجلسات الأخرى للحساب الحالي.');}
+    catch(e:any){setOk(e?.message||'تعذر إنهاء الجلسات الأخرى.')}
+  };
+
   const changePassword=async()=>{
     if(!currentPassword)return setOk('اكتب كلمة المرور الحالية أولًا.');
     if(password!==password2)return setOk('كلمتا المرور غير متطابقتين.');
@@ -57,7 +63,10 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label>النص أسفل العنوان<input value={s.hero_subtitle} onChange={e=>set('hero_subtitle',e.target.value)}/></label>
       <label>صورة الغلاف<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0],'banner_url')}/></label>
       <label>رسالة الترحيب<input value={s.welcome_message} onChange={e=>set('welcome_message',e.target.value)}/></label>
-    </div></section>
+    </div>
+    <div className="settings-subsection"><label className="toggle-setting"><input type="checkbox" checked={s.announcement_enabled} onChange={e=>set('announcement_enabled',e.target.checked)}/> تفعيل إعلان أعلى المتجر</label>{s.announcement_enabled&&<label>نص الإعلان<input value={s.announcement_text} maxLength={180} onChange={e=>set('announcement_text',e.target.value)} placeholder="مثال: التوصيل متوقف اليوم من 3 إلى 5"/></label>}</div>
+    <div className="settings-subsection danger-zone-soft"><label className="toggle-setting"><input type="checkbox" checked={s.maintenance_mode} onChange={e=>set('maintenance_mode',e.target.checked)}/> وضع الصيانة</label><p className="muted">عند تفعيله لن يتمكن العملاء من التسوق أو إرسال طلبات جديدة، بينما تظل لوحة الإدارة وتتبّع الطلبات متاحين.</p>{s.maintenance_mode&&<label>رسالة الصيانة<input value={s.maintenance_message} maxLength={220} onChange={e=>set('maintenance_message',e.target.value)}/></label>}</div>
+    </section>
 
     <section className="panel"><h3>الطلب والتوصيل</h3><div className="toggle-row">
       <label><input type="checkbox" checked={s.delivery_enabled} onChange={e=>set('delivery_enabled',e.target.checked)}/> تفعيل التوصيل</label>
@@ -97,7 +106,7 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label>كلمة المرور الحالية<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
       <label>كلمة مرور جديدة<input type="password" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="12 حرفًا على الأقل"/></label>
       <label>تأكيد كلمة المرور<input type="password" autoComplete="new-password" value={password2} onChange={e=>setPassword2(e.target.value)}/></label>
-    </div><button className="btn secondary" disabled={!currentPassword||!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button></section>
+    </div><div className="account-security-actions"><button className="btn secondary" disabled={!currentPassword||!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button><button className="btn secondary" onClick={()=>void endOtherSessions()}>إنهاء الجلسات الأخرى</button></div><p className="muted">لو الحساب مفتوح على جهاز قديم أو غير معروف، استخدم «إنهاء الجلسات الأخرى» بدون التأثير على جلستك الحالية.</p></section>
 
     {ok&&<p className={ok.includes('بنجاح')?'success-text':'error-text'}>{ok}</p>}
     <button className="btn save-all" disabled={busy} onClick={()=>void save()}>{busy?'جاري الحفظ...':'حفظ كل الإعدادات'}</button>
