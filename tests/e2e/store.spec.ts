@@ -34,6 +34,7 @@ test('admin demo login and product tools load',async({page})=>{
   await expect(page.getByRole('heading',{name:'المنتجات',exact:true})).toBeVisible();
   await expect(page.getByText('إضافة سريعة')).toBeVisible();
   await expect(page.getByRole('button',{name:'نسخ'}).first()).toBeVisible();
+  await expect(page.getByText('إدارة المنصة',{exact:true})).toHaveCount(0);
 });
 
 test('full order lifecycle reaches admin status and public tracking',async({page})=>{
@@ -71,12 +72,19 @@ test('full order lifecycle reaches admin status and public tracking',async({page
   await expect(page.getByText('جاري التجهيز',{exact:true})).toBeVisible();
 });
 
-test('platform dashboard is tenant-neutral and exposes SaaS controls',async({page})=>{
+test('platform owner console requires explicit login and stays tenant-neutral',async({page})=>{
   await page.goto('/platform');
+  await expect(page.getByRole('heading',{name:'إدارة المنصة'})).toBeVisible();
+  await expect(page.getByText('هذه الصفحة لمالك النظام فقط وليست مرتبطة باسم أي متجر.')).toBeVisible();
+  await expect(page.getByText('الحاج أسامة',{exact:true})).toHaveCount(0);
+
+  await page.getByLabel('البريد الإلكتروني').fill('owner@example.com');
+  await page.getByLabel('كلمة المرور').fill('test-password');
+  await page.getByRole('button',{name:'دخول'}).click();
+
   await expect(page.getByRole('heading',{name:'لوحة المنصة'})).toBeVisible();
   await expect(page.getByText('إدارة العملاء، الباقات، الاشتراكات، الدعم والاستخدام من مكان واحد.')).toBeVisible();
   await expect(page.getByRole('heading',{name:'إضافة متجر جديد'})).toBeVisible();
-  await expect(page.getByText('الحاج أسامة',{exact:true})).toHaveCount(0);
 });
 
 test('self-service signup is neutral and ready for merchants',async({page})=>{

@@ -4,7 +4,7 @@ import AdminLogin from './AdminLogin';
 import ProductBulkTools from './ProductBulkTools';
 import AdminGlobalSearch from './AdminGlobalSearch';
 import { confirmUnsavedNavigation, useUnsavedChanges } from '../../lib/unsaved';
-import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, isPlatformAdmin, mfaChallengeNeeded, signOutAdmin } from '../../lib/auth';
+import { changeAdminPassword, currentAdminEmail, currentStaffProfile, hasStaffPermission, isAdmin, mfaChallengeNeeded, signOutAdmin } from '../../lib/auth';
 import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
 import MfaChallengeGate from '../../components/MfaChallengeGate';
@@ -42,7 +42,6 @@ export default function AdminPage(){
   const [alertsEnabled,setAlertsEnabled]=useState(()=>sessionStorage.getItem('fakahany-admin-alerts')==='1');
   const [mobileNavOpen,setMobileNavOpen]=useState(false);
   const [mfaReady,setMfaReady]=useState<boolean|null>(null);
-  const [platformAdmin,setPlatformAdmin]=useState(false);
   const [supportStatus,setSupportStatus]=useState<PlatformSupportStatus>({active:false});
   const [planStatus,setPlanStatus]=useState<StorePlanStatus|null>(null);
   const audioRef=useRef<AudioContext|null>(null);
@@ -54,7 +53,6 @@ export default function AdminPage(){
   useEffect(()=>{
     if(authorized){
       void currentStaffProfile().then(setProfile);
-      void isPlatformAdmin().then(setPlatformAdmin).catch(()=>setPlatformAdmin(false));
       void getPlatformSupportStatus().then(setSupportStatus).catch(()=>setSupportStatus({active:false}));
       void getCurrentStorePlanStatus().then(setPlanStatus).catch(()=>setPlanStatus(null));
     }
@@ -146,7 +144,7 @@ export default function AdminPage(){
     {(can('products.manage')||can('inventory.manage')||can('prices.manage'))&&<div className="admin-nav-group"><span className="nav-section">الكتالوج</span>{can('products.manage')&&<><Nav t="products" active={tab} set={chooseTab}>المنتجات</Nav><Nav t="categories" active={tab} set={chooseTab}>الأقسام</Nav><Nav t="units" active={tab} set={chooseTab}>وحدات البيع</Nav></>}{data.settings.feature_flags.inventory&&can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}{data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}</div>}
     {(can('settings.manage')||profile?.role==='owner')&&<div className="admin-nav-group"><span className="nav-section">التشغيل</span>{can('settings.manage')&&<Nav t="areas" active={tab} set={chooseTab}>مناطق التوصيل</Nav>}{can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}{profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}{data.settings.feature_flags.staff&&profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}</div>}
     <div className="admin-nav-group"><span className="nav-section">النظام</span><Nav t="support" active={tab} set={chooseTab}>الدعم</Nav>{profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}{profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}<Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>{can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}</div>
-  </nav><div className="side-bottom"><Link to={tenantHref('/')} onClick={()=>setMobileNavOpen(false)}><span>عرض المتجر</span></Link>{platformAdmin&&<Link to="/platform" onClick={()=>setMobileNavOpen(false)}><span>إدارة المنصة</span></Link>}<button onClick={logout}><span>تسجيل الخروج</span></button></div></aside><main className="admin-main">
+  </nav><div className="side-bottom"><Link to={tenantHref('/')} onClick={()=>setMobileNavOpen(false)}><span>عرض المتجر</span></Link><button onClick={logout}><span>تسجيل الخروج</span></button></div></aside><main className="admin-main">
     <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {supportStatus.active&&<div className="demo-banner support-admin-banner"><div><b>وضع دعم المنصة</b><span>أنت داخل متجر «{supportStatus.store_name||data.settings.store_name}» بصلاحيات دعم مؤقتة.</span></div><button className="btn secondary" onClick={()=>void endPlatformSupport().then(()=>location.assign('/platform'))}>إنهاء الدعم والعودة للمنصة</button></div>}

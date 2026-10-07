@@ -1,6 +1,24 @@
 import { supabase, supabaseConfigured } from './supabase';
 import type { PlatformAuditEntry, PlatformBackup, PlatformNotification, PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore, PlatformSupportStatus, SupportTicket } from '../types';
 
+const PLATFORM_UNLOCK_KEY='fakahany-platform-unlocked-until';
+const PLATFORM_UNLOCK_MS=30*60*1000;
+
+export function platformAccessUnlocked():boolean{
+  const until=Number(sessionStorage.getItem(PLATFORM_UNLOCK_KEY)||0);
+  if(!Number.isFinite(until)||until<=Date.now()){
+    sessionStorage.removeItem(PLATFORM_UNLOCK_KEY);
+    return false;
+  }
+  return true;
+}
+function unlockPlatformAccess(){
+  sessionStorage.setItem(PLATFORM_UNLOCK_KEY,String(Date.now()+PLATFORM_UNLOCK_MS));
+}
+export function lockPlatformAccess(){
+  sessionStorage.removeItem(PLATFORM_UNLOCK_KEY);
+}
+
 export async function isPlatformAdmin():Promise<boolean>{
   if(!supabaseConfigured||!supabase)return true;
   const {data:{session}}=await supabase.auth.getSession();
@@ -10,16 +28,18 @@ export async function isPlatformAdmin():Promise<boolean>{
 }
 
 export async function signInPlatform(email:string,password:string):Promise<void>{
-  if(!supabaseConfigured||!supabase)return;
+  if(!supabaseConfigured||!supabase){unlockPlatformAccess();return;}
   const {error}=await supabase.auth.signInWithPassword({email,password});
   if(error)throw error;
   if(!await isPlatformAdmin()){
-    await supabase.auth.signOut();
+    lockPlatformAccess();
     throw new Error('هذا الحساب ليس لديه صلاحية إدارة المنصة.');
   }
+  unlockPlatformAccess();
 }
 
 export async function signOutPlatform():Promise<void>{
+  lockPlatformAccess();
   if(!supabaseConfigured||!supabase)return;
   await endPlatformSupport().catch(()=>{});
   await supabase.auth.signOut();
