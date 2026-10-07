@@ -9,7 +9,7 @@ import { useStore } from '../../contexts/StoreContext';
 import Loading from '../../components/Loading';
 import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinition, Product, ProductOption, SellingUnit, ShopSettings, StaffProfile } from '../../types';
 import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, loadOrderStatuses, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
-import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, uid } from '../../lib/utils';
+import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, smartArabicMatch, uid } from '../../lib/utils';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
 
 const Reports=lazy(()=>import('./Reports'));
@@ -221,14 +221,62 @@ export default function AdminPage(){
   }
 
   function Products(){
-    const [editing,setEditing]=useState<Product|null>(null); const [q,setQ]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(''); const list=data!.products.filter(p=>`${p.name_ar} ${p.description_ar}`.includes(q)).sort((a,b)=>a.display_order-b.display_order);
+    const [editing,setEditing]=useState<Product|null>(null);
+    const [q,setQ]=useState('');
+    const [busy,setBusy]=useState(false);
+    const [msg,setMsg]=useState('');
+    const [quickName,setQuickName]=useState('');
+    const [quickPrice,setQuickPrice]=useState(0);
+    const [quickCategory,setQuickCategory]=useState('');
+    const [dragId,setDragId]=useState('');
+    const [pendingDelete,setPendingDelete]=useState<{product:Product,timer:number}|null>(null);
+    const list=data!.products
+      .filter(p=>p.id!==pendingDelete?.product.id)
+      .filter(p=>smartArabicMatch(`${p.name_ar} ${p.description_ar}`,q))
+      .sort((a,b)=>a.display_order-b.display_order);
+
     const validate=(p:Product)=>{if(!p.name_ar.trim())return 'اكتب اسم المنتج.';if(!p.options.length)return 'أضف خيار بيع واحدًا على الأقل.';for(const o of p.options){if(!o.name_ar.trim())return 'كل خيار بيع يجب أن يكون له اسم.';if(Number(o.price)<0)return 'السعر لا يمكن أن يكون سالبًا.';if(o.old_price!==null&&Number(o.old_price)<0)return 'السعر القديم لا يمكن أن يكون سالبًا.';if(o.track_stock&&Number(o.stock_qty??0)<0)return 'المخزون لا يمكن أن يكون سالبًا.';}if(p.track_stock&&Number(p.stock_qty??0)<0)return 'المخزون لا يمكن أن يكون سالبًا.';return '';};
     const save=async(p:Product)=>{const v=validate(p);if(v)return setMsg(v);setBusy(true);setMsg('');const oldImage=data!.products.find(x=>x.id===p.id)?.image_url||'';try{await saveProduct(p);if(oldImage&&oldImage!==p.image_url)await deleteImage(oldImage).catch(()=>{});await refresh();setEditing(null);setMsg('تم حفظ المنتج بنجاح.');}catch(e:any){setMsg(e?.message||'تعذر حفظ المنتج.')}finally{setBusy(false)}};
     const duplicate=(p:Product)=>{const id=uid();setEditing({...structuredClone(p),id,name_ar:`${p.name_ar} - نسخة`,display_order:data!.products.length+1,options:p.options.map(o=>({...o,id:uid(),product_id:id}))})};
     const quick=async(p:Product,field:'available'|'hidden'|'featured',value:boolean)=>{await updateProductFields(p.id,{[field]:value});await refresh()};
     const move=async(p:Product,dir:-1|1)=>{const sorted=[...data!.products].sort((a,b)=>a.display_order-b.display_order);const i=sorted.findIndex(x=>x.id===p.id);const j=i+dir;if(j<0||j>=sorted.length)return;const other=sorted[j];const a=p.display_order,b=other.display_order;await Promise.all([updateProductFields(p.id,{display_order:b}),updateProductFields(other.id,{display_order:a})]);await refresh();};
+    const reorderDrop=async(targetId:string)=>{
+      if(!dragId||dragId===targetId)return setDragId('');
+      const sorted=[...data!.products].sort((a,b)=>a.display_order-b.display_order);
+      const from=sorted.findIndex(x=>x.id===dragId),to=sorted.findIndex(x=>x.id===targetId);
+      if(from<0||to<0)return setDragId('');
+      const [picked]=sorted.splice(from,1);sorted.splice(to,0,picked);
+      setDragId('');setBusy(true);
+      try{await Promise.all(sorted.map((p,i)=>p.display_order===i+1?Promise.resolve():updateProductFields(p.id,{display_order:i+1})));await refresh();setMsg('تم تحديث ترتيب المنتجات.')}
+      catch(e:any){setMsg(e?.message||'تعذر تغيير الترتيب.')}finally{setBusy(false)}
+    };
+    const quickAdd=async()=>{
+      if(!quickName.trim())return setMsg('اكتب اسم المنتج.');
+      if(quickPrice<0)return setMsg('السعر لا يمكن أن يكون سالبًا.');
+      const p=newProduct(data!.products.length+1);p.name_ar=quickName.trim();p.category_id=quickCategory||null;p.options[0].price=quickPrice;
+      setBusy(true);setMsg('');
+      try{await saveProduct(p);setQuickName('');setQuickPrice(0);setQuickCategory('');await refresh();setMsg('تمت إضافة المنتج سريعًا.')}
+      catch(e:any){setMsg(e?.message||'تعذر إضافة المنتج.')}finally{setBusy(false)}
+    };
+    const scheduleDelete=(p:Product)=>{
+      if(pendingDelete)return setMsg('يوجد حذف قابل للتراجع حاليًا. تراجع عنه أو انتظر انتهاء المهلة.');
+      if(!confirm('إخفاء المنتج الآن وحذفه نهائيًا بعد 10 ثوانٍ؟ يمكنك التراجع خلال المهلة.'))return;
+      const timer=window.setTimeout(async()=>{try{await deleteProduct(p.id);if(p.image_url)await deleteImage(p.image_url).catch(()=>{});await refresh();setMsg('تم حذف المنتج.')}catch(e:any){setMsg(e?.message||'تعذر الحذف')}finally{setPendingDelete(null)}},10000);
+      setPendingDelete({product:p,timer});
+    };
+    const undoDelete=()=>{if(!pendingDelete)return;window.clearTimeout(pendingDelete.timer);setPendingDelete(null);setMsg('تم التراجع عن الحذف.');};
     const exportProducts=()=>downloadCsv('products.csv',[['المنتج','القسم','متاح','مخفي','مميز','الترتيب','الخيارات'],...data!.products.map(p=>[p.name_ar,data!.categories.find(c=>c.id===p.category_id)?.name_ar||'',p.available?'نعم':'لا',p.hidden?'نعم':'لا',p.featured?'نعم':'لا',p.display_order,p.options.map(o=>`${o.name_ar}:${o.price}`).join(' | ')])]);
-    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={exportProducts}>تصدير CSV</button><button className="btn" onClick={()=>setEditing(newProduct(data!.products.length+1))}>+ إضافة منتج</button></div>}>المنتجات</PageTitle><ProductBulkTools products={data!.products} categories={data!.categories} onDone={refresh}/>{msg&&<p className={msg.includes('بنجاح')?'success-text':'error-text'}>{msg}</p>}<input className="admin-search" placeholder="ابحث عن منتج" value={q} onChange={e=>setQ(e.target.value)}/><div className="table-wrap"><table className="mobile-card-table product-admin-table"><thead><tr><th>المنتج</th><th>الحالة السريعة</th><th>السعر</th><th>المخزون</th><th>الترتيب</th><th>إجراءات</th></tr></thead><tbody>{list.map(p=>{const stock=productStockValue(p);const low=isLowStock(p,data!.settings.low_stock_threshold);return <tr key={p.id}><td data-label="المنتج"><div className="table-product">{p.image_url?<img src={p.image_url} alt=""/>:<span className="mini-placeholder">صورة</span>}<div><b>{p.name_ar}</b>{low&&<small className="stock-warning">مخزون منخفض</small>}</div></div></td><td data-label="الحالة"><div className="quick-toggles"><button className={p.available?'on':''} onClick={()=>quick(p,'available',!p.available)}>{p.available?'متاح':'غير متاح'}</button><button className={p.hidden?'warn':''} onClick={()=>quick(p,'hidden',!p.hidden)}>{p.hidden?'مخفي':'ظاهر'}</button><button className={p.featured?'on':''} onClick={()=>quick(p,'featured',!p.featured)}>{p.featured?'مميز':'عادي'}</button></div></td><td data-label="السعر">{p.options.length?money(Math.min(...p.options.map(o=>Number(o.price)))):'—'}</td><td data-label="المخزون">{stock===null?'غير متتبع':stock}</td><td data-label="الترتيب"><div className="order-buttons"><button onClick={()=>move(p,-1)}>↑</button><b>{p.display_order}</b><button onClick={()=>move(p,1)}>↓</button></div></td><td data-label="الإجراءات" className="table-actions"><button onClick={()=>setEditing(structuredClone(p))}>تعديل</button><button onClick={()=>duplicate(p)}>نسخ</button><button className="danger" onClick={async()=>{if(confirm('هل أنت متأكد من حذف هذا المنتج؟')){try{await deleteProduct(p.id);if(p.image_url)await deleteImage(p.image_url).catch(()=>{});await refresh();}catch(e:any){setMsg(e?.message||'تعذر الحذف')}}}}>حذف</button></td></tr>})}</tbody></table></div>{editing&&<ProductEditor product={editing} onChange={setEditing} onCancel={()=>setEditing(null)} onSave={()=>save(editing)} busy={busy}/>}</>;
+
+    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={exportProducts}>تصدير CSV</button><button className="btn" onClick={()=>setEditing(newProduct(data!.products.length+1))}>+ إضافة منتج</button></div>}>المنتجات</PageTitle>
+      <section className="panel quick-add-panel"><h3>إضافة سريعة</h3><div className="quick-add-grid"><input placeholder="اسم المنتج" value={quickName} onChange={e=>setQuickName(e.target.value)}/><input type="number" min="0" placeholder="السعر" value={quickPrice||''} onChange={e=>setQuickPrice(Number(e.target.value))}/><select value={quickCategory} onChange={e=>setQuickCategory(e.target.value)}><option value="">بدون قسم</option>{data!.categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name_ar}</option>)}</select><button className="btn" disabled={busy} onClick={()=>void quickAdd()}>إضافة</button></div></section>
+      <ProductBulkTools products={data!.products} categories={data!.categories} onDone={refresh}/>
+      {msg&&<p className={msg.includes('تم')?'success-text':'error-text'}>{msg}</p>}
+      <input className="admin-search" placeholder="ابحث عن منتج" value={q} onChange={e=>setQ(e.target.value)}/>
+      <p className="muted drag-help">يمكنك سحب الصفوف لتغيير ترتيب المنتجات. أزرار الأسهم تظل متاحة أيضًا.</p>
+      <div className="table-wrap"><table className="mobile-card-table product-admin-table"><thead><tr><th>المنتج</th><th>الحالة السريعة</th><th>السعر</th><th>المخزون</th><th>الترتيب</th><th>إجراءات</th></tr></thead><tbody>{list.map(p=>{const stock=productStockValue(p);const low=isLowStock(p,data!.settings.low_stock_threshold);return <tr key={p.id} draggable={!busy} className={dragId===p.id?'dragging-row':''} onDragStart={()=>setDragId(p.id)} onDragEnd={()=>setDragId('')} onDragOver={e=>e.preventDefault()} onDrop={()=>void reorderDrop(p.id)}><td data-label="المنتج"><div className="table-product"><span className="drag-handle" aria-hidden="true">⋮⋮</span>{p.image_url?<img src={p.image_url} alt=""/>:<span className="mini-placeholder">صورة</span>}<div><b>{p.name_ar}</b>{low&&<small className="stock-warning">مخزون منخفض</small>}</div></div></td><td data-label="الحالة"><div className="quick-toggles"><button className={p.available?'on':''} onClick={()=>void quick(p,'available',!p.available)}>{p.available?'متاح':'غير متاح'}</button><button className={p.hidden?'warn':''} onClick={()=>void quick(p,'hidden',!p.hidden)}>{p.hidden?'مخفي':'ظاهر'}</button><button className={p.featured?'on':''} onClick={()=>void quick(p,'featured',!p.featured)}>{p.featured?'مميز':'عادي'}</button></div></td><td data-label="السعر">{p.options.length?money(Math.min(...p.options.map(o=>Number(o.price)))):'—'}</td><td data-label="المخزون">{stock===null?'غير متتبع':stock}</td><td data-label="الترتيب"><div className="order-buttons"><button aria-label="تحريك لأعلى" onClick={()=>void move(p,-1)}>↑</button><b>{p.display_order}</b><button aria-label="تحريك لأسفل" onClick={()=>void move(p,1)}>↓</button></div></td><td data-label="الإجراءات" className="table-actions"><button onClick={()=>setEditing(structuredClone(p))}>تعديل</button><button onClick={()=>duplicate(p)}>نسخ</button><button className="danger" onClick={()=>scheduleDelete(p)}>حذف</button></td></tr>})}</tbody></table></div>
+      {pendingDelete&&<div className="undo-toast" role="status"><span>سيتم حذف «{pendingDelete.product.name_ar}» خلال 10 ثوانٍ.</span><button onClick={undoDelete}>تراجع</button></div>}
+      {editing&&<ProductEditor product={editing} onChange={setEditing} onCancel={()=>setEditing(null)} onSave={()=>save(editing)} busy={busy}/>}
+    </>;
   }
 
   function ProductEditor({product,onChange,onCancel,onSave,busy}:{product:Product,onChange:(p:Product)=>void,onCancel:()=>void,onSave:()=>void,busy:boolean}){
