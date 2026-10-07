@@ -71,6 +71,14 @@ test('full order lifecycle reaches admin status and public tracking',async({page
   await expect(page.getByText('جاري التجهيز',{exact:true})).toBeVisible();
 });
 
+test('platform dashboard is tenant-neutral and exposes SaaS controls',async({page})=>{
+  await page.goto('/platform');
+  await expect(page.getByRole('heading',{name:'لوحة المنصة'})).toBeVisible();
+  await expect(page.getByText('إدارة العملاء، الباقات، الاشتراكات، الدعم والاستخدام من مكان واحد.')).toBeVisible();
+  await expect(page.getByRole('heading',{name:'إضافة متجر جديد'})).toBeVisible();
+  await expect(page.getByText('الحاج أسامة',{exact:true})).toHaveCount(0);
+});
+
 test('unknown route has a real 404 page',async({page})=>{
   await page.goto('/does-not-exist');
   await expect(page.getByText('404')).toBeVisible();

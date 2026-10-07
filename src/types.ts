@@ -189,9 +189,72 @@ export interface TenantInfo {
 export interface PlatformStore extends TenantInfo {
   created_at: string;
   owner_email: string;
+  owner_last_login_at: string | null;
   products_count: number;
   orders_count: number;
+  orders_30d: number;
   staff_count: number;
+  last_order_at: string | null;
+  last_visit_at: string | null;
+  errors_24h: number;
+  setup_completed: boolean;
+  storage_bytes: number;
+  subscription_status: 'trial'|'active'|'past_due'|'paused';
+  trial_ends_at: string | null;
+  paid_until: string | null;
+  billing_note: string;
+}
+
+export interface PlatformPlan {
+  id: string;
+  name_ar: string;
+  max_products: number | null;
+  max_staff: number | null;
+  price_egp: number | null;
+  features: Record<string,boolean>;
+  active: boolean;
+  display_order: number;
+}
+
+export interface PlatformOverview {
+  total_stores: number;
+  active_stores: number;
+  suspended_stores: number;
+  stores_active_7d: number;
+  stores_inactive_30d: number;
+  orders_30d: number;
+  revenue_30d: number;
+  products_total: number;
+  staff_total: number;
+  errors_24h: number;
+  visits_30d: number;
+  storage_bytes: number;
+}
+
+export interface PlatformSettings {
+  base_domain: string;
+  default_trial_days: number;
+  support_session_minutes: number;
+}
+
+export interface PlatformSupportStatus {
+  active: boolean;
+  store_id?: string;
+  store_name?: string;
+  expires_at?: string;
+}
+
+export interface StorePlanStatus {
+  plan: string;
+  plan_name: string;
+  subscription_status: 'trial'|'active'|'past_due'|'paused';
+  trial_ends_at: string | null;
+  paid_until: string | null;
+  products_count: number;
+  max_products: number | null;
+  staff_count: number;
+  max_staff: number | null;
+  features: Record<string,boolean>;
 }
 
 export interface StoreSnapshot {
