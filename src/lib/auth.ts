@@ -53,6 +53,55 @@ export async function signOutAdmin() {
   await supabase.auth.signOut();
 }
 
+
+export type MfaFactorInfo={id:string;friendly_name?:string;status:string;factor_type?:string};
+
+export async function getMfaState():Promise<{factors:MfaFactorInfo[];currentLevel:string;nextLevel:string}>{
+  if(!supabaseConfigured||!supabase)return {factors:[],currentLevel:'aal1',nextLevel:'aal1'};
+  const [listed,levels]=await Promise.all([
+    supabase.auth.mfa.listFactors(),
+    supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+  ]);
+  if(listed.error)throw listed.error;
+  if(levels.error)throw levels.error;
+  const factors=[...(listed.data.totp||[])] as MfaFactorInfo[];
+  return {factors,currentLevel:levels.data.currentLevel||'aal1',nextLevel:levels.data.nextLevel||'aal1'};
+}
+
+export async function mfaChallengeNeeded(){
+  const state=await getMfaState();
+  return state.factors.some(x=>x.status==='verified')&&state.nextLevel==='aal2'&&state.currentLevel!=='aal2';
+}
+
+export async function verifyMfaLogin(code:string){
+  if(!supabaseConfigured||!supabase)return;
+  const state=await getMfaState();
+  const factor=state.factors.find(x=>x.status==='verified');
+  if(!factor)throw new Error('لا توجد وسيلة تحقق ثنائي مفعلة.');
+  const {error}=await supabase.auth.mfa.challengeAndVerify({factorId:factor.id,code:code.trim()});
+  if(error)throw error;
+  try{await supabase.rpc('record_staff_login');}catch{}
+}
+
+export async function startMfaEnrollment():Promise<{factorId:string;qrCode:string;secret:string}>{
+  if(!supabaseConfigured||!supabase)throw new Error('التحقق الثنائي يحتاج Supabase.');
+  const {data,error}=await supabase.auth.mfa.enroll({factorType:'totp',friendlyName:'Fakahany Owner'});
+  if(error)throw error;
+  return {factorId:data.id,qrCode:data.totp.qr_code,secret:data.totp.secret};
+}
+
+export async function verifyMfaEnrollment(factorId:string,code:string){
+  if(!supabaseConfigured||!supabase)return;
+  const {error}=await supabase.auth.mfa.challengeAndVerify({factorId,code:code.trim()});
+  if(error)throw error;
+}
+
+export async function removeMfaFactor(factorId:string){
+  if(!supabaseConfigured||!supabase)return;
+  const {error}=await supabase.auth.mfa.unenroll({factorId});
+  if(error)throw error;
+}
+
 export async function signOutOtherSessions() {
   if (!supabaseConfigured || !supabase) return;
   const {error}=await supabase.auth.signOut({scope:'others'});
