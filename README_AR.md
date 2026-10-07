@@ -32,6 +32,7 @@
 9. `supabase/migrations/20261007_custom_staff_permissions.sql`
 10. `supabase/migrations/20261007_security_maintenance.sql`
 11. `supabase/migrations/20261007_reliability_growth_pack.sql`
+12. `supabase/migrations/20261007_reliability_indexes.sql`
 
 لا تضع مفاتيح Supabase الحقيقية داخل GitHub. ملف `.env` مستبعد من Git.
 
