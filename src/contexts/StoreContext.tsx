@@ -23,7 +23,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(); const online=()=>void refresh(); window.addEventListener('online',online); return()=>window.removeEventListener('online',online); }, []);
   const value = useMemo(() => ({ data, loading, error, refresh }), [data, loading, error]);
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
 }
