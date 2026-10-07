@@ -131,23 +131,43 @@ export function updatePageMeta(settings: ShopSettings) {
   if (settings.logo_url) { let icon=document.head.querySelector<HTMLLinkElement>('link[rel="icon"]'); if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon);} icon.href=settings.logo_url; }
 }
 
-export async function compressImage(file: File, maxDimension = 1600, quality = 0.82): Promise<File> {
+export async function compressImage(file: File, maxDimension = 1400, quality = 0.78): Promise<File> {
   if (!file.type.startsWith('image/')) throw new Error('الملف المختار ليس صورة صالحة.');
-  if (file.size > 12 * 1024 * 1024) throw new Error('حجم الصورة كبير جدًا. الحد الأقصى قبل الضغط 12 ميجابايت.');
+  if (file.size > 8 * 1024 * 1024) throw new Error('حجم الصورة كبير جدًا. الحد الأقصى قبل الضغط 8 ميجابايت.');
+
   const url = URL.createObjectURL(file);
   try {
-    const img = await new Promise<HTMLImageElement>((resolve,reject)=>{ const x=new Image(); x.onload=()=>resolve(x); x.onerror=()=>reject(new Error('تعذر قراءة الصورة.')); x.src=url; });
+    const img = await new Promise<HTMLImageElement>((resolve,reject)=>{
+      const x=new Image();
+      x.onload=()=>resolve(x);
+      x.onerror=()=>reject(new Error('تعذر قراءة الصورة.'));
+      x.src=url;
+    });
+    if (img.width > 9000 || img.height > 9000) throw new Error('أبعاد الصورة كبيرة جدًا.');
+
     const scale = Math.min(1, maxDimension / Math.max(img.width,img.height));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1,Math.round(img.width*scale));
     canvas.height = Math.max(1,Math.round(img.height*scale));
-    const ctx = canvas.getContext('2d'); if(!ctx) return file;
+    const ctx = canvas.getContext('2d');
+    if(!ctx) throw new Error('تعذر تجهيز الصورة.');
     ctx.drawImage(img,0,0,canvas.width,canvas.height);
-    const blob = await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/webp',quality));
-    if (!blob) return file;
-    const base = file.name.replace(/\.[^.]+$/,'') || 'image';
+
+    const encode = (q:number) => new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,'image/webp',q));
+    let q=Math.min(.86,Math.max(.55,quality));
+    let blob=await encode(q);
+    while(blob && blob.size>900*1024 && q>.58){
+      q-=.06;
+      blob=await encode(q);
+    }
+    if(!blob) throw new Error('تعذر ضغط الصورة.');
+    if(blob.size>1.5*1024*1024) throw new Error('الصورة ما زالت كبيرة بعد الضغط. اختر صورة أبسط أو أصغر.');
+
+    const base=file.name.replace(/\.[^.]+$/,'')||'image';
     return new File([blob],`${base}.webp`,{type:'image/webp'});
-  } finally { URL.revokeObjectURL(url); }
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 export function downloadText(filename: string, content: string, type='text/plain;charset=utf-8') {
