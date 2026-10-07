@@ -47,11 +47,11 @@ export default function ScheduledPrices(){
     </section>
     <section className="panel">
       <h3>الأسعار المنتظرة</h3>
-      {!list.length?<p className="muted">لا توجد أسعار مجدولة.</p>:<div className="table-wrap"><table><thead><tr><th>المنتج</th><th>السعر الجديد</th><th>موعد التطبيق</th><th>إجراء</th></tr></thead><tbody>{list.map(x=><tr key={x.id}>
-        <td>{x.product_name}<small className="block muted">{x.option_name}</small></td>
-        <td>{money(x.price)}{x.old_price!==null&&<small className="block muted">السعر القديم: {money(x.old_price)}</small>}</td>
-        <td>{new Date(x.starts_at).toLocaleString('ar-EG')}</td>
-        <td><button className="btn secondary small-admin-btn" disabled={busy} onClick={async()=>{if(!confirm('إلغاء السعر المجدول؟'))return;setBusy(true);try{await cancelScheduledPrice(x.id);await reload()}finally{setBusy(false)}}}>إلغاء</button></td>
+      {!list.length?<p className="muted">لا توجد أسعار مجدولة.</p>:<div className="table-wrap"><table className="mobile-card-table"><thead><tr><th>المنتج</th><th>السعر الجديد</th><th>موعد التطبيق</th><th>إجراء</th></tr></thead><tbody>{list.map(x=><tr key={x.id}>
+        <td data-label="المنتج">{x.product_name}<small className="block muted">{x.option_name}</small></td>
+        <td data-label="السعر الجديد">{money(x.price)}{x.old_price!==null&&<small className="block muted">السعر القديم: {money(x.old_price)}</small>}</td>
+        <td data-label="موعد التطبيق">{new Date(x.starts_at).toLocaleString('ar-EG')}</td>
+        <td data-label="الإجراء"><button className="btn secondary small-admin-btn" disabled={busy} onClick={async()=>{if(!confirm('إلغاء السعر المجدول؟'))return;setBusy(true);try{await cancelScheduledPrice(x.id);await reload()}finally{setBusy(false)}}}>إلغاء</button></td>
       </tr>)}</tbody></table></div>}
     </section>
   </>;
