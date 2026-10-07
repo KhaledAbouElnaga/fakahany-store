@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigured } from './supabase';
+import { requireTenantId } from './tenant';
 
 let lastMessage='';
 let lastAt=0;
@@ -10,5 +11,5 @@ export async function logClientError(error:unknown,source='frontend'){
   const now=Date.now();
   if(safe===lastMessage&&now-lastAt<10000)return;
   lastMessage=safe;lastAt=now;
-  try{await supabase.rpc('log_client_error',{message_input:safe,path_input:location.pathname,source_input:source})}catch{}
+  try{const storeId=await requireTenantId();await supabase.rpc('log_client_error',{store_id_input:storeId,message_input:safe,path_input:location.pathname,source_input:source})}catch{}
 }
