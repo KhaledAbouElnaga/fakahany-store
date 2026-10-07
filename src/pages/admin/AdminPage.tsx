@@ -194,6 +194,7 @@ export default function AdminPage(){
     const cancelRate=orders.length?Math.round(orders.filter(o=>cancelledNames.has(o.status)).length/orders.length*100):0;
     const overdueNew=orders.filter(o=>newNames.has(o.status)&&(Date.now()-new Date(o.created_at).getTime())>=Math.max(1,data!.settings.order_alert_minutes||15)*60000).length;
 
+    const show=(key:string)=>data!.settings.dashboard_widgets.includes(key);
     return <><PageTitle actions={<div className="page-actions">
       {!alertsEnabled&&can('orders.view')&&<button className="btn secondary" onClick={()=>void enableAlerts()}>تفعيل تنبيهات الطلبات</button>}
       {can('products.manage')&&<button className="btn secondary" onClick={()=>setTab('products')}>إضافة منتج</button>}
@@ -201,19 +202,17 @@ export default function AdminPage(){
     </div>}>الرئيسية</PageTitle>
 
     <div className="stats-grid">
-      <Stat label="طلبات اليوم" value={todayOrdersList.length}/>
-      <Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>
-      <Stat label="طلبات منتظرة أكثر من الحد" value={overdueNew}/>
-      <Stat label="مبيعات اليوم" value={money(todaySales)}/>
-      <Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/>
-      <Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/>
-      <Stat label="مقارنة بالأسبوع السابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/>
-      <Stat label="متوسط قيمة الطلب" value={money(avg)}/>
-      <Stat label="العملاء المتكررون" value={repeat}/>
-      <Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>
-      <Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>
-      <Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>
-      <Stat label="مخزون منخفض" value={low}/>
+      {show('orders_today')&&<Stat label="طلبات اليوم" value={todayOrdersList.length}/>}
+      {show('new_orders')&&<Stat label="طلبات جديدة" value={orders.filter(o=>newNames.has(o.status)).length}/>}
+      {show('overdue')&&<Stat label="طلبات منتظرة أكثر من الحد" value={overdueNew}/>}
+      {show('sales_today')&&<><Stat label="مبيعات اليوم" value={money(todaySales)}/><Stat label="مقارنة مبيعات اليوم بالأمس" value={(percent(todaySales,yesterdaySales)>=0?'+':'')+percent(todaySales,yesterdaySales)+'٪'}/></>}
+      {show('sales_week')&&<><Stat label="مبيعات آخر 7 أيام" value={money(weekSales)}/><Stat label="مقارنة بالأسبوع السابق" value={(percent(weekSales,prevWeekSales)>=0?'+':'')+percent(weekSales,prevWeekSales)+'٪'}/></>}
+      {show('avg_order')&&<Stat label="متوسط قيمة الطلب" value={money(avg)}/>}
+      {show('repeat_customers')&&<Stat label="العملاء المتكررون" value={repeat}/>}
+      {show('cancel_rate')&&<Stat label="معدل الإلغاء" value={cancelRate+'٪'}/>}
+      {show('top_product')&&<Stat label="أكثر منتج طلبًا" value={topProduct?topProduct.name:'—'}/>}
+      {show('peak_hour')&&<Stat label="وقت الذروة" value={peak?(peak[0].toLocaleString('ar-EG')+':00'):'—'}/>}
+      {show('low_stock')&&<Stat label="مخزون منخفض" value={low}/>}
     </div>
 
     {low>0&&can('inventory.manage')&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض.</p><button className="btn secondary" onClick={()=>setTab('inventory')}>فتح المخزون</button></div>}
