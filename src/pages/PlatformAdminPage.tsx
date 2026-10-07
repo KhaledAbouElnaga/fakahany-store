@@ -9,6 +9,8 @@ import {
 import type { PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore } from '../types';
 import { clearResolvedTenant } from '../lib/tenant';
 import { downloadText, money, updateNeutralPageMeta } from '../lib/utils';
+import PlatformOperationsPanel from '../components/PlatformOperationsPanel';
+import PlatformBackupManager from '../components/PlatformBackupManager';
 
 const EMPTY_OVERVIEW:PlatformOverview={total_stores:0,active_stores:0,suspended_stores:0,stores_active_7d:0,stores_inactive_30d:0,orders_30d:0,revenue_30d:0,products_total:0,staff_total:0,errors_24h:0,visits_30d:0,storage_bytes:0};
 const EMPTY_SETTINGS:PlatformSettings={base_domain:'',default_trial_days:14,support_session_minutes:30};
@@ -43,6 +45,7 @@ export default function PlatformAdminPage(){
   const [form,setForm]=useState({name:'',slug:'',ownerEmail:'',plan:'pro'});
   const [filter,setFilter]=useState('');
   const [showPlatformSettings,setShowPlatformSettings]=useState(false);
+  const [backupStore,setBackupStore]=useState<PlatformStore|null>(null);
 
   const origin=useMemo(()=>typeof location==='undefined'?'':location.origin,[]);
 
@@ -199,6 +202,8 @@ export default function PlatformAdminPage(){
         <div><span>التخزين</span><strong>{bytes(overview.storage_bytes)}</strong><small>صور جميع المتاجر</small></div>
       </section>
 
+      <PlatformOperationsPanel/>
+
       {showPlatformSettings&&<section className="panel platform-settings-panel">
         <div className="platform-section-title"><div><h2>إعدادات المنصة</h2><p className="muted">الدومين هنا للمنصة كلها مرة واحدة، وليس دومينًا خاصًا بكل عميل.</p></div></div>
         <div className="form-grid">
@@ -269,6 +274,7 @@ export default function PlatformAdminPage(){
               <button className="btn" disabled={busy} onClick={()=>void support(store)}>دخول دعم</button>
             </div>
             <div className="platform-card-actions secondary-actions">
+              <button className="btn secondary" disabled={busy} onClick={()=>setBackupStore(store)}>نسخ احتياطي</button>
               <button className="btn secondary" disabled={busy} onClick={()=>void exportStore(store)}>Export</button>
               <button className="btn secondary" disabled={busy} onClick={()=>void transferOwner(store)}>نقل الملكية</button>
               <button className={'btn '+(store.status==='active'?'danger-action':'secondary')} disabled={busy} onClick={()=>void toggle(store)}>{store.status==='active'?'إيقاف':'إعادة التفعيل'}</button>
@@ -278,5 +284,6 @@ export default function PlatformAdminPage(){
         })}
       </section>
     </main>
+    {backupStore&&<PlatformBackupManager store={backupStore} onClose={()=>setBackupStore(null)} onDone={message=>setOk(message)}/>}
   </div>;
 }
