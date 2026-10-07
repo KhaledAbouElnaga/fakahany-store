@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { createPlatformStore, isPlatformAdmin, listPlatformStores, setPlatformStoreDomain, setPlatformStoreStatus, signInPlatform, signOutPlatform } from '../lib/platformApi';
 import type { PlatformStore } from '../types';
+import { clearResolvedTenant } from '../lib/tenant';
+import { updateNeutralPageMeta } from '../lib/utils';
 
 export default function PlatformAdminPage(){
   const [authorized,setAuthorized]=useState<boolean|null>(null);
@@ -16,7 +18,11 @@ export default function PlatformAdminPage(){
     try{setStores(await listPlatformStores())}catch(e:any){setError(e?.message||'تعذر تحميل المتاجر.')}
   };
 
-  useEffect(()=>{void isPlatformAdmin().then(async ok=>{setAuthorized(ok);if(ok)await refresh()}).catch(()=>setAuthorized(false))},[]);
+  useEffect(()=>{
+    clearResolvedTenant({forgetPreview:true});
+    updateNeutralPageMeta('Fakahany SaaS — إدارة المنصة','إدارة جميع المتاجر من منصة واحدة.');
+    void isPlatformAdmin().then(async ok=>{setAuthorized(ok);if(ok)await refresh()}).catch(()=>setAuthorized(false));
+  },[]);
 
   const previewBase=useMemo(()=>typeof location==='undefined'?'':location.origin,[]);
 
@@ -66,7 +72,7 @@ export default function PlatformAdminPage(){
   </form></main>;
 
   return <div className="platform-shell">
-    <header className="platform-topbar"><div><strong>Fakahany SaaS</strong><span>إدارة المتاجر</span></div><div className="platform-top-actions"><a className="btn secondary" href="/admin">لوحة المتجر</a><button className="btn secondary" onClick={()=>void signOutPlatform().then(()=>setAuthorized(false))}>تسجيل الخروج</button></div></header>
+    <header className="platform-topbar"><div><strong>Fakahany SaaS</strong><span>إدارة المتاجر</span></div><div className="platform-top-actions"><button className="btn secondary" onClick={()=>void signOutPlatform().then(()=>setAuthorized(false))}>تسجيل الخروج</button></div></header>
     <main className="platform-main">
       <div className="page-title"><div><h1>المتاجر</h1><p className="muted">نسخة كود واحدة، وبيانات منفصلة بالكامل لكل متجر.</p></div></div>
       {error&&<div className="form-error">{error}</div>}
@@ -102,6 +108,7 @@ export default function PlatformAdminPage(){
           <div className="platform-domain"><small>الدومين</small><strong dir="ltr">{store.custom_domain||'غير مربوط بعد'}</strong></div>
           <div className="platform-card-actions">
             <a className="btn secondary" href={previewBase+'/?store='+encodeURIComponent(store.slug)} target="_blank" rel="noreferrer">معاينة</a>
+            <a className="btn secondary" href={previewBase+'/admin?store='+encodeURIComponent(store.slug)} target="_blank" rel="noreferrer">لوحة الإدارة</a>
             <button className="btn secondary" disabled={busy} onClick={()=>void changeDomain(store)}>الدومين</button>
             <button className={'btn '+(store.status==='active'?'danger-action':'')} disabled={busy} onClick={()=>void toggle(store)}>{store.status==='active'?'إيقاف المتجر':'إعادة التفعيل'}</button>
           </div>

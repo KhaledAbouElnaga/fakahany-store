@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import type { StoreSnapshot, TenantInfo } from '../types';
 import { loadStore } from '../lib/storeApi';
 import { applyTheme } from '../lib/utils';
@@ -15,21 +16,22 @@ interface StoreContextValue {
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
+  const location=useLocation();
   const [data, setData] = useState<StoreSnapshot | null>(null);
   const [tenant,setTenant]=useState<TenantInfo|null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const refresh = async () => {
+  const refresh = async (forceTenant=false) => {
     setLoading(true); setError('');
-    try { const resolved=await resolveTenant(); setTenant(resolved); const next=await loadStore(); applyTheme(next.settings); setData(next); }
+    try { const resolved=await resolveTenant(forceTenant); setTenant(resolved); const next=await loadStore(); applyTheme(next.settings); setData(next); }
     catch (e: any) { setError(e?.message || 'تعذر تحميل بيانات المتجر.'); }
     finally { setLoading(false); }
   };
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(true); }, [location.search]);
   const value = useMemo(() => ({ data, tenant, loading, error, refresh }), [data, tenant, loading, error]);
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return <StoreContext.Provider value={{...value,refresh:()=>refresh(false)}}>{children}</StoreContext.Provider>;
 }
 
 export function useStore() {

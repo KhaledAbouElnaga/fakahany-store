@@ -4,6 +4,7 @@ import Loading from '../components/Loading';
 import { useStore } from '../contexts/StoreContext';
 import { money, normalizeWhatsAppNumber, openWhatsApp } from '../lib/utils';
 import type { Order } from '../types';
+import { tenantHref } from '../lib/tenant';
 
 type StoredSuccess={order:Order;message:string};
 
@@ -12,7 +13,7 @@ export default function OrderSuccessPage(){
   if(loading||!data)return <Loading/>;
   let success:StoredSuccess|null=null;
   try{success=JSON.parse(localStorage.getItem('fakahany-last-success')||'null')}catch{}
-  if(!success)return <><Header settings={data.settings}/><main className="container narrow"><div className="empty-state"><p>لا توجد بيانات طلب حديثة.</p><Link className="btn secondary" to="/">العودة للمتجر</Link></div></main></>;
+  if(!success)return <><Header settings={data.settings}/><main className="container narrow"><div className="empty-state"><p>لا توجد بيانات طلب حديثة.</p><Link className="btn secondary" to={tenantHref('/')}>العودة للمتجر</Link></div></main></>;
   const {order,message}=success;
   const wa=normalizeWhatsAppNumber(data.settings.whatsapp_number);
   return <><Header settings={data.settings}/><main className="container narrow success-page">
@@ -27,8 +28,8 @@ export default function OrderSuccessPage(){
         <div className="total-row"><span>الإجمالي النهائي</span><b>{money(order.total)}</b></div>
       </div>
       <button className="btn whatsapp" disabled={!wa} onClick={()=>wa&&openWhatsApp(wa,message)}>فتح واتساب</button>
-      {data.settings.feature_flags.tracking&&order.tracking_token&&<Link className="btn secondary block" to={`/track/${order.tracking_token}`}>تتبع حالة الطلب</Link>}
-      <Link className="btn secondary block" to="/">العودة للمتجر</Link>
+      {data.settings.feature_flags.tracking&&order.tracking_token&&<Link className="btn secondary block" to={tenantHref(`/track/${order.tracking_token}`)}>تتبع حالة الطلب</Link>}
+      <Link className="btn secondary block" to={tenantHref('/')}>العودة للمتجر</Link>
     </div>
   </main></>;
 }

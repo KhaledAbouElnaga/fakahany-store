@@ -70,6 +70,26 @@ export function getPublicBaseUrl(settings?: Pick<ShopSettings,'public_site_url'>
   return /^https?:\/\//i.test(configured)?configured:'https://'+configured;
 }
 
+function previewTenantHref(path:string){
+  if(typeof window==='undefined')return path;
+  const normalized=path.startsWith('/')?path:'/'+path;
+  const host=window.location.hostname.toLowerCase();
+  if(!(host==='localhost'||host==='127.0.0.1'||host.endsWith('.pages.dev')))return normalized;
+  const slug=(new URLSearchParams(window.location.search).get('store')||sessionStorage.getItem('fakahany-preview-store')||'').trim().toLowerCase();
+  if(!slug)return normalized;
+  return normalized+(normalized.includes('?')?'&':'?')+'store='+encodeURIComponent(slug);
+}
+
+export function getPublicPageUrl(settings:Pick<ShopSettings,'public_site_url'>|undefined,path='/'){
+  const configured=(settings?.public_site_url||'').trim().replace(/\/$/,'');
+  const normalized=path.startsWith('/')?path:'/'+path;
+  if(configured){
+    const base=/^https?:\/\//i.test(configured)?configured:'https://'+configured;
+    return base+normalized;
+  }
+  return window.location.origin+previewTenantHref(normalized);
+}
+
 export const normalizeWhatsAppNumber = (input: string) => {
   let digits = (input || '').replace(/\D/g, '');
   if (digits.startsWith('0020')) digits = digits.slice(2);
@@ -178,6 +198,28 @@ export function orderTemplateValues(order: Order, settings: ShopSettings) {
   };
 }
 
+export function updateNeutralPageMeta(title='Fakahany SaaS',description='منصة لإدارة وتشغيل المتاجر الإلكترونية') {
+  document.title=title;
+  const setMeta=(selector:string,attr:'name'|'property',key:string,content:string)=>{
+    let el=document.head.querySelector<HTMLMetaElement>(selector);
+    if(!el){el=document.createElement('meta');el.setAttribute(attr,key);document.head.appendChild(el);}
+    el.content=content;
+  };
+  setMeta('meta[name="description"]','name','description',description);
+  setMeta('meta[name="application-name"]','name','application-name','Fakahany SaaS');
+  setMeta('meta[name="apple-mobile-web-app-title"]','name','apple-mobile-web-app-title','Fakahany SaaS');
+  setMeta('meta[property="og:title"]','property','og:title',title);
+  setMeta('meta[property="og:description"]','property','og:description',description);
+  setMeta('meta[property="og:type"]','property','og:type','website');
+  setMeta('meta[property="og:url"]','property','og:url',window.location.origin+window.location.pathname);
+  document.head.querySelector('meta[property="og:image"]')?.remove();
+  document.head.querySelector('script[data-store-schema]')?.remove();
+  document.head.querySelector('link[rel="canonical"]')?.remove();
+  const icon=document.head.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if(icon)icon.href='/icon-192.png';
+  document.documentElement.dataset.theme='green';
+}
+
 export function updatePageMeta(settings: ShopSettings) {
   document.title = settings.site_name || settings.store_name;
   const setMeta = (selector: string, attr: 'name'|'property', key: string, content: string) => {
@@ -194,10 +236,11 @@ export function updatePageMeta(settings: ShopSettings) {
   if (settings.share_image_url || settings.banner_url || settings.logo_url) setMeta('meta[property="og:image"]','property','og:image',settings.share_image_url || settings.banner_url || settings.logo_url);
   setMeta('meta[property="og:type"]','property','og:type','website');
   const publicBase=getPublicBaseUrl(settings);
-  setMeta('meta[property="og:url"]','property','og:url',publicBase+window.location.pathname);
+  const publicPage=getPublicPageUrl(settings,window.location.pathname);
+  setMeta('meta[property="og:url"]','property','og:url',publicPage);
   let canonical=document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
-  canonical.href=publicBase+window.location.pathname;
+  canonical.href=publicPage;
   if (settings.logo_url) { let icon=document.head.querySelector<HTMLLinkElement>('link[rel="icon"]'); if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon);} icon.href=settings.logo_url; }
 
   let structured=document.head.querySelector<HTMLScriptElement>('script[data-store-schema]');

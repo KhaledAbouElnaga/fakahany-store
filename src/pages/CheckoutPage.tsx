@@ -4,9 +4,10 @@ import Header from '../components/Header';
 import Loading from '../components/Loading';
 import { useCart } from '../contexts/CartContext';
 import { useStore } from '../contexts/StoreContext';
-import { getPublicBaseUrl, isPlausiblePhone, isStoreOpenNow, makeOrderNumber, money, normalizeWhatsAppNumber, openWhatsApp, orderTemplateValues, renderTemplate, uid } from '../lib/utils';
+import { getPublicPageUrl, isPlausiblePhone, isStoreOpenNow, makeOrderNumber, money, normalizeWhatsAppNumber, openWhatsApp, orderTemplateValues, renderTemplate, uid } from '../lib/utils';
 import { loadStore, saveOrder } from '../lib/storeApi';
 import type { Order } from '../types';
+import { tenantHref } from '../lib/tenant';
 
 function FieldTitle({children, required}:{children:ReactNode, required:boolean}){return <span className="field-title">{children}{required&&<span className="required-badge">مطلوب</span>}</span>}
 
@@ -26,7 +27,7 @@ export default function CheckoutPage(){
   })());
   const areas=useMemo(()=>data?.deliveryAreas.filter(a=>a.enabled).sort((a,b)=>a.display_order-b.display_order)||[],[data]);
   if(loading||!data)return <Loading/>;
-  if(!items.length)return <main className="container narrow"><div className="empty-state">السلة فارغة.<br/><Link to="/">العودة للمتجر</Link></div></main>;
+  if(!items.length)return <main className="container narrow"><div className="empty-state">السلة فارغة.<br/><Link to={tenantHref('/')}>العودة للمتجر</Link></div></main>;
   const deliveryEnabled=data.settings.delivery_enabled; const missing=Math.max(0,data.settings.min_order-subtotal); const area=areas.find(a=>a.id===form.areaId); const deliveryFee=deliveryEnabled?(area?.fee ?? data.settings.default_delivery_fee):0; const total=subtotal+deliveryFee;
   const set=(k:string,v:string)=>setForm(x=>({...x,[k]:v}));
 
@@ -78,7 +79,7 @@ export default function CheckoutPage(){
       let message=renderTemplate(data.settings.whatsapp_order_template,values);
       if(!deliveryEnabled){message=message.split('\n').filter(line=>!line.includes('رسوم التوصيل')&&!line.startsWith('المنطقة:')).join('\n');}
       if(!(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)){message=message.split('\n').filter(line=>!line.startsWith('موعد الطلب:')).join('\n');}
-      if(data.settings.feature_flags.tracking&&order.tracking_token){message+=`\n\nتتبع الطلب: ${getPublicBaseUrl(data.settings)}/track/${order.tracking_token}`;}
+      if(data.settings.feature_flags.tracking&&order.tracking_token){message+=`\n\nتتبع الطلب: ${getPublicPageUrl(data.settings,`/track/${order.tracking_token}`)}`;}
       localStorage.setItem('fakahany-last-order',JSON.stringify(order));
       try{
         const now=Date.now();
@@ -86,7 +87,7 @@ export default function CheckoutPage(){
         localStorage.setItem('fakahany-order-times',JSON.stringify([...recent,now].slice(-8)));
       }catch{}
       localStorage.setItem('fakahany-last-success',JSON.stringify({order,message}));
-      clear(); await refresh(); nav('/order-success',{replace:true});
+      clear(); await refresh(); nav(tenantHref('/order-success'),{replace:true});
       if(mobile) window.setTimeout(()=>openWhatsApp(wa,message),120);
       else openWhatsApp(wa,message,win);
     }catch(e:any){
@@ -103,5 +104,5 @@ export default function CheckoutPage(){
     {(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)&&<div className="timing-box"><FieldTitle required={false}>موعد الطلب</FieldTitle><div className="timing-options"><label><input type="radio" name="timing" checked={form.timing==='asap'} onChange={()=>set('timing','asap')}/> في أقرب وقت</label><label><input type="radio" name="timing" checked={form.timing==='scheduled'} onChange={()=>set('timing','scheduled')}/> اختيار موعد</label></div>{form.timing==='scheduled'&&<><input type="datetime-local" value={form.requestedTime} onChange={e=>set('requestedTime',e.target.value)}/>{data.settings.delivery_capacity_enabled&&<small className="muted">عدد الطلبات في كل فترة محدود. إذا امتلأت الفترة سيطلب منك النظام اختيار موعد آخر.</small>}</>}</div>}
     <label><FieldTitle required={data.settings.require_notes}>ملاحظات</FieldTitle><textarea required={data.settings.require_notes} value={form.notes} onChange={e=>set('notes',e.target.value)}/></label>
     <label className="bot-trap" aria-hidden="true">الموقع<input tabIndex={-1} autoComplete="off" value={website} onChange={e=>setWebsite(e.target.value)}/></label>
-  </div><div className="summary-card checkout-summary"><h3>ملخص الطلب</h3>{items.map(i=><div key={i.key}><span>{i.product_name} ({i.option_name}) × {i.quantity}</span><b>{money(i.unit_price*i.quantity)}</b></div>)}<hr/><div><span>إجمالي المنتجات</span><b>{money(subtotal)}</b></div>{deliveryEnabled&&<div><span>التوصيل</span><b>{money(deliveryFee)}</b></div>}<div className="total-row"><span>الإجمالي</span><b>{money(total)}</b></div><small className="muted">يتم التأكد من السعر والمخزون مرة أخيرة قبل تسجيل الطلب.</small>{error&&<p className="error-text form-error">{error}</p>}<button className="btn whatsapp" disabled={busy} onClick={submit}>{busy?'جاري مراجعة الطلب...':'تسجيل الطلب وفتح واتساب'}</button><Link className="btn secondary block" to="/cart">العودة للسلة</Link></div></div></main></>;
+  </div><div className="summary-card checkout-summary"><h3>ملخص الطلب</h3>{items.map(i=><div key={i.key}><span>{i.product_name} ({i.option_name}) × {i.quantity}</span><b>{money(i.unit_price*i.quantity)}</b></div>)}<hr/><div><span>إجمالي المنتجات</span><b>{money(subtotal)}</b></div>{deliveryEnabled&&<div><span>التوصيل</span><b>{money(deliveryFee)}</b></div>}<div className="total-row"><span>الإجمالي</span><b>{money(total)}</b></div><small className="muted">يتم التأكد من السعر والمخزون مرة أخيرة قبل تسجيل الطلب.</small>{error&&<p className="error-text form-error">{error}</p>}<button className="btn whatsapp" disabled={busy} onClick={submit}>{busy?'جاري مراجعة الطلب...':'تسجيل الطلب وفتح واتساب'}</button><Link className="btn secondary block" to={tenantHref('/cart')}>العودة للسلة</Link></div></div></main></>;
 }
