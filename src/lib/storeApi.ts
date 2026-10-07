@@ -21,7 +21,7 @@ export const DEFAULT_ORDER_STATUSES: OrderStatusDefinition[] = [
 
 function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): ShopSettings {
   const defaults: ShopSettings = {
-    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', announcement_enabled:false, announcement_text:'', maintenance_mode:false, maintenance_message:'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.', setup_completed:false, theme_preset:'green', public_site_url:'', order_alert_minutes:15, audit_retention_days:180, inventory_retention_days:365, visit_retention_days:180, min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
+    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', announcement_enabled:false, announcement_text:'', maintenance_mode:false, maintenance_message:'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.', setup_completed:false, theme_preset:'green', public_site_url:'', order_alert_minutes:15, audit_retention_days:180, inventory_retention_days:365, visit_retention_days:180, feature_flags:{tracking:true,reports:true,staff:true,scheduled_prices:true,inventory:true,favorites:true,reorder:true}, dashboard_widgets:['orders_today','new_orders','overdue','sales_today','sales_week','avg_order','repeat_customers','cancel_rate','top_product','peak_hour','low_stock'], min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
   };
   const s = settings || {};
   const merged = { ...defaults, ...s } as ShopSettings;
@@ -36,6 +36,16 @@ function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): 
   merged.audit_retention_days = Number(s.audit_retention_days ?? 180);
   merged.inventory_retention_days = Number(s.inventory_retention_days ?? 365);
   merged.visit_retention_days = Number(s.visit_retention_days ?? 180);
+  merged.feature_flags = {
+    tracking: s.feature_flags?.tracking ?? true,
+    reports: s.feature_flags?.reports ?? true,
+    staff: s.feature_flags?.staff ?? true,
+    scheduled_prices: s.feature_flags?.scheduled_prices ?? true,
+    inventory: s.feature_flags?.inventory ?? true,
+    favorites: s.feature_flags?.favorites ?? true,
+    reorder: s.feature_flags?.reorder ?? true,
+  };
+  merged.dashboard_widgets = Array.isArray(s.dashboard_widgets) && s.dashboard_widgets.length ? s.dashboard_widgets : ['orders_today','new_orders','overdue','sales_today','sales_week','avg_order','repeat_customers','cancel_rate','top_product','peak_hour','low_stock'];
   merged.delivery_enabled = s.delivery_enabled ?? true;
   merged.store_status_mode = s.store_status_mode ?? (s.manual_open === false ? 'closed' : 'auto');
   merged.low_stock_threshold = Number(s.low_stock_threshold ?? 5);
