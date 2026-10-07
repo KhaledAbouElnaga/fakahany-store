@@ -63,6 +63,8 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           if find tests/visual -type d -name '*-snapshots' | grep -q .; then
+            echo "Generating baselines only for newly added visual tests, then comparing existing snapshots."
+            npx playwright test tests/visual --update-snapshots=missing
             npx playwright test tests/visual
           else
             echo "No main baseline yet; generating a temporary baseline."
