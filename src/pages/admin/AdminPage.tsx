@@ -137,8 +137,10 @@ export default function AdminPage(){
     {tab==='prices'&&can('prices.manage')&&<ScheduledPrices/>}
     {tab==='reports'&&can('reports.view')&&<Reports/>}
     {tab==='staff'&&profile?.role==='owner'&&<StaffManager/>}
+    {tab==='audit'&&profile?.role==='owner'&&<AuditLog/>}
+    {tab==='health'&&profile?.role==='owner'&&<SystemHealth data={data}/>}
     {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh}/>}
-  </main></div>;
+  </main>{profile?.role==='owner'&&!data.settings.setup_completed&&<SetupWizard data={data} refresh={refresh}/>}</div>;
 
   function Dashboard(){
     const [orders,setOrders]=useState<Order[]|null>(null);
