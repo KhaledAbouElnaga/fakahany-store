@@ -1,0 +1,92 @@
+name: E2E and Visual Quality
+
+on:
+  pull_request:
+    branches: ["main"]
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Playwright test runner
+        run: npm install --no-save @playwright/test@1.56.1
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run E2E tests
+        run: npx playwright test tests/e2e
+      - name: Upload failure report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
+
+  visual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save @playwright/test@1.56.1
+      - run: npx playwright install --with-deps chromium
+
+      - name: Restore latest main visual baseline
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID=$(gh run list --workflow quality.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId' || true)
+          if [ -n "$RUN_ID" ]; then
+            gh run download "$RUN_ID" --name visual-baseline --dir tests/visual || true
+          fi
+
+      - name: Compare visual snapshots
+        if: github.event_name == 'pull_request'
+        run: |
+          if find tests/visual -type d -name '*-snapshots' | grep -q .; then
+            npx playwright test tests/visual
+          else
+            echo "No main baseline yet; generating a temporary baseline."
+            npx playwright test tests/visual --update-snapshots
+          fi
+
+      - name: Generate main visual baseline
+        if: github.event_name != 'pull_request'
+        run: npx playwright test tests/visual --update-snapshots
+
+      - name: Upload visual baseline
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-baseline
+          path: tests/visual/**/*-snapshots
+          retention-days: 90
+
+      - name: Upload visual diff report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diff
+          path: |
+            playwright-report
+            test-results
+          retention-days: 14
