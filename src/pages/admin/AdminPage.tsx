@@ -169,7 +169,8 @@ export default function AdminPage(){
       {tab==='audit'&&profile?.role==='owner'&&<AuditLog/>}
       {tab==='health'&&profile?.role==='owner'&&<SystemHealth data={data}/>}
       {tab==='release'&&<ReleaseNotes/>}
-      {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh} owner={profile?.role==='owner'}/>}
+      {tab==='support'&&<SupportCenter/>}
+      {tab==='settings'&&can('settings.manage')&&<StoreSettings data={data} refresh={refresh} owner={profile?.role==='owner'}/>} 
     </Suspense>
   </main>{profile?.role==='owner'&&!data.settings.setup_completed&&<Suspense fallback={null}><SetupWizard data={data} refresh={refresh}/></Suspense>}</div>;
 
