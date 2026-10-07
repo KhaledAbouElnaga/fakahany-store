@@ -262,7 +262,7 @@ export interface PlatformBackup {
   store_id: string | null;
   store_slug: string;
   store_name: string;
-  kind: 'manual'|'pre_restore'|'pre_delete';
+  kind: 'manual'|'scheduled'|'pre_restore'|'pre_delete';
   label: string;
   created_at: string;
   size_bytes: number;
