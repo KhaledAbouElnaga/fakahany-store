@@ -7,7 +7,7 @@ export default function AdminGlobalSearch({onNavigate}:{onNavigate:(tab:'orders'
   const [q,setQ]=useState('');
   const [results,setResults]=useState<AdminSearchResult[]>([]);
   const [busy,setBusy]=useState(false);
-  const timer=useRef<number|undefined>();
+  const timer=useRef<number|undefined>(undefined);
 
   useEffect(()=>{
     if(timer.current)window.clearTimeout(timer.current);
