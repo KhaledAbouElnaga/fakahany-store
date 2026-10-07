@@ -40,7 +40,6 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
     if(s.delivery_capacity_enabled&&(Number(s.delivery_slot_minutes)<15||Number(s.delivery_slot_minutes)>240))return setOk('مدة فترة التوصيل يجب أن تكون بين 15 و240 دقيقة.');
     if(Number(s.order_alert_minutes)<1||Number(s.order_alert_minutes)>240)return setOk('تنبيه الطلب المنتظر يجب أن يكون بين دقيقة و240 دقيقة.');
     for(const n of [s.audit_retention_days,s.inventory_retention_days,s.visit_retention_days])if(Number(n)<30||Number(n)>3650)return setOk('مدة الاحتفاظ بالبيانات يجب أن تكون بين 30 و3650 يومًا.');
-    if(s.public_site_url.trim()){try{const u=new URL(s.public_site_url.trim());if(!['http:','https:'].includes(u.protocol))throw new Error()}catch{return setOk('رابط الموقع العام غير صحيح. اكتب رابطًا كاملًا يبدأ بـ https://');}}
     setBusy(true);setOk('');
     const originals={logo_url:data.settings.logo_url,banner_url:data.settings.banner_url,share_image_url:data.settings.share_image_url};
     try{
@@ -115,10 +114,9 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
       <label>صورة مشاركة الرابط<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0],'share_image_url')}/></label>
     </div></section>
 
-    <section className="panel"><h3>المظهر والدومين</h3><div className="form-grid">
+    <section className="panel"><h3>المظهر</h3><div className="form-grid">
       <label>قالب الألوان<select value={s.theme_preset} onChange={e=>set('theme_preset',e.target.value as ShopSettings['theme_preset'])}><option value="green">أخضر كلاسيك</option><option value="orange">برتقالي دافئ</option><option value="navy">كحلي احترافي</option><option value="plum">بنفسجي فاخر</option></select></label>
-      <label>رابط الموقع العام<input dir="ltr" value={s.public_site_url} onChange={e=>set('public_site_url',e.target.value)} placeholder="https://example.com"/></label>
-    </div><div className="domain-readiness"><b>{location.hostname.endsWith('.pages.dev')?'الموقع يعمل حاليًا على Cloudflare Pages':'تم اكتشاف Custom Domain'}</b><p className="muted">لو ربطت دومين مخصص من Cloudflare Pages، اكتب رابطه هنا ليستخدمه النظام في الروابط وSEO. ربط الدومين نفسه يتم مرة واحدة من Cloudflare.</p></div><div className="theme-preview-row"><span data-preview-theme="green"/><span data-preview-theme="orange"/><span data-preview-theme="navy"/><span data-preview-theme="plum"/></div></section>
+    </div><p className="muted">رابط المتجر يتم إدارته تلقائيًا من المنصة، ولا يحتاج صاحب المتجر إلى إعداد دومين.</p><div className="theme-preview-row"><span data-preview-theme="green"/><span data-preview-theme="orange"/><span data-preview-theme="navy"/><span data-preview-theme="plum"/></div></section>
 
     <section className="panel"><h3>الصفحة الرئيسية</h3><div className="form-grid">
       <label>عنوان الغلاف<input value={s.hero_title} onChange={e=>set('hero_title',e.target.value)}/></label>
