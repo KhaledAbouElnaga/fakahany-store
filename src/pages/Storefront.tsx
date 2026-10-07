@@ -7,7 +7,7 @@ import ProductCard from '../components/ProductCard';
 import ProductQuickView from '../components/ProductQuickView';
 import { useCart } from '../contexts/CartContext';
 import { useStore } from '../contexts/StoreContext';
-import { getPublicBaseUrl, isOutOfStock, normalizeWhatsAppNumber, smartArabicMatch, storeStatusText, updatePageMeta } from '../lib/utils';
+import { getPublicPageUrl, isOutOfStock, normalizeWhatsAppNumber, smartArabicMatch, storeStatusText, updatePageMeta } from '../lib/utils';
 import { recordVisit } from '../lib/storeApi';
 import type { Order, Product } from '../types';
 import { tenantHref } from '../lib/tenant';
@@ -53,7 +53,7 @@ export default function Storefront() {
   const card=(p:Product)=><ProductCard key={p.id} product={p} lowStockThreshold={settings.low_stock_threshold} onQuickView={setQuickProduct} favorite={favorites.includes(p.id)} onToggleFavorite={settings.feature_flags.favorites?toggleFavorite:undefined}/>;
 
   const shareStore=async()=>{
-    const url=getPublicBaseUrl(settings);
+    const url=getPublicPageUrl(settings,'/');
     const payload={title:settings.store_name,text:`تسوق من ${settings.store_name}`,url};
     try{
       if(navigator.share){await navigator.share(payload)}
@@ -143,6 +143,6 @@ export default function Storefront() {
     </div>
 
     {quickProduct&&<ProductQuickView product={quickProduct} threshold={settings.low_stock_threshold} onClose={()=>setQuickProduct(null)}/>}
-    {qrOpen&&<div className="modal-backdrop" onClick={()=>setQrOpen(false)}><div className="modal-card qr-card" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>رمز المتجر</h2><button onClick={()=>setQrOpen(false)}>✕</button></div><p>امسح الرمز بالكاميرا لفتح المتجر مباشرة.</p><img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(getPublicBaseUrl(settings))}`} alt="رمز المتجر"/><button className="btn secondary" onClick={shareStore}>مشاركة الرابط</button></div></div>}
+    {qrOpen&&<div className="modal-backdrop" onClick={()=>setQrOpen(false)}><div className="modal-card qr-card" onClick={e=>e.stopPropagation()}><div className="modal-head"><h2>رمز المتجر</h2><button onClick={()=>setQrOpen(false)}>✕</button></div><p>امسح الرمز بالكاميرا لفتح المتجر مباشرة.</p><img src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(getPublicPageUrl(settings,'/'))}`} alt="رمز المتجر"/><button className="btn secondary" onClick={shareStore}>مشاركة الرابط</button></div></div>}
   </>;
 }
