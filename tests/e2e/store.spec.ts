@@ -59,7 +59,7 @@ test('full order lifecycle reaches admin status and public tracking',async({page
   await page.goto('/admin');
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
   await expect(page.getByRole('heading',{name:'الرئيسية'})).toBeVisible();
-  await page.locator('.admin-side nav').getByRole('button',{name:'الطلبات',exact:true}).click();
+  await page.locator('.admin-side nav').getByRole('button',{name:/^الطلبات/}).click();
   await expect(page.getByRole('heading',{name:'الطلبات',exact:true})).toBeVisible();
   const firstOrder=page.locator('.orders-admin-table tbody tr').first();
   await expect(firstOrder).toBeVisible();
