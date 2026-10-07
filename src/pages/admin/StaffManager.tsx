@@ -62,9 +62,9 @@ export default function StaffManager(){
   };
 
   const removeMember=async(member:StaffProfile)=>{
-    if(!confirm(`حذف حساب «${member.display_name||member.email}» من المتجر؟ سيتم إلغاء وصوله للوحة الإدارة فورًا.`))return;
+    if(!confirm(`حذف حساب «${member.display_name||member.email}» نهائيًا؟ سيتم حذف حساب الدخول من Supabase Auth وإلغاء وصوله للوحة الإدارة فورًا.`))return;
     setBusy(true);setMsg('');
-    try{await removeStaffMember(member.user_id);await reload();setMsg('تم حذف الحساب من المتجر وإلغاء وصوله.');}
+    try{await removeStaffMember(member.user_id);await reload();setMsg('تم حذف حساب الموظف نهائيًا من نظام الدخول وإلغاء وصوله.');}
     catch(e:any){setMsg(e?.message||'تعذر حذف الحساب.')}finally{setBusy(false)}
   };
 
