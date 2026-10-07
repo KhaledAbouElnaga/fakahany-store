@@ -12,6 +12,7 @@ import type { Category, DeliveryArea, Order, OrderCleanupLog, OrderStatusDefinit
 import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TEMPLATE, DEFAULT_RECEIVED_TEMPLATE, deleteCategory, deleteDeliveryArea, deleteImage, deleteProduct, deleteUnit, executeOrderCleanup, loadOrderCleanupLogs, loadOrders, loadOrderStatuses, newArea, newCategory, newProduct, newUnit, orderCleanupPasswordIsSet, previewOrderCleanup, restoreArchivedOrder, saveCategory, saveDeliveryArea, saveProduct, saveSettings, saveUnit, setOrderCleanupPassword, updateOrderStatus, updateProductFields, uploadImage } from '../../lib/storeApi';
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, smartArabicMatch, uid } from '../../lib/utils';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
+import { tenantHref } from '../../lib/tenant';
 
 const Reports=lazy(()=>import('./Reports'));
 const ArchiveCleanup=lazy(()=>import('./ArchiveCleanup'));
@@ -45,6 +46,14 @@ export default function AdminPage(){
 
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
   useEffect(()=>{if(authorized){void currentStaffProfile().then(setProfile);void isPlatformAdmin().then(setPlatformAdmin).catch(()=>setPlatformAdmin(false))}},[authorized]);
+  useEffect(()=>{
+    if(authorized&&data){
+      document.title=`${data.settings.store_name} — لوحة الإدارة`;
+      let appName=document.head.querySelector<HTMLMetaElement>('meta[name="application-name"]');
+      if(!appName){appName=document.createElement('meta');appName.name='application-name';document.head.appendChild(appName);}
+      appName.content=data.settings.store_name;
+    }
+  },[authorized,data]);
   useEffect(()=>{
     if(!authorized||!profile){setMfaReady(null);return}
     if(profile.role!=='owner'){setMfaReady(true);return}
@@ -124,7 +133,7 @@ export default function AdminPage(){
     {(can('products.manage')||can('inventory.manage')||can('prices.manage'))&&<div className="admin-nav-group"><span className="nav-section">الكتالوج</span>{can('products.manage')&&<><Nav t="products" active={tab} set={chooseTab}>المنتجات</Nav><Nav t="categories" active={tab} set={chooseTab}>الأقسام</Nav><Nav t="units" active={tab} set={chooseTab}>وحدات البيع</Nav></>}{data.settings.feature_flags.inventory&&can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}{data.settings.feature_flags.scheduled_prices&&can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}</div>}
     {(can('settings.manage')||profile?.role==='owner')&&<div className="admin-nav-group"><span className="nav-section">التشغيل</span>{can('settings.manage')&&<Nav t="areas" active={tab} set={chooseTab}>مناطق التوصيل</Nav>}{can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}{profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}{data.settings.feature_flags.staff&&profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}</div>}
     <div className="admin-nav-group"><span className="nav-section">النظام</span>{profile?.role==='owner'&&<Nav t="audit" active={tab} set={chooseTab}>سجل النشاط</Nav>}{profile?.role==='owner'&&<Nav t="health" active={tab} set={chooseTab}>صحة النظام</Nav>}<Nav t="release" active={tab} set={chooseTab}>ما الجديد</Nav>{can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}</div>
-  </nav><div className="side-bottom"><Link to="/" onClick={()=>setMobileNavOpen(false)}><span>عرض المتجر</span></Link>{platformAdmin&&<Link to="/platform" onClick={()=>setMobileNavOpen(false)}><span>إدارة المنصة</span></Link>}<button onClick={logout}><span>تسجيل الخروج</span></button></div></aside><main className="admin-main">
+  </nav><div className="side-bottom"><Link to={tenantHref('/')} onClick={()=>setMobileNavOpen(false)}><span>عرض المتجر</span></Link>{platformAdmin&&<Link to="/platform" onClick={()=>setMobileNavOpen(false)}><span>إدارة المنصة</span></Link>}<button onClick={logout}><span>تسجيل الخروج</span></button></div></aside><main className="admin-main">
     <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {data.settings.maintenance_mode&&<div className="demo-banner maintenance-admin-banner">وضع الصيانة مفعل حاليًا — العملاء لا يمكنهم إنشاء طلبات جديدة.</div>}
