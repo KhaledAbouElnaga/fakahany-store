@@ -6,6 +6,46 @@ export const moneyEn = (value: number) => `${Number(value || 0).toLocaleString('
 export const uid = () => crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 
+export function normalizeArabicText(value:string){
+  return value
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u064B-\u065F\u0670]/g,'')
+    .replace(/[إأآٱ]/g,'ا')
+    .replace(/ى/g,'ي')
+    .replace(/ؤ/g,'و')
+    .replace(/ئ/g,'ي')
+    .replace(/ة/g,'ه')
+    .replace(/ـ/g,'')
+    .replace(/[^\p{L}\p{N}\s]/gu,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function editDistanceAtMostOne(a:string,b:string){
+  if(a===b)return true;
+  if(Math.abs(a.length-b.length)>1)return false;
+  let i=0,j=0,diffs=0;
+  while(i<a.length&&j<b.length){
+    if(a[i]===b[j]){i++;j++;continue}
+    if(++diffs>1)return false;
+    if(a.length>b.length)i++;else if(b.length>a.length)j++;else{i++;j++}
+  }
+  return diffs+(i<a.length||j<b.length?1:0)<=1;
+}
+
+export function smartArabicMatch(text:string,query:string){
+  const t=normalizeArabicText(text),q=normalizeArabicText(query);
+  if(!q)return true;
+  if(t.includes(q))return true;
+  const textWords=t.split(' ').filter(Boolean);
+  return q.split(' ').filter(Boolean).every(word=>{
+    if(textWords.some(x=>x.includes(word)||word.includes(x)))return true;
+    return word.length>=4&&textWords.some(x=>Math.abs(x.length-word.length)<=1&&editDistanceAtMostOne(x,word));
+  });
+}
+
+
 export function applyTheme(settings: Pick<ShopSettings,'theme_preset'>) {
   document.documentElement.dataset.theme = settings.theme_preset || 'green';
 }
