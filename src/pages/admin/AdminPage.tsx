@@ -13,6 +13,9 @@ import { DEFAULT_DELIVERY_TEMPLATE, DEFAULT_ORDER_TEMPLATE, DEFAULT_PREPARING_TE
 import { downloadCsv, downloadText, isLowStock, money, normalizeWhatsAppNumber, orderTemplateValues, printOrder, productStockValue, renderTemplate, smartArabicMatch, uid } from '../../lib/utils';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
 import { tenantHref } from '../../lib/tenant';
+import { getCurrentStorePlanStatus } from '../../lib/planApi';
+import { endPlatformSupport, getPlatformSupportStatus } from '../../lib/platformApi';
+import type { PlatformSupportStatus, StorePlanStatus } from '../../types';
 
 const Reports=lazy(()=>import('./Reports'));
 const ArchiveCleanup=lazy(()=>import('./ArchiveCleanup'));
@@ -39,13 +42,22 @@ export default function AdminPage(){
   const [mobileNavOpen,setMobileNavOpen]=useState(false);
   const [mfaReady,setMfaReady]=useState<boolean|null>(null);
   const [platformAdmin,setPlatformAdmin]=useState(false);
+  const [supportStatus,setSupportStatus]=useState<PlatformSupportStatus>({active:false});
+  const [planStatus,setPlanStatus]=useState<StorePlanStatus|null>(null);
   const audioRef=useRef<AudioContext|null>(null);
 
   const can=(permission:string)=>hasStaffPermission(profile,permission);
   const chooseTab=(next:Tab)=>{if(next!==tab&&!confirmUnsavedNavigation())return;setTab(next);setMobileNavOpen(false)};
 
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
-  useEffect(()=>{if(authorized){void currentStaffProfile().then(setProfile);void isPlatformAdmin().then(setPlatformAdmin).catch(()=>setPlatformAdmin(false))}},[authorized]);
+  useEffect(()=>{
+    if(authorized){
+      void currentStaffProfile().then(setProfile);
+      void isPlatformAdmin().then(setPlatformAdmin).catch(()=>setPlatformAdmin(false));
+      void getPlatformSupportStatus().then(setSupportStatus).catch(()=>setSupportStatus({active:false}));
+      void getCurrentStorePlanStatus().then(setPlanStatus).catch(()=>setPlanStatus(null));
+    }
+  },[authorized]);
   useEffect(()=>{
     if(authorized&&data){
       document.title=`${data.settings.store_name} — لوحة الإدارة`;
@@ -136,6 +148,7 @@ export default function AdminPage(){
   </nav><div className="side-bottom"><Link to={tenantHref('/')} onClick={()=>setMobileNavOpen(false)}><span>عرض المتجر</span></Link>{platformAdmin&&<Link to="/platform" onClick={()=>setMobileNavOpen(false)}><span>إدارة المنصة</span></Link>}<button onClick={logout}><span>تسجيل الخروج</span></button></div></aside><main className="admin-main">
     <div className="admin-utility-bar"><AdminGlobalSearch onNavigate={chooseTab}/></div>
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
+    {supportStatus.active&&<div className="demo-banner support-admin-banner"><div><b>وضع دعم المنصة</b><span>أنت داخل متجر «{supportStatus.store_name||data.settings.store_name}» بصلاحيات دعم مؤقتة.</span></div><button className="btn secondary" onClick={()=>void endPlatformSupport().then(()=>location.assign('/platform'))}>إنهاء الدعم والعودة للمنصة</button></div>}
     {data.settings.maintenance_mode&&<div className="demo-banner maintenance-admin-banner">وضع الصيانة مفعل حاليًا — العملاء لا يمكنهم إنشاء طلبات جديدة.</div>}
     <Suspense fallback={<Loading text="جاري تحميل القسم..."/>}>
       {tab==='home'&&<Dashboard/>}
@@ -233,6 +246,7 @@ export default function AdminPage(){
       </div>
     </section>
 
+    {planStatus&&<div className="panel plan-usage-panel"><div className="plan-usage-head"><div><h3>الباقة والاستخدام</h3><p className="muted">{planStatus.plan_name} · {planStatus.subscription_status==='trial'?'فترة تجريبية':planStatus.subscription_status==='active'?'اشتراك نشط':planStatus.subscription_status==='past_due'?'اشتراك متأخر':'اشتراك موقوف'}</p></div>{planStatus.trial_ends_at&&planStatus.subscription_status==='trial'&&<span>التجربة حتى {new Date(planStatus.trial_ends_at).toLocaleDateString('ar-EG')}</span>}{planStatus.paid_until&&<span>مدفوع حتى {new Date(planStatus.paid_until).toLocaleDateString('ar-EG')}</span>}</div><div className="plan-usage-bars"><div><span>المنتجات <b>{planStatus.products_count}{planStatus.max_products?` / ${planStatus.max_products}`:' / غير محدود'}</b></span>{planStatus.max_products&&<progress max={planStatus.max_products} value={Math.min(planStatus.products_count,planStatus.max_products)}/>}</div><div><span>الحسابات <b>{planStatus.staff_count}{planStatus.max_staff?` / ${planStatus.max_staff}`:' / غير محدود'}</b></span>{planStatus.max_staff&&<progress max={planStatus.max_staff} value={Math.min(planStatus.staff_count,planStatus.max_staff)}/>}</div></div></div>}
     {low>0&&can('inventory.manage')&&<div className="panel warning-panel"><h3>تنبيه مخزون</h3><p>يوجد {low} منتج أو خيار وصل إلى حد المخزون المنخفض.</p><button className="btn secondary" onClick={()=>setTab('inventory')}>فتح المخزون</button></div>}
     <div className="panel"><h3>حالة المتجر</h3><p>وضع الفتح الحالي: <b>{data!.settings.store_status_mode==='open'?'مفتوح يدويًا':data!.settings.store_status_mode==='closed'?'مغلق يدويًا':'تلقائي حسب المواعيد'}</b> · التوصيل: <b>{data!.settings.delivery_enabled?'مفعل':'غير مفعل'}</b> · تنبيهات الطلبات: <b>{alertsEnabled?'مفعلة':'غير مفعلة'}</b></p></div>
     </>;
