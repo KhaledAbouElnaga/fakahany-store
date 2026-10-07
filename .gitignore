@@ -10,3 +10,7 @@ backup-before-v4/
 patch/
 *.backup
 *.zip
+
+playwright-report/
+test-results/
+.visual-baseline/
