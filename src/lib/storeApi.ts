@@ -111,7 +111,18 @@ export async function saveProduct(product: Product) {
   }
   return product;
 }
-export async function updateProductFields(id:string, fields:Partial<Pick<Product,'available'|'hidden'|'featured'|'display_order'|'stock_qty'|'track_stock'>>){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.products=s.products.map(p=>p.id===id?{...p,...fields}:p);setDemoSnapshot(s);return;} const {error}=await supabase.from('products').update(fields).eq('id',id);if(error)throw error; }
+export async function updateProductFields(id:string, fields:Partial<Pick<Product,'available'|'hidden'|'featured'|'display_order'|'stock_qty'|'track_stock'|'category_id'>>){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.products=s.products.map(p=>p.id===id?{...p,...fields}:p);setDemoSnapshot(s);return;} const {error}=await supabase.from('products').update(fields).eq('id',id);if(error)throw error; }
+export async function bulkUpdateProductFields(ids:string[], fields:Partial<Pick<Product,'available'|'hidden'|'featured'|'category_id'>>){
+  if(!ids.length)return;
+  if(!supabaseConfigured||!supabase){
+    const s=getDemoSnapshot();
+    s.products=s.products.map(p=>ids.includes(p.id)?{...p,...fields}:p);
+    setDemoSnapshot(s);return;
+  }
+  const {error}=await supabase.from('products').update(fields).in('id',ids);
+  if(error)throw error;
+}
+
 export async function deleteProduct(id:string){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.products=s.products.filter(x=>x.id!==id);setDemoSnapshot(s);return;} const {error}=await supabase.from('products').delete().eq('id',id);if(error)throw error; }
 
 export async function uploadImage(file: File, folder='products'):Promise<string>{ const optimized=await compressImage(file); if(!supabaseConfigured||!supabase)return fileToDataUrl(optimized); const ext=optimized.name.split('.').pop()?.toLowerCase()||'webp'; const path=`${folder}/${uid()}.${ext}`; const {error}=await supabase.storage.from('store-images').upload(path,optimized,{cacheControl:'3600',upsert:false,contentType:optimized.type});if(error)throw error;return supabase.storage.from('store-images').getPublicUrl(path).data.publicUrl; }
@@ -123,7 +134,12 @@ export async function saveOrder(order: Order):Promise<Order>{
   const itemPayload=order.items.map(i=>({id:i.id,product_id:i.product_id,option_id:i.option_id,quantity:i.quantity}));
   const {data,error}=await supabase.rpc('create_store_order',{order_payload:payload,items_payload:itemPayload}); if(error)throw error;
   const result=(data||{}) as any;
-  return {...order,id:String(result.order_id??order.id),order_number:String(result.order_number??order.order_number),product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
+  let trackingToken='';
+  try{
+    const track=await supabase.rpc('claim_order_tracking',{order_id_input:String(result.order_id??order.id),client_token_input:order.client_token||''});
+    if(!track.error)trackingToken=String(track.data||'');
+  }catch{}
+  return {...order,id:String(result.order_id??order.id),order_number:String(result.order_number??order.order_number),tracking_token:trackingToken||order.tracking_token||'',product_subtotal:Number(result.product_subtotal??order.product_subtotal),delivery_fee:Number(result.delivery_fee??order.delivery_fee),total:Number(result.total??order.total),area_name:String(result.area_name??order.area_name),items:order.items.map(i=>({...i,unit_price:Number(result.items?.find?.((x:any)=>x.id===i.id)?.unit_price??i.unit_price),line_total:Number(result.items?.find?.((x:any)=>x.id===i.id)?.line_total??i.line_total)}))};
 }
 
 export async function loadOrders(includeArchived=false):Promise<Order[]>{
@@ -133,9 +149,24 @@ export async function loadOrders(includeArchived=false):Promise<Order[]>{
   }
   const {data:orders,error}=await supabase.from('orders').select('*').order('created_at',{ascending:false});if(error)throw error;
   const {data:items,error:e2}=await supabase.from('order_items').select('*');if(e2)throw e2;
-  const mapped=(orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',requested_for:o.requested_for||null,internal_note:o.internal_note||'',client_token:o.client_token||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
+  const mapped=(orders||[]).map((o:any)=>({...o,requested_time:o.requested_time||'',requested_for:o.requested_for||null,internal_note:o.internal_note||'',client_token:o.client_token||'',tracking_token:o.tracking_token||'',archived_at:o.archived_at||null,archived_by:o.archived_by||null,items:(items||[]).filter((i:any)=>i.order_id===o.id)})) as Order[];
   return includeArchived?mapped:mapped.filter(o=>!o.archived_at);
 }
+
+export async function loadPublicOrderTracking(token:string):Promise<{order_number:string;created_at:string;status:string;requested_time:string;total:number;events:Array<{created_at:string;summary:string}>}>{
+  if(!token.trim())throw new Error('رابط التتبع غير صحيح.');
+  if(!supabaseConfigured||!supabase){
+    const order=getDemoOrders().find(o=>o.tracking_token===token);
+    if(!order)throw new Error('تعذر العثور على الطلب.');
+    return {order_number:order.order_number,created_at:order.created_at,status:order.status,requested_time:order.requested_time,total:order.total,events:[]};
+  }
+  const {data,error}=await supabase.rpc('get_public_order_tracking',{tracking_token_input:token.trim()});
+  if(error)throw error;
+  const x=(data||{}) as any;
+  if(!x.order_number)throw new Error('تعذر العثور على الطلب.');
+  return {order_number:String(x.order_number),created_at:String(x.created_at),status:String(x.status),requested_time:String(x.requested_time||''),total:Number(x.total||0),events:Array.isArray(x.events)?x.events:[]};
+}
+
 export async function loadOrderStatuses():Promise<OrderStatusDefinition[]>{
   if(!supabaseConfigured||!supabase){
     try{
