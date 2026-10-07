@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { changeAdminPassword, currentAdminEmail } from '../../lib/auth';
-import { DEFAULT_ORDER_TEMPLATE, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
+import { useEffect, useRef, useState } from 'react';
+import { changeAdminPassword, currentAdminEmail, signOutOtherSessions } from '../../lib/auth';
+import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
 import type { ShopSettings, StoreSnapshot } from '../../types';
 
@@ -12,27 +12,50 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
   const [password,setPassword]=useState('');
   const [password2,setPassword2]=useState('');
   const [email,setEmail]=useState('');
+  const pendingUploads=useRef<Partial<Record<'logo_url'|'banner_url'|'share_image_url',string>>>({});
   useEffect(()=>{void currentAdminEmail().then(setEmail)},[]);
   useEffect(()=>{setS(structuredClone(data.settings))},[data.settings]);
+  useEffect(()=>()=>{for(const url of Object.values(pendingUploads.current)){if(url)void deleteImage(url).catch(()=>{})}},[]);
 
   const set=(k:keyof ShopSettings,v:any)=>setS(x=>({...x,[k]:v}));
   const upload=async(file:File|undefined,field:'logo_url'|'banner_url'|'share_image_url')=>{
     if(!file)return;
     try{
       const url=await uploadImage(file,field==='logo_url'?'branding':field==='banner_url'?'banners':'sharing');
+      const previous=pendingUploads.current[field];
+      pendingUploads.current[field]=url;
       set(field,url);
+      if(previous&&previous!==url)await deleteImage(previous).catch(()=>{});
     }catch(e:any){alert(e?.message||'تعذر رفع الصورة')}
   };
   const save=async()=>{
     if(Number(s.min_order)<0||Number(s.default_delivery_fee)<0||Number(s.low_stock_threshold)<0||Number(s.delivery_slot_capacity)<0)return setOk('القيم الرقمية لا يمكن أن تكون سالبة.');if(s.delivery_capacity_enabled&&(Number(s.delivery_slot_minutes)<15||Number(s.delivery_slot_minutes)>240))return setOk('مدة فترة التوصيل يجب أن تكون بين 15 و240 دقيقة.');
     setBusy(true);setOk('');
-    try{await saveSettings(s);document.title=s.site_name||s.store_name;await refresh();setOk('تم حفظ التعديلات بنجاح');}
+    const originals={logo_url:data.settings.logo_url,banner_url:data.settings.banner_url,share_image_url:data.settings.share_image_url};
+    try{
+      await saveSettings(s);
+      for(const field of ['logo_url','banner_url','share_image_url'] as const){
+        const pending=pendingUploads.current[field];
+        if(pending&&pending===s[field]){
+          const old=originals[field];
+          if(old&&old!==pending)await deleteImage(old).catch(()=>{});
+          delete pendingUploads.current[field];
+        }
+      }
+      document.title=s.site_name||s.store_name;await refresh();setOk('تم حفظ التعديلات بنجاح');
+    }
     catch(e:any){setOk(e?.message||'تعذر الحفظ')}finally{setBusy(false)}
   };
   const backup=async()=>{
     const orders=await loadOrders(true);
     downloadText(`fakahany-backup-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify({exported_at:new Date().toISOString(),store:data,orders},null,2),'application/json;charset=utf-8');
   };
+  const endOtherSessions=async()=>{
+    setOk('');
+    try{await signOutOtherSessions();setOk('تم إنهاء الجلسات الأخرى للحساب الحالي.');}
+    catch(e:any){setOk(e?.message||'تعذر إنهاء الجلسات الأخرى.')}
+  };
+
   const changePassword=async()=>{
     if(!currentPassword)return setOk('اكتب كلمة المرور الحالية أولًا.');
     if(password!==password2)return setOk('كلمتا المرور غير متطابقتين.');
@@ -57,7 +80,10 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label>النص أسفل العنوان<input value={s.hero_subtitle} onChange={e=>set('hero_subtitle',e.target.value)}/></label>
       <label>صورة الغلاف<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0],'banner_url')}/></label>
       <label>رسالة الترحيب<input value={s.welcome_message} onChange={e=>set('welcome_message',e.target.value)}/></label>
-    </div></section>
+    </div>
+    <div className="settings-subsection"><label className="toggle-setting"><input type="checkbox" checked={s.announcement_enabled} onChange={e=>set('announcement_enabled',e.target.checked)}/> تفعيل إعلان أعلى المتجر</label>{s.announcement_enabled&&<label>نص الإعلان<input value={s.announcement_text} maxLength={180} onChange={e=>set('announcement_text',e.target.value)} placeholder="مثال: التوصيل متوقف اليوم من 3 إلى 5"/></label>}</div>
+    <div className="settings-subsection danger-zone-soft"><label className="toggle-setting"><input type="checkbox" checked={s.maintenance_mode} onChange={e=>set('maintenance_mode',e.target.checked)}/> وضع الصيانة</label><p className="muted">عند تفعيله لن يتمكن العملاء من التسوق أو إرسال طلبات جديدة، بينما تظل لوحة الإدارة وتتبّع الطلبات متاحين.</p>{s.maintenance_mode&&<label>رسالة الصيانة<input value={s.maintenance_message} maxLength={220} onChange={e=>set('maintenance_message',e.target.value)}/></label>}</div>
+    </section>
 
     <section className="panel"><h3>الطلب والتوصيل</h3><div className="toggle-row">
       <label><input type="checkbox" checked={s.delivery_enabled} onChange={e=>set('delivery_enabled',e.target.checked)}/> تفعيل التوصيل</label>
@@ -97,7 +123,7 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
       <label>كلمة المرور الحالية<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
       <label>كلمة مرور جديدة<input type="password" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="12 حرفًا على الأقل"/></label>
       <label>تأكيد كلمة المرور<input type="password" autoComplete="new-password" value={password2} onChange={e=>setPassword2(e.target.value)}/></label>
-    </div><button className="btn secondary" disabled={!currentPassword||!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button></section>
+    </div><div className="account-security-actions"><button className="btn secondary" disabled={!currentPassword||!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button><button className="btn secondary" onClick={()=>void endOtherSessions()}>إنهاء الجلسات الأخرى</button></div><p className="muted">لو الحساب مفتوح على جهاز قديم أو غير معروف، استخدم «إنهاء الجلسات الأخرى» بدون التأثير على جلستك الحالية.</p></section>
 
     {ok&&<p className={ok.includes('بنجاح')?'success-text':'error-text'}>{ok}</p>}
     <button className="btn save-all" disabled={busy} onClick={()=>void save()}>{busy?'جاري الحفظ...':'حفظ كل الإعدادات'}</button>

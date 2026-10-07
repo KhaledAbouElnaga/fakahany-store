@@ -6,13 +6,13 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
   const [exists,setExists]=useState<boolean|null>(null);
   const [email,setEmail]=useState('');
   const [password,setPassword]=useState('');
-  const [msg,setMsg]=useState('');
+  const [msg,setMsg]=useState(()=>sessionStorage.getItem('fakahany-idle-logout')==='1'?'تم تسجيل خروجك تلقائيًا بعد فترة من عدم الاستخدام لحماية الحساب.':'');
   const [busy,setBusy]=useState(false);
   const [joinMode,setJoinMode]=useState(false);
   const [inviteCode,setInviteCode]=useState('');
   const [displayName,setDisplayName]=useState('');
 
-  useEffect(()=>{adminExists().then(setExists).catch(e=>setMsg(e.message));},[]);
+  useEffect(()=>{sessionStorage.removeItem('fakahany-idle-logout');adminExists().then(setExists).catch(e=>setMsg(e.message));},[]);
 
   const run=async(fn:()=>Promise<void>)=>{
     setBusy(true);setMsg('');

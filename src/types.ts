@@ -59,6 +59,10 @@ export interface ShopSettings {
   whatsapp_number: string;
   address: string;
   welcome_message: string;
+  announcement_enabled: boolean;
+  announcement_text: string;
+  maintenance_mode: boolean;
+  maintenance_message: string;
   min_order: number;
   delivery_enabled: boolean;
   default_delivery_fee: number;
@@ -136,6 +140,7 @@ export interface Order {
   requested_for?: string | null;
   internal_note?: string;
   client_token?: string;
+  tracking_token?: string;
   archived_at?: string | null;
   archived_by?: string | null;
   status: OrderStatus;
@@ -200,6 +205,7 @@ export interface StaffProfile {
   permissions: string[];
   created_at: string;
   updated_at: string;
+  last_login_at?: string | null;
 }
 
 export interface OrderEvent {

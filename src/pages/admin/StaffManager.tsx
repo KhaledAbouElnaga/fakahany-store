@@ -88,12 +88,13 @@ export default function StaffManager(){
     <section className="panel">
       <h3>الحسابات الحالية</h3>
       <p className="muted">اضغط «تعديل» لفتح الصلاحيات كاملة بدل عرضها كلها داخل الجدول.</p>
-      <div className="table-wrap"><table className="mobile-card-table staff-admin-table"><thead><tr><th>الموظف</th><th>المسمى الوظيفي</th><th>الصلاحيات</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>{staff.map(member=>{
+      <div className="table-wrap"><table className="mobile-card-table staff-admin-table"><thead><tr><th>الموظف</th><th>المسمى الوظيفي</th><th>آخر دخول</th><th>الصلاحيات</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>{staff.map(member=>{
         const owner=member.role==='owner'||member.permissions.includes('*');
         const count=owner?PERMISSIONS.length:PERMISSIONS.filter(([key])=>member.permissions.includes(key)).length;
         return <tr key={member.user_id}>
           <td data-label="الموظف"><b>{member.display_name||member.email||'—'}</b><small className="block muted" dir="ltr">{member.email}</small></td>
           <td data-label="المسمى الوظيفي"><b>{member.job_title||(owner?'مالك':'موظف')}</b></td>
+          <td data-label="آخر دخول">{member.last_login_at?new Date(member.last_login_at).toLocaleString('ar-EG'):'لم يسجل بعد'}</td>
           <td data-label="الصلاحيات"><span className="permission-count">{owner?'كل الصلاحيات':count+' من '+PERMISSIONS.length}</span></td>
           <td data-label="الحالة"><span className={member.active?'staff-status active':'staff-status'}>{member.active?'مفعل':'موقوف'}</span></td>
           <td data-label="الإجراء">{owner?<span className="muted">حساب مالك</span>:<div className="inline-actions"><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>beginEdit(member)}>تعديل</button><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>void toggleActive(member)}>{member.active?'إيقاف':'تفعيل'}</button></div>}</td>
