@@ -79,6 +79,21 @@ test('platform dashboard is tenant-neutral and exposes SaaS controls',async({pag
   await expect(page.getByText('الحاج أسامة',{exact:true})).toHaveCount(0);
 });
 
+test('self-service signup is neutral and ready for merchants',async({page})=>{
+  await page.goto('/signup');
+  await expect(page.getByRole('heading',{name:'ابدأ متجرك'})).toBeVisible();
+  await expect(page.getByText('بدون دفع أو اشتراك تلقائي')).toBeVisible();
+  await expect(page.getByLabel('اسم المتجر')).toBeVisible();
+});
+
+test('merchant support center loads from admin',async({page})=>{
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
+  await page.locator('.admin-side nav').getByRole('button',{name:'الدعم'}).click();
+  await expect(page.getByRole('heading',{name:'الدعم',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'طلب دعم جديد'})).toBeVisible();
+});
+
 test('unknown route has a real 404 page',async({page})=>{
   await page.goto('/does-not-exist');
   await expect(page.getByText('404')).toBeVisible();
