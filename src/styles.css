@@ -180,3 +180,73 @@ body{min-height:100vh}.store-status-strip{display:flex;align-items:center;justif
   .account-security-actions .btn{width:100%}
   .announcement-bar{font-size:.78rem;padding:6px 10px}
 }
+
+
+/* PRODUCTIZATION + ADMIN PACK */
+:root{--theme-dark:#143321}
+html[data-theme="green"]{--green:#1f7a3f;--green2:#2a9650;--pale:#eef6e9;--border:#dbe6dc;--text:#163523;--orange:#f37818;--theme-dark:#143321}
+html[data-theme="orange"]{--green:#c95f18;--green2:#e17a25;--pale:#fff1e5;--border:#ead8c9;--text:#3d2719;--orange:#f59e0b;--theme-dark:#552c12}
+html[data-theme="navy"]{--green:#173f6b;--green2:#24598e;--pale:#edf3fa;--border:#d7e0ea;--text:#172a3e;--orange:#d99b32;--theme-dark:#10283f}
+html[data-theme="plum"]{--green:#6b2f6f;--green2:#87508a;--pale:#f7eef8;--border:#e8d9ea;--text:#35213a;--orange:#d9a33a;--theme-dark:#412047}
+html[data-theme] .admin-side{background:var(--theme-dark)}
+html[data-theme] .hero{background:linear-gradient(135deg,var(--theme-dark),var(--green2))}
+html[data-theme] .admin-login{background:linear-gradient(135deg,var(--pale),#fbfcf8)}
+
+.setup-wizard-backdrop{position:fixed;inset:0;z-index:150;background:#07150dcc;backdrop-filter:blur(8px);display:grid;place-items:center;padding:18px}
+.setup-wizard-card{width:min(760px,100%);max-height:94vh;overflow:auto;background:white;border-radius:26px;padding:26px;box-shadow:0 28px 90px #0004}
+.setup-wizard-card h1{margin:8px 0 6px}
+.wizard-progress{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}
+.wizard-progress span{height:6px;border-radius:99px;background:#e6ece7}
+.wizard-progress span.done{background:var(--green)}
+.wizard-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px}
+.theme-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:18px 0}
+.theme-option{border:1px solid var(--border);border-radius:16px;background:white;padding:14px 10px;display:grid;gap:8px;justify-items:center;color:var(--text)}
+.theme-option i,.theme-preview-row span{width:44px;height:44px;border-radius:50%;border:4px solid #fff;box-shadow:0 0 0 1px #0001}
+.theme-option[data-preview-theme="green"] i,.theme-preview-row span[data-preview-theme="green"]{background:#1f7a3f}
+.theme-option[data-preview-theme="orange"] i,.theme-preview-row span[data-preview-theme="orange"]{background:#c95f18}
+.theme-option[data-preview-theme="navy"] i,.theme-preview-row span[data-preview-theme="navy"]{background:#173f6b}
+.theme-option[data-preview-theme="plum"] i,.theme-preview-row span[data-preview-theme="plum"]{background:#6b2f6f}
+.theme-option.active{border-color:var(--green);box-shadow:0 0 0 2px color-mix(in srgb,var(--green) 20%,transparent)}
+.theme-preview-row{display:flex;gap:8px;margin-top:12px}
+.theme-preview-row span{width:28px;height:28px;border-width:2px}
+
+.admin-utility-bar{display:flex;justify-content:flex-end;margin-bottom:12px}
+.admin-search-trigger{border:1px solid var(--border);background:white;border-radius:12px;padding:10px 14px;font-weight:800;color:var(--text)}
+.global-search-modal{width:min(680px,100%)}
+.global-search-modal>input{width:100%;margin:14px 0}
+.global-search-results{display:grid;gap:7px;max-height:55vh;overflow:auto}
+.global-search-results>button{display:flex;align-items:center;gap:10px;text-align:right;border:1px solid var(--border);background:#fbfdfb;border-radius:12px;padding:10px}
+.global-search-results>button:hover{border-color:var(--green);background:var(--pale)}
+.global-search-results>button>div{display:grid;gap:2px;min-width:0}
+.global-search-results small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.search-kind{flex:0 0 auto;display:inline-flex;padding:4px 8px;border-radius:999px;font-size:.72rem;font-weight:800;background:var(--pale);color:var(--green)}
+.search-kind.order{background:#fff0e5;color:#a84f11}
+.search-kind.staff{background:#f2ecfa;color:#65418e}
+
+.health-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.health-card{position:relative;background:white;border:1px solid var(--border);border-radius:16px;padding:16px;display:grid;gap:6px}
+.health-card>span{position:absolute;top:14px;left:14px;width:10px;height:10px;border-radius:50%}
+.health-card.good>span{background:#1c9a4b}
+.health-card.warn>span{background:#e6a11a}
+.health-card.bad>span{background:#c94134}
+.health-card small{color:var(--muted)}
+.health-card b{padding-inline-start:18px}
+
+.order-overdue{background:#fff9f1}
+.order-overdue td:first-child{box-shadow:inset -3px 0 0 #e87b20}
+.order-age-alert{display:block;width:max-content;margin-top:5px;padding:3px 7px;border-radius:999px;background:#fff0df;color:#a95713;font-weight:800}
+.domain-readiness{margin-top:14px;padding:12px;border:1px dashed var(--border);border-radius:12px;background:#fafcf9}
+.domain-readiness p{margin:5px 0 0}
+.maintenance-admin-banner{background:#fff1e8!important;border-color:#efc69e!important}
+.file-btn{display:inline-flex!important;align-items:center;justify-content:center;border:1px solid var(--border);background:white;border-radius:12px;padding:10px 14px;font-weight:800;cursor:pointer}
+.file-btn input{display:none}
+
+@media(max-width:900px){.health-grid{grid-template-columns:repeat(2,1fr)}.theme-picker{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:700px){
+  .admin-utility-bar{justify-content:stretch}
+  .admin-global-search,.admin-search-trigger{width:100%}
+  .health-grid{grid-template-columns:1fr}
+  .setup-wizard-card{padding:20px 14px}
+  .wizard-actions{display:grid;grid-template-columns:1fr 1fr}
+  .wizard-actions .btn:only-child{grid-column:1/-1}
+}
