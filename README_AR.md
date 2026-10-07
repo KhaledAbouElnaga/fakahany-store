@@ -29,6 +29,9 @@
 6. `supabase/migrations/20261003_custom_statuses_cleanup_security.sql`
 7. `supabase/migrations/20261003_operations_upgrades.sql`
 8. `supabase/migrations/20261007_public_store_rls_hotfix.sql`
+9. `supabase/migrations/20261007_custom_staff_permissions.sql`
+10. `supabase/migrations/20261007_security_maintenance.sql`
+11. `supabase/migrations/20261007_reliability_growth_pack.sql`
 
 لا تضع مفاتيح Supabase الحقيقية داخل GitHub. ملف `.env` مستبعد من Git.
 
@@ -115,4 +118,16 @@ npm run build
 - نسخة احتياطية يومية على جهاز المالك عند فتح لوحة الإدارة، بدون استهلاك مساحة تخزين إضافية في Supabase.
 - تعديل الطلب من لوحة الإدارة داخل عملية واحدة مع إعادة حساب المخزون والإجمالي بأمان.
 
-- `supabase/migrations/20261007_security_maintenance.sql`
+
+
+## تطويرات الاعتمادية الحالية
+
+- تتبع الطلب برابط خاص بدون إنشاء حساب للعميل.
+- حماية خفيفة ضد الطلبات الوهمية والتكرار السريع بدون CAPTCHA مزعجة.
+- تنبيه واضح عند انقطاع الإنترنت ومنع إرسال الطلب أثناء عدم الاتصال.
+- تسجيل خروج تلقائي للوحة الإدارة بعد 45 دقيقة من عدم الاستخدام، مع إمكانية إنهاء الجلسات الأخرى.
+- شريط إعلان اختياري ووضع صيانة من إعدادات المتجر.
+- إجراءات جماعية إضافية للمنتجات: إظهار، إخفاء، إتاحة، إيقاف، تمييز، وتغيير القسم.
+- ضغط الصور إلى WebP مع حدود للحجم والأبعاد لتقليل استهلاك Storage.
+- robots.txt و sitemap وبيانات Structured Data لمحركات البحث.
+- صفحة 404 وصفحة خطأ عامة بدل إعادة المستخدم للواجهة بدون تفسير.
