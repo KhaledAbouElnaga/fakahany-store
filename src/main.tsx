@@ -13,12 +13,12 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', async() => {
     try{
       const reg=await navigator.serviceWorker.register('/sw.js');
-      const announce=(worker:ServiceWorker|null)=>worker&&window.dispatchEvent(new CustomEvent('fakahany-sw-update',{detail:worker}));
+      const announce=(worker:ServiceWorker|null)=>window.dispatchEvent(new CustomEvent('fakahany-sw-update',{detail:{registration:reg,worker}}));
       if(reg.waiting&&navigator.serviceWorker.controller)announce(reg.waiting);
       reg.addEventListener('updatefound',()=>{
         const installing=reg.installing;
         installing?.addEventListener('statechange',()=>{
-          if(installing.state==='installed'&&navigator.serviceWorker.controller)announce(installing);
+          if(installing.state==='installed'&&navigator.serviceWorker.controller)announce(reg.waiting||installing);
         });
       });
     }catch(e){void logClientError(e,'service-worker')}
