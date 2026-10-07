@@ -1,5 +1,4 @@
 import type { Order, Product, ShopSettings } from '../types';
-import { tenantHref } from './tenant';
 
 export const money = (value: number) => `${Number(value || 0).toLocaleString('ar-EG')} جنيه`;
 export const moneyEn = (value: number) => `${Number(value || 0).toLocaleString('en-US')} جنيه`;
@@ -71,13 +70,24 @@ export function getPublicBaseUrl(settings?: Pick<ShopSettings,'public_site_url'>
   return /^https?:\/\//i.test(configured)?configured:'https://'+configured;
 }
 
+function previewTenantHref(path:string){
+  if(typeof window==='undefined')return path;
+  const normalized=path.startsWith('/')?path:'/'+path;
+  const host=window.location.hostname.toLowerCase();
+  if(!(host==='localhost'||host==='127.0.0.1'||host.endsWith('.pages.dev')))return normalized;
+  const slug=(new URLSearchParams(window.location.search).get('store')||sessionStorage.getItem('fakahany-preview-store')||'').trim().toLowerCase();
+  if(!slug)return normalized;
+  return normalized+(normalized.includes('?')?'&':'?')+'store='+encodeURIComponent(slug);
+}
+
 export function getPublicPageUrl(settings:Pick<ShopSettings,'public_site_url'>|undefined,path='/'){
   const configured=(settings?.public_site_url||'').trim().replace(/\/$/,'');
+  const normalized=path.startsWith('/')?path:'/'+path;
   if(configured){
     const base=/^https?:\/\//i.test(configured)?configured:'https://'+configured;
-    return base+(path.startsWith('/')?path:'/'+path);
+    return base+normalized;
   }
-  return window.location.origin+tenantHref(path.startsWith('/')?path:'/'+path);
+  return window.location.origin+previewTenantHref(normalized);
 }
 
 export const normalizeWhatsAppNumber = (input: string) => {
