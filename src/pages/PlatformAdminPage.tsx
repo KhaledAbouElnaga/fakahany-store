@@ -73,7 +73,10 @@ export default function PlatformAdminPage(){
       {created&&<div className="platform-created">
         <div><b>تم إنشاء المتجر بنجاح</b><span>أرسل كود الدعوة لصاحب المتجر مع رابط لوحة الإدارة الخاصة بدومينه.</span></div>
         <div className="invite-code-box"><span>البريد: {created.owner_email}</span><strong dir="ltr">{created.invite_code}</strong></div>
-        <a className="btn secondary" href={previewBase+'/?store='+encodeURIComponent(created.slug)} target="_blank" rel="noreferrer">معاينة مؤقتة</a>
+        <div className="platform-created-actions">
+          <a className="btn secondary" href={previewBase+'/?store='+encodeURIComponent(created.slug)} target="_blank" rel="noreferrer">معاينة مؤقتة</a>
+          <a className="btn" href={previewBase+'/admin?store='+encodeURIComponent(created.slug)} target="_blank" rel="noreferrer">رابط إعداد المالك</a>
+        </div>
       </div>}
 
       <section className="panel platform-create-panel">
