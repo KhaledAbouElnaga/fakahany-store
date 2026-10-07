@@ -16,7 +16,7 @@ export async function onRequest(context) {
 
   try {
     const settingsResponse = await fetch(
-      `${baseUrl}/rest/v1/shop_settings?id=eq.main&select=store_name,site_name,site_description,hero_subtitle,share_image_url,banner_url,logo_url`,
+      `${baseUrl}/rest/v1/shop_settings?id=eq.main&select=store_name,site_name,site_description,hero_subtitle,share_image_url,banner_url,logo_url,phone,address`,
       {
         headers: {
           apikey: anonKey,
@@ -37,8 +37,20 @@ export async function onRequest(context) {
     const image = settings.share_image_url || settings.banner_url || settings.logo_url || '';
     const requestUrl = new URL(context.request.url);
     const canonicalUrl = `${requestUrl.origin}${requestUrl.pathname}`;
+    const schema = JSON.stringify({
+      '@context':'https://schema.org',
+      '@type':'GroceryStore',
+      name:settings.store_name || title,
+      url:requestUrl.origin,
+      description,
+      ...(image?{image}:{}),
+      ...(settings.logo_url?{logo:settings.logo_url}:{}),
+      ...(settings.phone?{telephone:settings.phone}:{}),
+      ...(settings.address?{address:{'@type':'PostalAddress',streetAddress:settings.address}}:{})
+    }).replaceAll('<','\\u003c');
 
     const rewriter = new HTMLRewriter()
+      .on('head', { element(el) { el.append(`<link rel="canonical" href="${canonicalUrl}"><script type="application/ld+json">${schema}</script>`,{html:true}); } })
       .on('title', { element(el) { el.setInnerContent(title); } })
       .on('meta[name="description"]', { element(el) { el.setAttribute('content', description); } })
       .on('meta[property="og:title"]', { element(el) { el.setAttribute('content', title); } })
