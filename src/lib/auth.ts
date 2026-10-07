@@ -45,11 +45,18 @@ export async function signInAdmin(email: string, password: string) {
   }
 
   if (!ok) { await supabase.auth.signOut(); throw new Error('هذا الحساب ليس لديه صلاحية دخول للوحة الإدارة.'); }
+  try{await supabase.rpc('record_staff_login');}catch{}
 }
 
 export async function signOutAdmin() {
   if (!supabaseConfigured || !supabase) { sessionStorage.removeItem(DEMO_KEY); return; }
   await supabase.auth.signOut();
+}
+
+export async function signOutOtherSessions() {
+  if (!supabaseConfigured || !supabase) return;
+  const {error}=await supabase.auth.signOut({scope:'others'});
+  if(error)throw error;
 }
 
 export async function createFirstAdmin(email: string, password: string) {
