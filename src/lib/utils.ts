@@ -1,4 +1,5 @@
 import type { Order, Product, ShopSettings } from '../types';
+import { tenantHref } from './tenant';
 
 export const money = (value: number) => `${Number(value || 0).toLocaleString('ar-EG')} جنيه`;
 export const moneyEn = (value: number) => `${Number(value || 0).toLocaleString('en-US')} جنيه`;
@@ -68,6 +69,15 @@ export function getPublicBaseUrl(settings?: Pick<ShopSettings,'public_site_url'>
   const configured=(settings?.public_site_url||'').trim().replace(/\/$/,'');
   if(!configured)return window.location.origin;
   return /^https?:\/\//i.test(configured)?configured:'https://'+configured;
+}
+
+export function getPublicPageUrl(settings:Pick<ShopSettings,'public_site_url'>|undefined,path='/'){
+  const configured=(settings?.public_site_url||'').trim().replace(/\/$/,'');
+  if(configured){
+    const base=/^https?:\/\//i.test(configured)?configured:'https://'+configured;
+    return base+(path.startsWith('/')?path:'/'+path);
+  }
+  return window.location.origin+tenantHref(path.startsWith('/')?path:'/'+path);
 }
 
 export const normalizeWhatsAppNumber = (input: string) => {
@@ -216,10 +226,11 @@ export function updatePageMeta(settings: ShopSettings) {
   if (settings.share_image_url || settings.banner_url || settings.logo_url) setMeta('meta[property="og:image"]','property','og:image',settings.share_image_url || settings.banner_url || settings.logo_url);
   setMeta('meta[property="og:type"]','property','og:type','website');
   const publicBase=getPublicBaseUrl(settings);
-  setMeta('meta[property="og:url"]','property','og:url',publicBase+window.location.pathname);
+  const publicPage=getPublicPageUrl(settings,window.location.pathname);
+  setMeta('meta[property="og:url"]','property','og:url',publicPage);
   let canonical=document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
   if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
-  canonical.href=publicBase+window.location.pathname;
+  canonical.href=publicPage;
   if (settings.logo_url) { let icon=document.head.querySelector<HTMLLinkElement>('link[rel="icon"]'); if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon);} icon.href=settings.logo_url; }
 
   let structured=document.head.querySelector<HTMLScriptElement>('script[data-store-schema]');
