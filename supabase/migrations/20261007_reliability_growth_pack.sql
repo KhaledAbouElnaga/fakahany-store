@@ -135,10 +135,23 @@ declare
   phone_digits text;
   recent_count integer;
   daily_count integer;
+  device_prefix text;
+  device_recent_count integer;
 begin
   select * into s from public.shop_settings where id='main';
   if coalesce(s.maintenance_mode,false) then
     raise exception 'المتجر تحت الصيانة حاليًا ولا يستقبل طلبات جديدة';
+  end if;
+
+  device_prefix:=split_part(coalesce(new.client_token,''),'.',1);
+  if length(device_prefix)>=12 then
+    select count(*)::integer into device_recent_count
+    from public.orders
+    where split_part(coalesce(client_token,''),'.',1)=device_prefix
+      and created_at>now()-interval '10 minutes';
+    if device_recent_count>=5 then
+      raise exception 'تم إرسال عدة طلبات من هذا الجهاز خلال وقت قصير. حاول مرة أخرى بعد قليل';
+    end if;
   end if;
 
   phone_digits:=regexp_replace(coalesce(new.customer_phone,''),'[^0-9]','','g');
