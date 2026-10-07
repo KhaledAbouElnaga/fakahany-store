@@ -194,6 +194,7 @@ export interface StaffProfile {
   user_id: string;
   email: string;
   display_name: string;
+  job_title: string;
   role: StaffRole;
   active: boolean;
   permissions: string[];

@@ -78,14 +78,14 @@ export async function currentAdminEmail() {
 
 export async function currentStaffProfile():Promise<StaffProfile|null>{
   if(!supabaseConfigured||!supabase){
-    return {user_id:'demo',email:'وضع تجريبي',display_name:'المدير',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
+    return {user_id:'demo',email:'وضع تجريبي',display_name:'المدير',job_title:'مالك',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
   }
   const {data,error}=await supabase.rpc('current_staff_profile');
   if(!error&&data)return data as StaffProfile;
   const {data:user}=await supabase.auth.getUser();
   const legacy=await supabase.rpc('is_admin');
   if(!legacy.error&&legacy.data&&user.user){
-    return {user_id:user.user.id,email:user.user.email||'',display_name:'المالك',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
+    return {user_id:user.user.id,email:user.user.email||'',display_name:'المالك',job_title:'مالك',role:'owner',active:true,permissions:['*'],created_at:'',updated_at:''};
   }
   return null;
 }
@@ -121,15 +121,20 @@ export async function loadStaffProfiles():Promise<StaffProfile[]>{
   return (data||[]) as StaffProfile[];
 }
 
-export async function createStaffInvite(email:string,role:Exclude<StaffRole,'owner'>):Promise<{code:string;expires_at:string}>{
+export async function createStaffInvite(email:string,jobTitle:string,permissions:string[]):Promise<{code:string;expires_at:string}>{
   if(!supabaseConfigured||!supabase)return {code:'DEMO-CODE',expires_at:new Date(Date.now()+7*86400000).toISOString()};
-  const {data,error}=await supabase.rpc('create_staff_invite',{email_input:email,role_input:role,display_permissions:[]});
+  const cleanTitle=jobTitle.trim();
+  if(!cleanTitle)throw new Error('اكتب المسمى الوظيفي.');
+  if(!permissions.length)throw new Error('اختر صلاحية واحدة على الأقل.');
+  const {data,error}=await supabase.rpc('create_custom_staff_invite',{email_input:email,job_title_input:cleanTitle,permissions_input:permissions});
   if(error)throw error;
   return data as {code:string;expires_at:string};
 }
 
-export async function updateStaffMember(userId:string,role:StaffRole,active:boolean):Promise<void>{
+export async function updateStaffMember(userId:string,jobTitle:string,permissions:string[],active:boolean):Promise<void>{
   if(!supabaseConfigured||!supabase)return;
-  const {error}=await supabase.rpc('update_staff_member',{user_id_input:userId,role_input:role,active_input:active});
+  if(!jobTitle.trim())throw new Error('اكتب المسمى الوظيفي.');
+  if(!permissions.length)throw new Error('اختر صلاحية واحدة على الأقل.');
+  const {error}=await supabase.rpc('update_custom_staff_member',{user_id_input:userId,job_title_input:jobTitle.trim(),permissions_input:permissions,active_input:active});
   if(error)throw error;
 }
