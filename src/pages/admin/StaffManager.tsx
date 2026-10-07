@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createStaffInvite, loadStaffProfiles, updateStaffMember } from '../../lib/auth';
+import { removeStaffMember } from '../../lib/storeApi';
 import type { StaffProfile } from '../../types';
 
 const PERMISSIONS=[
@@ -60,6 +61,13 @@ export default function StaffManager(){
     }catch(e:any){setMsg(e?.message||'تعذر تحديث الموظف.')}finally{setBusy(false)}
   };
 
+  const removeMember=async(member:StaffProfile)=>{
+    if(!confirm(`حذف حساب «${member.display_name||member.email}» من المتجر؟ سيتم إلغاء وصوله للوحة الإدارة فورًا.`))return;
+    setBusy(true);setMsg('');
+    try{await removeStaffMember(member.user_id);await reload();setMsg('تم حذف الحساب من المتجر وإلغاء وصوله.');}
+    catch(e:any){setMsg(e?.message||'تعذر حذف الحساب.')}finally{setBusy(false)}
+  };
+
   const toggleActive=async(member:StaffProfile)=>{
     setBusy(true);setMsg('');
     try{
@@ -97,7 +105,7 @@ export default function StaffManager(){
           <td data-label="آخر دخول">{member.last_login_at?new Date(member.last_login_at).toLocaleString('ar-EG'):'لم يسجل بعد'}</td>
           <td data-label="الصلاحيات"><span className="permission-count">{owner?'كل الصلاحيات':count+' من '+PERMISSIONS.length}</span></td>
           <td data-label="الحالة"><span className={member.active?'staff-status active':'staff-status'}>{member.active?'مفعل':'موقوف'}</span></td>
-          <td data-label="الإجراء">{owner?<span className="muted">حساب مالك</span>:<div className="inline-actions"><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>beginEdit(member)}>تعديل</button><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>void toggleActive(member)}>{member.active?'إيقاف':'تفعيل'}</button></div>}</td>
+          <td data-label="الإجراء">{owner?<span className="muted">حساب مالك</span>:<div className="inline-actions"><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>beginEdit(member)}>تعديل</button><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>void toggleActive(member)}>{member.active?'إيقاف':'تفعيل'}</button><button className="btn secondary small-admin-btn danger" disabled={busy} onClick={()=>void removeMember(member)}>حذف الحساب</button></div>}</td>
         </tr>;
       })}</tbody></table></div>
     </section>
