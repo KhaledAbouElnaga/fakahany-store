@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { changeAdminPassword, currentAdminEmail, signOutOtherSessions } from '../../lib/auth';
+import { changeAdminPassword, currentAdminEmail, getMfaState, removeMfaFactor, signOutOtherSessions, startMfaEnrollment, verifyMfaEnrollment } from '../../lib/auth';
 import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
 import type { ShopSettings, StoreSnapshot } from '../../types';
 import { useUnsavedChanges } from '../../lib/unsaved';
 import StoreTransferPanel from './StoreTransferPanel';
 
-export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh:()=>Promise<void>}){
+export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnapshot,refresh:()=>Promise<void>,owner?:boolean}){
   const [s,setS]=useState<ShopSettings>(structuredClone(data.settings));
   const [busy,setBusy]=useState(false);
   const [ok,setOk]=useState('');
@@ -14,10 +14,13 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
   const [password,setPassword]=useState('');
   const [password2,setPassword2]=useState('');
   const [email,setEmail]=useState('');
+  const [mfaFactors,setMfaFactors]=useState<Array<{id:string;status:string;friendly_name?:string}>>([]);
+  const [mfaEnroll,setMfaEnroll]=useState<{factorId:string;qrCode:string;secret:string}|null>(null);
+  const [mfaCode,setMfaCode]=useState('');
   const pendingUploads=useRef<Partial<Record<'logo_url'|'banner_url'|'share_image_url',string>>>({});
   const dirty=JSON.stringify(s)!==JSON.stringify(data.settings);
   useUnsavedChanges(dirty);
-  useEffect(()=>{void currentAdminEmail().then(setEmail)},[]);
+  useEffect(()=>{void currentAdminEmail().then(setEmail);if(owner)void getMfaState().then(x=>setMfaFactors(x.factors)).catch(()=>{})},[owner]);
   useEffect(()=>{setS(structuredClone(data.settings))},[data.settings]);
   useEffect(()=>()=>{for(const url of Object.values(pendingUploads.current)){if(url)void deleteImage(url).catch(()=>{})}},[]);
 
@@ -69,6 +72,28 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     setBusy(true);setOk('');
     try{await saveSettings({...s,setup_completed:false});await refresh();}
     catch(e:any){setOk(e?.message||'تعذر تشغيل معالج الإعداد.')}finally{setBusy(false)}
+  };
+
+  const startMfa=async()=>{
+    setOk('');setBusy(true);
+    try{const x=await startMfaEnrollment();setMfaEnroll(x);setMfaCode('');}
+    catch(e:any){setOk(e?.message||'تعذر بدء تفعيل التحقق بخطوتين.')}finally{setBusy(false)}
+  };
+
+  const confirmMfa=async()=>{
+    if(!mfaEnroll||mfaCode.length!==6)return;
+    setBusy(true);setOk('');
+    try{
+      await verifyMfaEnrollment(mfaEnroll.factorId,mfaCode);
+      const state=await getMfaState();setMfaFactors(state.factors);setMfaEnroll(null);setMfaCode('');setOk('تم تفعيل التحقق بخطوتين بنجاح.');
+    }catch(e:any){setOk(e?.message||'رمز التحقق غير صحيح.')}finally{setBusy(false)}
+  };
+
+  const disableMfa=async(id:string)=>{
+    if(!confirm('إلغاء التحقق بخطوتين لهذا الحساب؟'))return;
+    setBusy(true);setOk('');
+    try{await removeMfaFactor(id);const state=await getMfaState();setMfaFactors(state.factors);setOk('تم إلغاء وسيلة التحقق بخطوتين.');}
+    catch(e:any){setOk(e?.message||'تعذر إلغاء التحقق بخطوتين. قد تحتاج لتسجيل الدخول بالرمز أولًا.')}finally{setBusy(false)}
   };
 
   const changePassword=async()=>{
@@ -149,6 +174,11 @@ export default function StoreSettings({data,refresh}:{data:StoreSnapshot,refresh
     <StoreTransferPanel data={data} refresh={refresh}/>
 
     <section className="panel"><h3>إعداد أول تشغيل</h3><p className="muted">يمكنك تشغيل المعالج مرة أخرى لعرض خطوات الإعداد للعميل بدون حذف المنتجات أو الطلبات الحالية.</p><button className="btn secondary" disabled={busy} onClick={()=>void restartWizard()}>تشغيل معالج الإعداد من جديد</button></section>
+
+    {owner&&<section className="panel"><h3>التحقق بخطوتين (MFA)</h3><p className="muted">يحمي صلاحيات المالك حتى لو تم تسريب كلمة المرور. بعد التفعيل سيُطلب رمز من تطبيق Authenticator عند تسجيل الدخول.</p>
+      {mfaFactors.filter(x=>x.status==='verified').length?<div className="mfa-factor-list">{mfaFactors.filter(x=>x.status==='verified').map(x=><div key={x.id}><span><b>{x.friendly_name||'Authenticator'}</b><small>مفعّل</small></span><button className="btn secondary danger" disabled={busy} onClick={()=>void disableMfa(x.id)}>إلغاء</button></div>)}</div>:!mfaEnroll&&<button className="btn secondary" disabled={busy} onClick={()=>void startMfa()}>تفعيل MFA للمالك</button>}
+      {mfaEnroll&&<div className="mfa-enroll-box"><p><b>1.</b> امسح QR Code بتطبيق Google Authenticator أو Microsoft Authenticator.</p><img src={mfaEnroll.qrCode} alt="QR Code لتفعيل التحقق بخطوتين"/><details><summary>إدخال المفتاح يدويًا</summary><code dir="ltr">{mfaEnroll.secret}</code></details><label>رمز التحقق<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={e=>setMfaCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><div className="page-actions"><button className="btn secondary" onClick={()=>{setMfaEnroll(null);setMfaCode('')}}>إلغاء</button><button className="btn" disabled={busy||mfaCode.length!==6} onClick={()=>void confirmMfa()}>تأكيد التفعيل</button></div></div>}
+    </section>}
 
     <section className="panel"><h3>حساب المدير</h3><p className="muted">الحساب الحالي: {email||'—'}</p><p className="muted">كلمة المرور الجديدة يجب أن تكون 12 حرفًا على الأقل وتحتوي على حرف كبير وصغير ورقم ورمز.</p><div className="form-grid">
       <label>كلمة المرور الحالية<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
