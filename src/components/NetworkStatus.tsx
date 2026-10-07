@@ -8,5 +8,5 @@ export default function NetworkStatus(){
     return()=>{window.removeEventListener('online',on);window.removeEventListener('offline',off)};
   },[]);
   if(online)return null;
-  return <div className="network-banner" role="status">الاتصال بالإنترنت غير متاح. بعض العمليات ستعمل بعد عودة الاتصال.</div>;
+  return <div className="network-banner" role="status">الاتصال بالإنترنت غير متاح. سنحدّث بيانات المتجر تلقائيًا عند عودة الاتصال.</div>;
 }
