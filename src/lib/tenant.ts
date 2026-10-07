@@ -2,7 +2,9 @@ import { supabase, supabaseConfigured } from './supabase';
 import type { TenantInfo } from '../types';
 
 let currentTenant:TenantInfo|null=null;
+let currentTenantKey='';
 let pending:Promise<TenantInfo>|null=null;
+let pendingKey='';
 
 function requestedSlug(){
   if(typeof window==='undefined')return '';
@@ -19,13 +21,21 @@ function requestedSlug(){
   return '';
 }
 
-export async function resolveTenant(force=false):Promise<TenantInfo>{
-  if(currentTenant&&!force)return currentTenant;
-  if(pending&&!force)return pending;
+function tenantRequestKey(){
+  if(typeof window==='undefined')return 'server';
+  return window.location.host.toLowerCase()+'|'+requestedSlug();
+}
 
+export async function resolveTenant(force=false):Promise<TenantInfo>{
+  const key=tenantRequestKey();
+  if(currentTenant&&!force&&currentTenantKey===key)return currentTenant;
+  if(pending&&!force&&pendingKey===key)return pending;
+
+  pendingKey=key;
   pending=(async()=>{
     if(!supabaseConfigured||!supabase){
       currentTenant={id:'demo-store',slug:'demo',name:'المتجر التجريبي',custom_domain:null,status:'active',plan:'demo'};
+      currentTenantKey=key;
       return currentTenant;
     }
 
@@ -38,11 +48,15 @@ export async function resolveTenant(force=false):Promise<TenantInfo>{
     const tenant=data as TenantInfo;
     if(tenant.status==='suspended')throw new Error('هذا المتجر موقوف مؤقتًا.');
     currentTenant=tenant;
+    currentTenantKey=key;
     return tenant;
   })();
 
   try{return await pending}
-  finally{pending=null}
+  finally{
+    pending=null;
+    pendingKey='';
+  }
 }
 
 export async function requireTenantId(){
@@ -53,7 +67,21 @@ export function getResolvedTenant(){
   return currentTenant;
 }
 
-export function clearResolvedTenant(){
+export function clearResolvedTenant(options?:{forgetPreview?:boolean}){
   currentTenant=null;
+  currentTenantKey='';
   pending=null;
+  pendingKey='';
+  if(options?.forgetPreview&&typeof window!=='undefined'){
+    sessionStorage.removeItem('fakahany-preview-store');
+  }
+}
+
+export function tenantHref(path:string){
+  if(typeof window==='undefined')return path;
+  const host=window.location.hostname.toLowerCase();
+  const slug=(new URLSearchParams(window.location.search).get('store')||sessionStorage.getItem('fakahany-preview-store')||currentTenant?.slug||'').trim().toLowerCase();
+  if(!slug||(!(host==='localhost'||host==='127.0.0.1'||host.endsWith('.pages.dev'))))return path;
+  const separator=path.includes('?')?'&':'?';
+  return path+separator+'store='+encodeURIComponent(slug);
 }
