@@ -27,6 +27,7 @@ export default function OrderSuccessPage(){
         <div className="total-row"><span>الإجمالي النهائي</span><b>{money(order.total)}</b></div>
       </div>
       <button className="btn whatsapp" disabled={!wa} onClick={()=>wa&&openWhatsApp(wa,message)}>فتح واتساب</button>
+      {order.tracking_token&&<Link className="btn secondary block" to={`/track/${order.tracking_token}`}>تتبع حالة الطلب</Link>}
       <Link className="btn secondary block" to="/">العودة للمتجر</Link>
     </div>
   </main></>;
