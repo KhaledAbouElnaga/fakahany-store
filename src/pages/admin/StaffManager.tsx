@@ -28,7 +28,7 @@ export default function StaffManager(){
   const [invite,setInvite]=useState<{code:string;expires_at:string}|null>(null);
   const [msg,setMsg]=useState('');
   const [busy,setBusy]=useState(false);
-  const [editing,setEditing]=useState<string|null>(null);
+  const [editing,setEditing]=useState<StaffProfile|null>(null);
   const [editTitle,setEditTitle]=useState('');
   const [editPermissions,setEditPermissions]=useState<string[]>([]);
 
@@ -45,16 +45,26 @@ export default function StaffManager(){
   };
 
   const beginEdit=(member:StaffProfile)=>{
-    setEditing(member.user_id);setEditTitle(member.job_title||member.display_name||'موظف');setEditPermissions(member.permissions.includes('*')?['*']:[...member.permissions]);setMsg('');
+    setEditing(member);
+    setEditTitle(member.job_title||member.display_name||'موظف');
+    setEditPermissions(member.permissions.includes('*')?['*']:[...member.permissions]);
+    setMsg('');
   };
 
-  const saveEdit=async(member:StaffProfile,nextActive=member.active)=>{
+  const saveEdit=async()=>{
+    if(!editing)return;
     setBusy(true);setMsg('');
     try{
-      const title=editing===member.user_id?editTitle:(member.job_title||'موظف');
-      const perms=editing===member.user_id?editPermissions:member.permissions;
-      await updateStaffMember(member.user_id,title,perms,nextActive);
+      await updateStaffMember(editing.user_id,editTitle,editPermissions,editing.active);
       setEditing(null);await reload();setMsg('تم تحديث بيانات الموظف وصلاحياته.');
+    }catch(e:any){setMsg(e?.message||'تعذر تحديث الموظف.')}finally{setBusy(false)}
+  };
+
+  const toggleActive=async(member:StaffProfile)=>{
+    setBusy(true);setMsg('');
+    try{
+      await updateStaffMember(member.user_id,member.job_title||'موظف',member.permissions,!member.active);
+      await reload();setMsg(member.active?'تم إيقاف حساب الموظف.':'تم تفعيل حساب الموظف.');
     }catch(e:any){setMsg(e?.message||'تعذر تحديث الموظف.')}finally{setBusy(false)}
   };
 
@@ -77,18 +87,30 @@ export default function StaffManager(){
 
     <section className="panel">
       <h3>الحسابات الحالية</h3>
-      <div className="table-wrap"><table><thead><tr><th>الموظف</th><th>المسمى الوظيفي</th><th>الصلاحيات</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>{staff.map(member=>{
+      <p className="muted">اضغط «تعديل» لفتح الصلاحيات كاملة بدل عرضها كلها داخل الجدول.</p>
+      <div className="table-wrap"><table className="mobile-card-table staff-admin-table"><thead><tr><th>الموظف</th><th>المسمى الوظيفي</th><th>الصلاحيات</th><th>الحالة</th><th>الإجراء</th></tr></thead><tbody>{staff.map(member=>{
         const owner=member.role==='owner'||member.permissions.includes('*');
-        const isEditing=editing===member.user_id;
+        const count=owner?PERMISSIONS.length:PERMISSIONS.filter(([key])=>member.permissions.includes(key)).length;
         return <tr key={member.user_id}>
-          <td><b>{member.display_name||member.email||'—'}</b><small className="block muted" dir="ltr">{member.email}</small></td>
-          <td>{isEditing&&!owner?<input value={editTitle} onChange={e=>setEditTitle(e.target.value)}/>:<b>{member.job_title|| (owner?'مالك':'موظف')}</b>}</td>
-          <td>{owner?<span>كل الصلاحيات</span>:isEditing?<PermissionPicker value={editPermissions} onChange={setEditPermissions} disabled={busy}/>:<small>{PERMISSIONS.filter(([key])=>member.permissions.includes(key)).map(([,label])=>label).join('، ')||'بدون صلاحيات'}</small>}</td>
-          <td>{member.active?'مفعل':'موقوف'}</td>
-          <td>{owner?<span className="muted">حساب مالك</span>:isEditing?<div className="inline-actions"><button className="btn small-admin-btn" disabled={busy||!editTitle.trim()||!editPermissions.length} onClick={()=>void saveEdit(member)}>حفظ</button><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>setEditing(null)}>إلغاء</button></div>:<div className="inline-actions"><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>beginEdit(member)}>تعديل</button><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>void saveEdit(member,!member.active)}>{member.active?'إيقاف':'تفعيل'}</button></div>}</td>
+          <td data-label="الموظف"><b>{member.display_name||member.email||'—'}</b><small className="block muted" dir="ltr">{member.email}</small></td>
+          <td data-label="المسمى الوظيفي"><b>{member.job_title||(owner?'مالك':'موظف')}</b></td>
+          <td data-label="الصلاحيات"><span className="permission-count">{owner?'كل الصلاحيات':count+' من '+PERMISSIONS.length}</span></td>
+          <td data-label="الحالة"><span className={member.active?'staff-status active':'staff-status'}>{member.active?'مفعل':'موقوف'}</span></td>
+          <td data-label="الإجراء">{owner?<span className="muted">حساب مالك</span>:<div className="inline-actions"><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>beginEdit(member)}>تعديل</button><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>void toggleActive(member)}>{member.active?'إيقاف':'تفعيل'}</button></div>}</td>
         </tr>;
       })}</tbody></table></div>
     </section>
+
+    {editing&&<div className="modal-backdrop" onClick={()=>!busy&&setEditing(null)}>
+      <div className="modal-card staff-edit-modal" onClick={e=>e.stopPropagation()}>
+        <div className="modal-head"><div><h2>تعديل الموظف</h2><small className="muted" dir="ltr">{editing.email}</small></div><button disabled={busy} onClick={()=>setEditing(null)}>✕</button></div>
+        <label>المسمى الوظيفي<input value={editTitle} onChange={e=>setEditTitle(e.target.value)} placeholder="مثال: مسؤول الطلبات"/></label>
+        <h4>الصلاحيات</h4>
+        <PermissionPicker value={editPermissions} onChange={setEditPermissions} disabled={busy}/>
+        <div className="modal-actions"><button className="btn secondary" disabled={busy} onClick={()=>setEditing(null)}>إلغاء</button><button className="btn" disabled={busy||!editTitle.trim()||!editPermissions.length} onClick={()=>void saveEdit()}>{busy?'جاري الحفظ...':'حفظ التعديلات'}</button></div>
+      </div>
+    </div>}
+
     {msg&&<p className={msg.startsWith('تم')?'success-text':'error-text'}>{msg}</p>}
   </>;
 }

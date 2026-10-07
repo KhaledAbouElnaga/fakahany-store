@@ -159,7 +159,7 @@ export default function ArchiveCleanup(){
 
     <section className="panel">
       <div className="cleanup-head"><div><h3>الطلبات المؤرشفة</h3><p className="muted">عدد الطلبات الموجودة حاليًا في الأرشيف: {archived.length}</p></div></div>
-      {!archived.length?<p className="muted">الأرشيف فارغ.</p>:<div className="table-wrap"><table><thead><tr><th>رقم الطلب</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>الإجراء</th></tr></thead><tbody>{archived.map(o=><tr key={o.id}><td>#{o.order_number}</td><td>{new Date(o.created_at).toLocaleString('ar-EG')}</td><td>{o.customer_name||'—'}</td><td>{money(o.total)}</td><td><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>void restore(o)}>استرجاع</button></td></tr>)}</tbody></table></div>}
+      {!archived.length?<p className="muted">الأرشيف فارغ.</p>:<div className="table-wrap"><table className="mobile-card-table"><thead><tr><th>رقم الطلب</th><th>التاريخ</th><th>العميل</th><th>الإجمالي</th><th>الإجراء</th></tr></thead><tbody>{archived.map(o=><tr key={o.id}><td data-label="رقم الطلب">#{o.order_number}</td><td data-label="التاريخ">{new Date(o.created_at).toLocaleString('ar-EG')}</td><td data-label="العميل">{o.customer_name||'—'}</td><td data-label="الإجمالي">{money(o.total)}</td><td data-label="الإجراء"><button className="btn secondary small-admin-btn" disabled={busy} onClick={()=>void restore(o)}>استرجاع</button></td></tr>)}</tbody></table></div>}
     </section>
 
     <section className="panel cleanup-password-box standalone">
@@ -176,7 +176,7 @@ export default function ArchiveCleanup(){
     <section className="panel cleanup-log-panel">
       <h3>سجل العمليات</h3>
       <p className="muted">يسجل الأرشفة والحذف والاسترجاع وتغيير كلمة مرور الحذف. هذا السجل لا يُحذف عند حذف الطلبات.</p>
-      {!logs.length?<p className="muted">لا توجد عمليات مسجلة بعد.</p>:<div className="table-wrap"><table><thead><tr><th>التاريخ والوقت</th><th>العملية</th><th>التفاصيل</th><th>العدد</th></tr></thead><tbody>{logs.map(log=><tr key={log.id}><td>{new Date(log.created_at).toLocaleString('ar-EG')}</td><td>{actionName(log.action)}</td><td>{log.filter_label||'—'}{log.date_from&&<small className="block muted">{log.date_from} ← {log.date_to||log.date_from}</small>}</td><td>{log.orders_count}</td></tr>)}</tbody></table></div>}
+      {!logs.length?<p className="muted">لا توجد عمليات مسجلة بعد.</p>:<div className="table-wrap"><table className="mobile-card-table"><thead><tr><th>التاريخ والوقت</th><th>العملية</th><th>التفاصيل</th><th>العدد</th></tr></thead><tbody>{logs.map(log=><tr key={log.id}><td data-label="التاريخ">{new Date(log.created_at).toLocaleString('ar-EG')}</td><td data-label="العملية">{actionName(log.action)}</td><td data-label="التفاصيل">{log.filter_label||'—'}{log.date_from&&<small className="block muted">{log.date_from} ← {log.date_to||log.date_from}</small>}</td><td data-label="العدد">{log.orders_count}</td></tr>)}</tbody></table></div>}
     </section>
   </>;
 }

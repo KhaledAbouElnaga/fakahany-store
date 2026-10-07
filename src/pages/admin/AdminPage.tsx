@@ -27,9 +27,11 @@ export default function AdminPage(){
   const {data,loading,error,refresh}=useStore();
   const [newOrderCount,setNewOrderCount]=useState(0);
   const [alertsEnabled,setAlertsEnabled]=useState(()=>sessionStorage.getItem('fakahany-admin-alerts')==='1');
+  const [mobileNavOpen,setMobileNavOpen]=useState(false);
   const audioRef=useRef<AudioContext|null>(null);
 
   const can=(permission:string)=>hasStaffPermission(profile,permission);
+  const chooseTab=(next:Tab)=>{setTab(next);setMobileNavOpen(false)};
 
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
   useEffect(()=>{if(authorized)void currentStaffProfile().then(setProfile)},[authorized]);
@@ -80,19 +82,28 @@ export default function AdminPage(){
   if(!authorized)return <AdminLogin onDone={()=>setAuthorized(true)}/>;
   if(error||!data)return <div className="center-state error-state"><p>{error||'تعذر تحميل البيانات'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
   const logout=async()=>{await signOutAdmin();setAuthorized(false);setProfile(null)};
-  return <div className="admin-shell"><aside className="admin-side"><div className="admin-brand"><b>{data.settings.store_name}</b><small>{profile?.display_name||profile?.email||'لوحة الإدارة'}</small></div><nav>
-    <Nav t="home" active={tab} set={setTab}>الرئيسية</Nav>
-    {can('products.manage')&&<><Nav t="products" active={tab} set={setTab}>المنتجات</Nav><Nav t="categories" active={tab} set={setTab}>الأقسام</Nav><Nav t="units" active={tab} set={setTab}>وحدات البيع</Nav></>}
-    {can('settings.manage')&&<Nav t="areas" active={tab} set={setTab}>مناطق التوصيل</Nav>}
-    {can('orders.view')&&<Nav t="orders" active={tab} set={setTab} badge={newOrderCount}>الطلبات</Nav>}
-    {can('settings.manage')&&<Nav t="statuses" active={tab} set={setTab}>حالات الطلبات</Nav>}
-    {profile?.role==='owner'&&<Nav t="archive" active={tab} set={setTab}>الأرشيف والتنظيف</Nav>}
-    {can('inventory.manage')&&<Nav t="inventory" active={tab} set={setTab}>المخزون</Nav>}
-    {can('prices.manage')&&<Nav t="prices" active={tab} set={setTab}>الأسعار المجدولة</Nav>}
-    {can('reports.view')&&<Nav t="reports" active={tab} set={setTab}>التقارير</Nav>}
-    {profile?.role==='owner'&&<Nav t="staff" active={tab} set={setTab}>الموظفون والصلاحيات</Nav>}
-    {can('settings.manage')&&<Nav t="settings" active={tab} set={setTab}>إعدادات المتجر</Nav>}
-  </nav><div className="side-bottom"><Link to="/">عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
+  return <div className="admin-shell">
+    <div className="admin-mobile-bar">
+      <button className="admin-menu-button" type="button" aria-label="فتح قائمة الإدارة" aria-expanded={mobileNavOpen} onClick={()=>setMobileNavOpen(v=>!v)}>
+        <span/><span/><span/>
+      </button>
+      <div><b>{data.settings.store_name}</b><small>{profile?.job_title||profile?.display_name||'لوحة الإدارة'}</small></div>
+      {newOrderCount>0&&can('orders.view')?<button className="admin-mobile-orders" onClick={()=>chooseTab('orders')}>طلبات <b>{newOrderCount}</b></button>:<span className="admin-mobile-spacer"/>}
+    </div>
+    {mobileNavOpen&&<button className="admin-drawer-backdrop" aria-label="إغلاق القائمة" onClick={()=>setMobileNavOpen(false)}/>}
+    <aside className={`admin-side ${mobileNavOpen?'open':''}`}><div className="admin-brand"><b>{data.settings.store_name}</b><small>{profile?.display_name||profile?.email||'لوحة الإدارة'}</small></div><nav>
+    <Nav t="home" active={tab} set={chooseTab}>الرئيسية</Nav>
+    {can('products.manage')&&<><Nav t="products" active={tab} set={chooseTab}>المنتجات</Nav><Nav t="categories" active={tab} set={chooseTab}>الأقسام</Nav><Nav t="units" active={tab} set={chooseTab}>وحدات البيع</Nav></>}
+    {can('settings.manage')&&<Nav t="areas" active={tab} set={chooseTab}>مناطق التوصيل</Nav>}
+    {can('orders.view')&&<Nav t="orders" active={tab} set={chooseTab} badge={newOrderCount}>الطلبات</Nav>}
+    {can('settings.manage')&&<Nav t="statuses" active={tab} set={chooseTab}>حالات الطلبات</Nav>}
+    {profile?.role==='owner'&&<Nav t="archive" active={tab} set={chooseTab}>الأرشيف والتنظيف</Nav>}
+    {can('inventory.manage')&&<Nav t="inventory" active={tab} set={chooseTab}>المخزون</Nav>}
+    {can('prices.manage')&&<Nav t="prices" active={tab} set={chooseTab}>الأسعار المجدولة</Nav>}
+    {can('reports.view')&&<Nav t="reports" active={tab} set={chooseTab}>التقارير</Nav>}
+    {profile?.role==='owner'&&<Nav t="staff" active={tab} set={chooseTab}>الموظفون والصلاحيات</Nav>}
+    {can('settings.manage')&&<Nav t="settings" active={tab} set={chooseTab}>إعدادات المتجر</Nav>}
+  </nav><div className="side-bottom"><Link to="/" onClick={()=>setMobileNavOpen(false)}>عرض المتجر</Link><button onClick={logout}>تسجيل الخروج</button></div></aside><main className="admin-main">
     {!supabaseConfigured&&<div className="demo-banner">أنت الآن في وضع التجربة المحلي. كل تعديلاتك محفوظة على هذا المتصفح فقط حتى نربط قاعدة البيانات.</div>}
     {tab==='home'&&<Dashboard/>}
     {tab==='products'&&can('products.manage')&&<Products/>}
@@ -187,7 +198,7 @@ export default function AdminPage(){
     const quick=async(p:Product,field:'available'|'hidden'|'featured',value:boolean)=>{await updateProductFields(p.id,{[field]:value});await refresh()};
     const move=async(p:Product,dir:-1|1)=>{const sorted=[...data!.products].sort((a,b)=>a.display_order-b.display_order);const i=sorted.findIndex(x=>x.id===p.id);const j=i+dir;if(j<0||j>=sorted.length)return;const other=sorted[j];const a=p.display_order,b=other.display_order;await Promise.all([updateProductFields(p.id,{display_order:b}),updateProductFields(other.id,{display_order:a})]);await refresh();};
     const exportProducts=()=>downloadCsv('products.csv',[['المنتج','القسم','متاح','مخفي','مميز','الترتيب','الخيارات'],...data!.products.map(p=>[p.name_ar,data!.categories.find(c=>c.id===p.category_id)?.name_ar||'',p.available?'نعم':'لا',p.hidden?'نعم':'لا',p.featured?'نعم':'لا',p.display_order,p.options.map(o=>`${o.name_ar}:${o.price}`).join(' | ')])]);
-    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={exportProducts}>تصدير CSV</button><button className="btn" onClick={()=>setEditing(newProduct(data!.products.length+1))}>+ إضافة منتج</button></div>}>المنتجات</PageTitle><ProductBulkTools products={data!.products} categories={data!.categories} onDone={refresh}/>{msg&&<p className={msg.includes('بنجاح')?'success-text':'error-text'}>{msg}</p>}<input className="admin-search" placeholder="ابحث عن منتج" value={q} onChange={e=>setQ(e.target.value)}/><div className="table-wrap"><table><thead><tr><th>المنتج</th><th>الحالة السريعة</th><th>السعر</th><th>المخزون</th><th>الترتيب</th><th>إجراءات</th></tr></thead><tbody>{list.map(p=>{const stock=productStockValue(p);const low=isLowStock(p,data!.settings.low_stock_threshold);return <tr key={p.id}><td><div className="table-product">{p.image_url?<img src={p.image_url} alt=""/>:<span className="mini-placeholder">صورة</span>}<div><b>{p.name_ar}</b>{low&&<small className="stock-warning">مخزون منخفض</small>}</div></div></td><td><div className="quick-toggles"><button className={p.available?'on':''} onClick={()=>quick(p,'available',!p.available)}>{p.available?'متاح':'غير متاح'}</button><button className={p.hidden?'warn':''} onClick={()=>quick(p,'hidden',!p.hidden)}>{p.hidden?'مخفي':'ظاهر'}</button><button className={p.featured?'on':''} onClick={()=>quick(p,'featured',!p.featured)}>{p.featured?'مميز':'عادي'}</button></div></td><td>{p.options.length?money(Math.min(...p.options.map(o=>Number(o.price)))):'—'}</td><td>{stock===null?'غير متتبع':stock}</td><td><div className="order-buttons"><button onClick={()=>move(p,-1)}>↑</button><b>{p.display_order}</b><button onClick={()=>move(p,1)}>↓</button></div></td><td className="table-actions"><button onClick={()=>setEditing(structuredClone(p))}>تعديل</button><button onClick={()=>duplicate(p)}>نسخ</button><button className="danger" onClick={async()=>{if(confirm('هل أنت متأكد من حذف هذا المنتج؟')){try{await deleteProduct(p.id);if(p.image_url)await deleteImage(p.image_url).catch(()=>{});await refresh();}catch(e:any){setMsg(e?.message||'تعذر الحذف')}}}}>حذف</button></td></tr>})}</tbody></table></div>{editing&&<ProductEditor product={editing} onChange={setEditing} onCancel={()=>setEditing(null)} onSave={()=>save(editing)} busy={busy}/>}</>;
+    return <><PageTitle actions={<div className="page-actions"><button className="btn secondary" onClick={exportProducts}>تصدير CSV</button><button className="btn" onClick={()=>setEditing(newProduct(data!.products.length+1))}>+ إضافة منتج</button></div>}>المنتجات</PageTitle><ProductBulkTools products={data!.products} categories={data!.categories} onDone={refresh}/>{msg&&<p className={msg.includes('بنجاح')?'success-text':'error-text'}>{msg}</p>}<input className="admin-search" placeholder="ابحث عن منتج" value={q} onChange={e=>setQ(e.target.value)}/><div className="table-wrap"><table className="mobile-card-table product-admin-table"><thead><tr><th>المنتج</th><th>الحالة السريعة</th><th>السعر</th><th>المخزون</th><th>الترتيب</th><th>إجراءات</th></tr></thead><tbody>{list.map(p=>{const stock=productStockValue(p);const low=isLowStock(p,data!.settings.low_stock_threshold);return <tr key={p.id}><td data-label="المنتج"><div className="table-product">{p.image_url?<img src={p.image_url} alt=""/>:<span className="mini-placeholder">صورة</span>}<div><b>{p.name_ar}</b>{low&&<small className="stock-warning">مخزون منخفض</small>}</div></div></td><td data-label="الحالة"><div className="quick-toggles"><button className={p.available?'on':''} onClick={()=>quick(p,'available',!p.available)}>{p.available?'متاح':'غير متاح'}</button><button className={p.hidden?'warn':''} onClick={()=>quick(p,'hidden',!p.hidden)}>{p.hidden?'مخفي':'ظاهر'}</button><button className={p.featured?'on':''} onClick={()=>quick(p,'featured',!p.featured)}>{p.featured?'مميز':'عادي'}</button></div></td><td data-label="السعر">{p.options.length?money(Math.min(...p.options.map(o=>Number(o.price)))):'—'}</td><td data-label="المخزون">{stock===null?'غير متتبع':stock}</td><td data-label="الترتيب"><div className="order-buttons"><button onClick={()=>move(p,-1)}>↑</button><b>{p.display_order}</b><button onClick={()=>move(p,1)}>↓</button></div></td><td data-label="الإجراءات" className="table-actions"><button onClick={()=>setEditing(structuredClone(p))}>تعديل</button><button onClick={()=>duplicate(p)}>نسخ</button><button className="danger" onClick={async()=>{if(confirm('هل أنت متأكد من حذف هذا المنتج؟')){try{await deleteProduct(p.id);if(p.image_url)await deleteImage(p.image_url).catch(()=>{});await refresh();}catch(e:any){setMsg(e?.message||'تعذر الحذف')}}}}>حذف</button></td></tr>})}</tbody></table></div>{editing&&<ProductEditor product={editing} onChange={setEditing} onCancel={()=>setEditing(null)} onSave={()=>save(editing)} busy={busy}/>}</>;
   }
 
   function ProductEditor({product,onChange,onCancel,onSave,busy}:{product:Product,onChange:(p:Product)=>void,onCancel:()=>void,onSave:()=>void,busy:boolean}){

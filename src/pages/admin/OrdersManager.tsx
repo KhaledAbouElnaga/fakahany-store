@@ -67,15 +67,15 @@ export default function OrdersManager({settings,onNewCount,onOpenStatuses,canMan
       <label>إلى<input type="date" value={to} onChange={e=>setTo(e.target.value)}/></label>
     </div>
 
-    {!filtered.length?<div className="empty-state">لا توجد طلبات مطابقة.</div>:<div className="table-wrap"><table><thead><tr><th>رقم الطلب</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة والإجراءات</th></tr></thead><tbody>{filtered.map(o=>{
+    {!filtered.length?<div className="empty-state">لا توجد طلبات مطابقة.</div>:<div className="table-wrap"><table className="mobile-card-table orders-admin-table"><thead><tr><th>رقم الطلب</th><th>العميل</th><th>التاريخ</th><th>الإجمالي</th><th>الحالة والإجراءات</th></tr></thead><tbody>{filtered.map(o=>{
       const definition=statusMap.get(o.status);
       const options=activeStatuses.some(s=>s.name===o.status)?activeStatuses:[{id:'legacy-'+o.id,name:o.status,note:'',display_order:-1,active:false,is_new:false,is_completed:false,is_cancelled:false},...activeStatuses];
       return <tr key={o.id}>
-        <td>#{o.order_number}</td>
-        <td>{o.customer_name||'—'}<small className="block">{o.customer_phone||'—'}</small></td>
-        <td>{new Date(o.created_at).toLocaleString('ar-EG')}</td>
-        <td>{money(o.total)}</td>
-        <td>
+        <td data-label="رقم الطلب">#{o.order_number}</td>
+        <td data-label="العميل">{o.customer_name||'—'}<small className="block">{o.customer_phone||'—'}</small></td>
+        <td data-label="التاريخ">{new Date(o.created_at).toLocaleString('ar-EG')}</td>
+        <td data-label="الإجمالي">{money(o.total)}</td>
+        <td data-label="الحالة والإجراءات">
           <div className="order-status-box">{canManage?<select value={o.status} onChange={e=>void changeStatus(o,e.target.value)}>{options.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}</select>:<b>{o.status}</b>}{definition?.note&&<small className="status-note">{definition.note}</small>}</div>
           <div className="order-action-row">{canManage&&<button onClick={()=>setEditing(o)}>تعديل الطلب</button>}<button onClick={()=>printOrder(o,settings)}>طباعة</button><button onClick={()=>downloadOrder(o)}>تنزيل</button></div>
           <details><summary>التفاصيل والسجل</summary><div className="order-details">
