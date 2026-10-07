@@ -175,6 +175,34 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
 
     <section className="panel"><h3>إعداد أول تشغيل</h3><p className="muted">يمكنك تشغيل المعالج مرة أخرى لعرض خطوات الإعداد للعميل بدون حذف المنتجات أو الطلبات الحالية.</p><button className="btn secondary" disabled={busy} onClick={()=>void restartWizard()}>تشغيل معالج الإعداد من جديد</button></section>
 
+    <section className="panel"><h3>Features المتاحة</h3><p className="muted">استخدمها لو هتبيع نفس النظام لعملاء مختلفين وتريد إخفاء أجزاء غير مطلوبة بدون تعديل الكود.</p><div className="feature-flag-grid">
+      {[
+        ['tracking','تتبع الطلبات'],
+        ['reports','التقارير'],
+        ['staff','الموظفون والصلاحيات'],
+        ['scheduled_prices','الأسعار المجدولة'],
+        ['inventory','المخزون'],
+        ['favorites','المفضلة للعملاء'],
+        ['reorder','إعادة آخر طلب'],
+      ].map(([key,label])=><label key={key}><input type="checkbox" checked={Boolean((s.feature_flags as any)[key])} onChange={e=>set('feature_flags',{...s.feature_flags,[key]:e.target.checked})}/> {label}</label>)}
+    </div></section>
+
+    <section className="panel"><h3>تخصيص Dashboard</h3><p className="muted">حدد مؤشرات الأداء التي تريد ظهورها للمالك في الصفحة الرئيسية.</p><div className="feature-flag-grid">
+      {[
+        ['orders_today','طلبات اليوم'],
+        ['new_orders','الطلبات الجديدة'],
+        ['overdue','الطلبات المتأخرة'],
+        ['sales_today','مبيعات اليوم'],
+        ['sales_week','مبيعات آخر 7 أيام'],
+        ['avg_order','متوسط الطلب'],
+        ['repeat_customers','العملاء المتكررون'],
+        ['cancel_rate','معدل الإلغاء'],
+        ['top_product','أكثر منتج طلبًا'],
+        ['peak_hour','وقت الذروة'],
+        ['low_stock','المخزون المنخفض'],
+      ].map(([key,label])=><label key={key}><input type="checkbox" checked={s.dashboard_widgets.includes(key)} onChange={e=>set('dashboard_widgets',e.target.checked?[...s.dashboard_widgets,key]:s.dashboard_widgets.filter(x=>x!==key))}/> {label}</label>)}
+    </div></section>
+
     {owner&&<section className="panel"><h3>التحقق بخطوتين (MFA)</h3><p className="muted">يحمي صلاحيات المالك حتى لو تم تسريب كلمة المرور. بعد التفعيل سيُطلب رمز من تطبيق Authenticator عند تسجيل الدخول.</p>
       {mfaFactors.filter(x=>x.status==='verified').length?<div className="mfa-factor-list">{mfaFactors.filter(x=>x.status==='verified').map(x=><div key={x.id}><span><b>{x.friendly_name||'Authenticator'}</b><small>مفعّل</small></span><button className="btn secondary danger" disabled={busy} onClick={()=>void disableMfa(x.id)}>إلغاء</button></div>)}</div>:!mfaEnroll&&<button className="btn secondary" disabled={busy} onClick={()=>void startMfa()}>تفعيل MFA للمالك</button>}
       {mfaEnroll&&<div className="mfa-enroll-box"><p><b>1.</b> امسح QR Code بتطبيق Google Authenticator أو Microsoft Authenticator.</p><img src={mfaEnroll.qrCode} alt="QR Code لتفعيل التحقق بخطوتين"/><details><summary>إدخال المفتاح يدويًا</summary><code dir="ltr">{mfaEnroll.secret}</code></details><label>رمز التحقق<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={e=>setMfaCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><div className="page-actions"><button className="btn secondary" onClick={()=>{setMfaEnroll(null);setMfaCode('')}}>إلغاء</button><button className="btn" disabled={busy||mfaCode.length!==6} onClick={()=>void confirmMfa()}>تأكيد التفعيل</button></div></div>}
