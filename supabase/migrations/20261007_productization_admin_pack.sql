@@ -55,9 +55,11 @@ declare
   retention_days integer:=180;
 begin
   -- Ignore unauthenticated storefront writes and login timestamp-only changes.
-  if auth.uid() is null then return coalesce(new,old); end if;
+  if auth.uid() is null then
+    if tg_op='DELETE' then return old; else return new; end if;
+  end if;
   if not exists(select 1 from public.staff_profiles s where s.user_id=auth.uid() and s.active=true) then
-    return coalesce(new,old);
+    if tg_op='DELETE' then return old; else return new; end if;
   end if;
 
   if tg_table_name='staff_profiles' and tg_op='UPDATE'
@@ -91,7 +93,7 @@ begin
   delete from public.admin_audit_log
   where created_at < now()-(greatest(30,least(3650,retention_days))*interval '1 day');
 
-  return coalesce(new,old);
+  if tg_op='DELETE' then return old; else return new; end if;
 end;
 $$;
 
