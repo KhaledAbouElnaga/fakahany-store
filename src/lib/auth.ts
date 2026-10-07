@@ -3,6 +3,13 @@ import type { StaffProfile, StaffRole } from '../types';
 
 const DEMO_KEY = 'fakahany-demo-admin';
 
+export function validateStrongPassword(password:string){
+  if(password.length<12)throw new Error('كلمة المرور يجب أن تكون 12 حرفًا على الأقل.');
+  if(!/[a-z]/.test(password)||!/[A-Z]/.test(password)||!/[0-9]/.test(password)||!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?`~]/.test(password)){
+    throw new Error('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم ورمز.');
+  }
+}
+
 export async function adminExists(): Promise<boolean> {
   if (!supabaseConfigured || !supabase) return true;
   const { data, error } = await supabase.rpc('admin_exists');
@@ -46,6 +53,7 @@ export async function signOutAdmin() {
 }
 
 export async function createFirstAdmin(email: string, password: string) {
+  validateStrongPassword(password);
   if (!supabaseConfigured || !supabase) { sessionStorage.setItem(DEMO_KEY, '1'); return; }
   const exists = await adminExists();
   if (exists) throw new Error('تم إنشاء المدير الأول بالفعل.');
@@ -62,10 +70,15 @@ export async function claimFirstAdminAfterLogin() {
   if (error) throw error;
 }
 
-export async function changeAdminPassword(password: string) {
-  if (password.length < 8) throw new Error('كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل.');
+export async function changeAdminPassword(currentPassword:string,newPassword:string) {
+  validateStrongPassword(newPassword);
   if (!supabaseConfigured || !supabase) return;
-  const { error } = await supabase.auth.updateUser({ password });
+  const {data:userData}=await supabase.auth.getUser();
+  const email=userData.user?.email||'';
+  if(!email)throw new Error('تعذر التحقق من حساب المدير.');
+  const verify=await supabase.auth.signInWithPassword({email,password:currentPassword});
+  if(verify.error)throw new Error('كلمة المرور الحالية غير صحيحة.');
+  const { error } = await supabase.auth.updateUser({ password:newPassword });
   if (error) throw error;
 }
 
@@ -102,6 +115,7 @@ export async function joinStaffWithInvite(email:string,password:string,code:stri
 
   let session=(await supabase.auth.signInWithPassword({email,password})).data.session;
   if(!session){
+    validateStrongPassword(password);
     const signed=await supabase.auth.signUp({email,password});
     if(signed.error)throw signed.error;
     session=signed.data.session;
