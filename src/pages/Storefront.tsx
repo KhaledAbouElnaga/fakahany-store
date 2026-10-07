@@ -71,7 +71,7 @@ export default function Storefront() {
   };
 
   return <>
-    <Header settings={settings}/>
+    <Header settings={settings} showCart={false}/>
     <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
     <main className="container storefront">
       <section className="hero" style={settings.banner_url ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.08),rgba(0,0,0,.6)),url(${settings.banner_url})` } : undefined}>
