@@ -128,7 +128,24 @@ export function updatePageMeta(settings: ShopSettings) {
   setMeta('meta[property="og:description"]','property','og:description',description);
   if (settings.share_image_url || settings.banner_url || settings.logo_url) setMeta('meta[property="og:image"]','property','og:image',settings.share_image_url || settings.banner_url || settings.logo_url);
   setMeta('meta[property="og:type"]','property','og:type','website');
+  setMeta('meta[property="og:url"]','property','og:url',window.location.origin+window.location.pathname);
+  let canonical=document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if(!canonical){canonical=document.createElement('link');canonical.rel='canonical';document.head.appendChild(canonical);}
+  canonical.href=window.location.origin+window.location.pathname;
   if (settings.logo_url) { let icon=document.head.querySelector<HTMLLinkElement>('link[rel="icon"]'); if(!icon){icon=document.createElement('link');icon.rel='icon';document.head.appendChild(icon);} icon.href=settings.logo_url; }
+
+  let structured=document.head.querySelector<HTMLScriptElement>('script[data-store-schema]');
+  if(!structured){structured=document.createElement('script');structured.type='application/ld+json';structured.dataset.storeSchema='1';document.head.appendChild(structured);}
+  structured.text=JSON.stringify({
+    '@context':'https://schema.org',
+    '@type':'GroceryStore',
+    name:settings.store_name,
+    url:window.location.origin,
+    description,
+    ...(settings.logo_url?{logo:settings.logo_url,image:settings.share_image_url||settings.banner_url||settings.logo_url}:{}),
+    ...(settings.phone?{telephone:settings.phone}:{}),
+    ...(settings.address?{address:{'@type':'PostalAddress',streetAddress:settings.address}}:{})
+  });
 }
 
 export async function compressImage(file: File, maxDimension = 1400, quality = 0.78): Promise<File> {
