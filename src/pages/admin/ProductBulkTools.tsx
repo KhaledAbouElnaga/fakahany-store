@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Category, Product } from '../../types';
-import { newProduct, saveProduct } from '../../lib/storeApi';
+import { bulkUpdateProductFields, newProduct, saveProduct } from '../../lib/storeApi';
 import { uid } from '../../lib/utils';
 
 type Props={products:Product[];categories:Category[];onDone:()=>Promise<void>};
@@ -44,10 +44,18 @@ const truthy=(v:string)=>['1','true','yes','نعم','متاح'].includes(String(
 export default function ProductBulkTools({products,categories,onDone}:Props){
   const [selected,setSelected]=useState<string[]>([]);
   const [percent,setPercent]=useState(10);
+  const [targetCategory,setTargetCategory]=useState('');
   const [busy,setBusy]=useState(false);
   const [msg,setMsg]=useState('');
   const allSelected=selected.length===products.length&&products.length>0;
   const sorted=useMemo(()=>[...products].sort((a,b)=>a.name_ar.localeCompare(b.name_ar,'ar')),[products]);
+
+  const applyBulk=async(fields:Parameters<typeof bulkUpdateProductFields>[1],success:string)=>{
+    if(!selected.length)return setMsg('اختر منتجًا واحدًا على الأقل.');
+    setBusy(true);setMsg('');
+    try{await bulkUpdateProductFields(selected,fields);await onDone();setMsg(success);}
+    catch(e:any){setMsg(e?.message||'تعذر تنفيذ التعديل الجماعي.')}finally{setBusy(false)}
+  };
 
   const applyPercent=async(sign:1|-1)=>{
     if(!selected.length)return setMsg('اختر منتجًا واحدًا على الأقل.');
@@ -121,8 +129,17 @@ export default function ProductBulkTools({products,categories,onDone}:Props){
       <button className="btn secondary" disabled={busy} onClick={()=>void applyPercent(-1)}>خفض الأسعار</button>
       <label className="file-btn">استيراد من ملف إكسل أو جدول<input type="file" accept=".csv,.xlsx,.xls" onChange={e=>void importFile(e.target.files?.[0])}/></label>
     </div>
+    <div className="bulk-action-grid">
+      <button className="btn secondary" disabled={busy||!selected.length} onClick={()=>void applyBulk({available:true},'تم جعل المنتجات المحددة متاحة.')}>متاح</button>
+      <button className="btn secondary" disabled={busy||!selected.length} onClick={()=>void applyBulk({available:false},'تم إيقاف المنتجات المحددة.')}>غير متاح</button>
+      <button className="btn secondary" disabled={busy||!selected.length} onClick={()=>void applyBulk({hidden:false},'تم إظهار المنتجات المحددة.')}>إظهار</button>
+      <button className="btn secondary" disabled={busy||!selected.length} onClick={()=>void applyBulk({hidden:true},'تم إخفاء المنتجات المحددة.')}>إخفاء</button>
+      <button className="btn secondary" disabled={busy||!selected.length} onClick={()=>void applyBulk({featured:true},'تم تمييز المنتجات المحددة.')}>مميزة</button>
+      <button className="btn secondary" disabled={busy||!selected.length} onClick={()=>void applyBulk({featured:false},'تم إلغاء تمييز المنتجات المحددة.')}>إلغاء التمييز</button>
+      <div className="bulk-category-action"><select value={targetCategory} onChange={e=>setTargetCategory(e.target.value)}><option value="">اختر قسمًا</option><option value="__none__">بدون قسم</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name_ar}</option>)}</select><button className="btn secondary" disabled={busy||!selected.length||!targetCategory} onClick={()=>void applyBulk({category_id:targetCategory==='__none__'?null:targetCategory},'تم تغيير قسم المنتجات المحددة.')}>نقل للقسم</button></div>
+    </div>
     <p className="muted">الاستيراد يدعم ملفات إكسل وملفات الجدول. الأعمدة الأساسية: اسم المنتج، السعر. ويمكن إضافة القسم، الوصف، الخيار، السعر القديم، المخزون.</p>
-    <label className="select-all"><input type="checkbox" checked={allSelected} onChange={e=>setSelected(e.target.checked?products.map(p=>p.id):[])}/> تحديد كل المنتجات</label>
+    <p className="muted bulk-selected-count">المحدد حاليًا: <b>{selected.length}</b> منتج</p><label className="select-all"><input type="checkbox" checked={allSelected} onChange={e=>setSelected(e.target.checked?products.map(p=>p.id):[])}/> تحديد كل المنتجات</label>
     <div className="bulk-product-list">{sorted.map(p=><label key={p.id}><input type="checkbox" checked={selected.includes(p.id)} onChange={e=>setSelected(v=>e.target.checked?[...v,p.id]:v.filter(id=>id!==p.id))}/>{p.name_ar}</label>)}</div>
     {msg&&<p className={msg.includes('بنجاح')?'success-text':'info-text'}>{msg}</p>}
   </div>;
