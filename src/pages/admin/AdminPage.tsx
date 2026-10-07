@@ -35,6 +35,18 @@ export default function AdminPage(){
 
   useEffect(()=>{isAdmin().then(setAuthorized);},[]);
   useEffect(()=>{if(authorized)void currentStaffProfile().then(setProfile)},[authorized]);
+
+  useEffect(()=>{
+    if(!authorized)return;
+    const IDLE_MS=45*60*1000;
+    let timer:number|undefined;
+    const expire=()=>{void signOutAdmin().finally(()=>{setAuthorized(false);setProfile(null);sessionStorage.setItem('fakahany-idle-logout','1')})};
+    const reset=()=>{if(timer)window.clearTimeout(timer);timer=window.setTimeout(expire,IDLE_MS)};
+    const events=['pointerdown','keydown','touchstart','scroll'] as const;
+    events.forEach(name=>window.addEventListener(name,reset,{passive:true}));
+    reset();
+    return()=>{if(timer)window.clearTimeout(timer);events.forEach(name=>window.removeEventListener(name,reset))};
+  },[authorized]);
   useEffect(()=>{if(authorized&&profile&&can('orders.view'))Promise.all([loadOrders(),loadOrderStatuses()]).then(([o,s])=>{const names=new Set(s.filter(x=>x.is_new).map(x=>x.name));setNewOrderCount(o.filter(x=>names.has(x.status)).length)}).catch(()=>{});},[authorized,profile,tab]);
 
   useEffect(()=>{
