@@ -28,7 +28,7 @@ export async function isPlatformAdmin():Promise<boolean>{
 }
 
 export async function signInPlatform(email:string,password:string):Promise<void>{
-  if(!supabaseConfigured||!supabase)return;
+  if(!supabaseConfigured||!supabase){unlockPlatformAccess();return;}
   const {error}=await supabase.auth.signInWithPassword({email,password});
   if(error)throw error;
   if(!await isPlatformAdmin()){
