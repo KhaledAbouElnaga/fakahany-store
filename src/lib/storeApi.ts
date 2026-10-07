@@ -21,10 +21,14 @@ export const DEFAULT_ORDER_STATUSES: OrderStatusDefinition[] = [
 
 function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): ShopSettings {
   const defaults: ShopSettings = {
-    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
+    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', announcement_enabled:false, announcement_text:'', maintenance_mode:false, maintenance_message:'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.', min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
   };
   const s = settings || {};
   const merged = { ...defaults, ...s } as ShopSettings;
+  merged.announcement_enabled = s.announcement_enabled ?? false;
+  merged.announcement_text = s.announcement_text ?? '';
+  merged.maintenance_mode = s.maintenance_mode ?? false;
+  merged.maintenance_message = s.maintenance_message ?? 'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.';
   merged.delivery_enabled = s.delivery_enabled ?? true;
   merged.store_status_mode = s.store_status_mode ?? (s.manual_open === false ? 'closed' : 'auto');
   merged.low_stock_threshold = Number(s.low_stock_threshold ?? 5);
