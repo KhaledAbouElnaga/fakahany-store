@@ -220,6 +220,19 @@ export async function listPlatformBackups(storeId:string):Promise<PlatformBackup
   return (Array.isArray(data)?data:[]) as PlatformBackup[];
 }
 
+export async function deletePlatformBackup(backupId:string,password:string):Promise<void>{
+  if(!supabaseConfigured||!supabase)throw new Error('حذف النسخ الاحتياطية يحتاج اتصال Supabase.');
+  const {data:{session}}=await supabase.auth.getSession();
+  if(!session)throw new Error('انتهت جلسة الدخول إلى المنصة. سجل الدخول مجددًا.');
+  const {data,error}=await supabase.functions.invoke('platform-delete-backup',{
+    body:{backup_id:backupId,password},
+    headers:{Authorization:`Bearer ${session.access_token}`}
+  });
+  if(error)throw new Error(await functionsErrorMessage(error));
+  if(data?.error)throw new Error(String(data.error));
+  if(data?.ok!==true)throw new Error('لم يتم التأكد من نجاح حذف النسخة الاحتياطية.');
+}
+
 export async function restorePlatformBackup(backupId:string):Promise<void>{
   if(!supabaseConfigured||!supabase)return;
   const {error}=await supabase.rpc('platform_restore_backup',{backup_id_input:backupId});
