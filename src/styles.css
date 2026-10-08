@@ -532,3 +532,26 @@ input,select,textarea{min-height:var(--control-h)}
 .platform-support-ticket{display:grid;gap:10px;padding:13px;border:1px solid var(--border);border-radius:14px;background:#fff}.platform-support-head{display:flex;justify-content:space-between;gap:12px}.platform-support-head>div:first-child{display:grid;gap:3px}.platform-support-head span{font-size:.78rem;color:var(--muted)}.platform-support-ticket>p{margin:0;white-space:pre-wrap}.platform-support-ticket textarea{width:100%}.platform-ticket-actions{display:flex;gap:8px;flex-wrap:wrap}.platform-audit-list article{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-bottom:1px solid #edf1ed}.platform-audit-list article>div{display:flex;gap:8px;align-items:center}.platform-audit-list span,.platform-audit-list small{color:var(--muted);font-size:.78rem}
 .platform-backup-modal{max-width:760px}.platform-backup-create{display:grid;grid-template-columns:1fr auto;gap:8px}.platform-backup-list{display:grid;gap:8px;max-height:430px;overflow:auto}.platform-backup-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 12px;border:1px solid var(--border);border-radius:12px}.platform-backup-row>div{display:grid;gap:3px}.platform-backup-row span{font-size:.78rem;color:var(--muted)}
 @media(max-width:700px){.support-ticket-form{grid-template-columns:1fr}.support-ticket-form .full{grid-column:auto}.support-ticket-head,.platform-support-head,.platform-notification{flex-direction:column;align-items:stretch}.platform-notification>div:last-child{justify-items:start}.platform-backup-create{grid-template-columns:1fr}.platform-backup-row{align-items:stretch;flex-direction:column}.platform-audit-list article{align-items:flex-start;flex-direction:column}}
+
+
+/* Permanent deletion: email verification modal */
+.platform-delete-dialog{width:min(540px,calc(100% - 28px));max-width:540px;display:grid;gap:16px;max-height:90vh;overflow:auto}
+.platform-delete-title{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+.platform-delete-title h2{margin:0 0 5px;color:var(--text)}
+.platform-delete-title p{margin:0}
+.platform-delete-warning{padding:13px 15px;border-radius:12px;border:1px solid #edaba5;background:#fff4f2;color:#9d2922;display:grid;gap:5px;line-height:1.7}
+.platform-delete-form{display:grid;gap:11px}
+.platform-delete-form label{font-size:.91rem;font-weight:800}
+.platform-delete-form input{width:100%;height:48px;padding:10px 13px;border-radius:11px;border:1px solid var(--border);background:#fff;font:inherit}
+.platform-delete-form input:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.platform-delete-form input#delete-email-otp{font-size:1.25rem;letter-spacing:.14em;text-align:center;font-variant-numeric:tabular-nums}
+.platform-delete-email{display:grid;gap:6px;padding:13px;border-radius:12px;background:#f4f8f6;border:1px solid var(--border)}
+.platform-delete-email span{overflow-wrap:anywhere}
+.platform-delete-email small{color:var(--muted);line-height:1.5}
+.platform-delete-expiry{margin:0;font-size:.8rem}
+.platform-delete-actions{display:flex;gap:9px;justify-content:flex-start;flex-wrap:wrap}
+.platform-delete-actions .btn{min-height:42px}
+.platform-delete-resend{border:0;background:transparent;color:var(--green);font-weight:800;text-align:right;padding:9px 0;cursor:pointer}
+.platform-delete-resend:disabled{opacity:.56;cursor:not-allowed}
+.platform-delete-form .error-text{margin:0;font-weight:800}
+@media(max-width:480px){.platform-delete-dialog{padding:17px;gap:13px}.platform-delete-actions{flex-direction:column}.platform-delete-actions .btn{width:100%}}

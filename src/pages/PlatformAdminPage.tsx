@@ -1,16 +1,17 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import {
-  createPlatformStore, deletePlatformStore, endPlatformSupport, exportPlatformStore,
+  createPlatformStore, endPlatformSupport, exportPlatformStore,
   getPlatformOverview, getPlatformSettings, isPlatformAdmin, listPlatformPlans,
   listPlatformStores, platformAdminUrl, platformStoreUrl, savePlatformSettings,
   setPlatformStorePlan, setPlatformStoreStatus, setPlatformSubscription,
-  platformAccessUnlocked, requestPlatformDeleteCode, signInPlatform, signOutPlatform, startPlatformSupport, transferPlatformStoreOwner
+  platformAccessUnlocked, signInPlatform, signOutPlatform, startPlatformSupport, transferPlatformStoreOwner
 } from '../lib/platformApi';
 import type { PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore } from '../types';
 import { clearResolvedTenant } from '../lib/tenant';
 import { downloadText, money, updateNeutralPageMeta } from '../lib/utils';
 import PlatformOperationsPanel from '../components/PlatformOperationsPanel';
 import PlatformBackupManager from '../components/PlatformBackupManager';
+import PlatformDeleteConfirm from '../components/PlatformDeleteConfirm';
 
 const EMPTY_OVERVIEW:PlatformOverview={total_stores:0,active_stores:0,suspended_stores:0,stores_active_7d:0,stores_inactive_30d:0,orders_30d:0,revenue_30d:0,products_total:0,staff_total:0,errors_24h:0,visits_30d:0,storage_bytes:0};
 const EMPTY_SETTINGS:PlatformSettings={base_domain:'',default_trial_days:14,support_session_minutes:30};
@@ -46,6 +47,7 @@ export default function PlatformAdminPage(){
   const [filter,setFilter]=useState('');
   const [showPlatformSettings,setShowPlatformSettings]=useState(false);
   const [backupStore,setBackupStore]=useState<PlatformStore|null>(null);
+  const [deleteStore,setDeleteStore]=useState<PlatformStore|null>(null);
 
   const origin=useMemo(()=>typeof location==='undefined'?'':location.origin,[]);
 
@@ -154,23 +156,17 @@ export default function PlatformAdminPage(){
     }catch(e:any){setError(e?.message||'تعذر تصدير المتجر.')}finally{setBusy(false)}
   };
 
-  const removeStore=async(store:PlatformStore)=>{
+  const removeStore=(store:PlatformStore)=>{
+    setError('');
+    setOk('');
     if(store.status!=='suspended')return setError('أوقف المتجر أولًا قبل الحذف النهائي.');
-    const slug=window.prompt(`حذف نهائي لكل بيانات «${store.name}». للتأكيد اكتب: ${store.slug}`,'');
-    if(slug!==store.slug)return;
-    if(!confirm('هذا حذف نهائي ولا يمكن التراجع عنه. سيتم إرسال كود تأكيد إلى بريد حساب إدارة المنصة. هل تريد المتابعة؟'))return;
+    setDeleteStore(store);
+  };
 
-    setBusy(true);setError('');setOk('');
-    try{
-      const {email}=await requestPlatformDeleteCode();
-      const code=window.prompt(`تم إرسال كود تأكيد من 6 أرقام إلى: ${email}\nاكتب الكود لإتمام الحذف النهائي.`,'');
-      if(!code){setOk('تم إلغاء الحذف قبل التنفيذ.');return;}
-      await deletePlatformStore(store.id,slug,code);
-      await refresh();
-      setOk('تم حذف المتجر وبياناته نهائيًا بعد تأكيد البريد الإلكتروني.');
-    }catch(e:any){
-      setError(e?.message||'تعذر حذف المتجر.');
-    }finally{setBusy(false)}
+  const afterDeletion=async()=>{
+    setDeleteStore(null);
+    await refresh();
+    setOk('تم حذف المتجر بنجاح بعد التحقق من كود البريد الإلكتروني.');
   };
 
   const saveSettings=async()=>{
@@ -298,5 +294,6 @@ export default function PlatformAdminPage(){
       </section>
     </main>
     {backupStore&&<PlatformBackupManager store={backupStore} onClose={()=>setBackupStore(null)} onDone={message=>setOk(message)}/>}
+    {deleteStore&&<PlatformDeleteConfirm store={deleteStore} onClose={()=>setDeleteStore(null)} onDeleted={afterDeletion}/>} 
   </div>;
 }
