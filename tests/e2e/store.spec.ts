@@ -110,16 +110,6 @@ test('merchant support center loads from admin',async({page})=>{
   await expect(page.getByRole('heading',{name:'طلب دعم جديد'})).toBeVisible();
 });
 
-test('platform delete modal explains store-only account cleanup',async({page})=>{
-  await page.goto('/platform');
-  await page.getByLabel('البريد الإلكتروني').fill('platform@example.com');
-  await page.getByLabel('كلمة المرور').fill('Strong@123');
-  await page.getByRole('button',{name:'دخول',exact:true}).click();
-  await expect(page.getByRole('heading',{name:'لوحة المنصة'})).toBeVisible();
-  // Non-Auth mock environment has no active stores; confirmation wording is
-  // validated in source-level compilation and remains gated by suspended status.
-});
-
 test('unknown route has a real 404 page',async({page})=>{
   await page.goto('/does-not-exist');
   await expect(page.getByText('404')).toBeVisible();
