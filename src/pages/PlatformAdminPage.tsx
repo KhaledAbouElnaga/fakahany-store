@@ -139,16 +139,17 @@ export default function PlatformAdminPage(){
   };
 
   const support=async(store:PlatformStore)=>{
-    const tab=window.open('about:blank','_blank');
     setBusy(true);setError('');setOk('');
     try{
+      // Never open a blank tab before the server authorizes a support session.
+      // Reuse this tab so Auth storage and the intended tenant remain in sync.
       const session=await startPlatformSupport(store.id);
-      const url=platformAdminUrl(origin,store)+'&support=1';
-      if(tab)tab.location.href=url;else location.assign(url);
       setOk(`تم فتح جلسة دعم لـ «${store.name}» حتى ${when(session.expires_at)}.`);
+      window.location.assign(platformAdminUrl(origin,store)+'&support=1');
     }catch(e:any){
-      if(tab)tab.close();
-      setError(e?.message||'تعذر بدء جلسة الدعم.');
+      const message=String(e?.message||'تعذر بدء جلسة الدعم.');
+      setError(message);
+      if(message.includes('انتهت جلسة إدارة المنصة'))setAuthorized(false);
     }finally{setBusy(false)}
   };
 
