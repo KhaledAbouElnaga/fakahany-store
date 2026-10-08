@@ -9,11 +9,20 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
   const [password,setPassword]=useState('');
   const [msg,setMsg]=useState(()=>sessionStorage.getItem('fakahany-idle-logout')==='1'?'تم تسجيل خروجك تلقائيًا بعد فترة من عدم الاستخدام لحماية الحساب.':'');
   const [busy,setBusy]=useState(false);
-  const [joinMode,setJoinMode]=useState(false);
+  const [joinMode,setJoinMode]=useState(()=>new URLSearchParams(window.location.search).get('join')==='1');
+  const [needsConfirmation,setNeedsConfirmation]=useState(false);
+  const [lastResend,setLastResend]=useState<number|null>(null);
   const [inviteCode,setInviteCode]=useState('');
   const [displayName,setDisplayName]=useState('');
   const [mfaMode,setMfaMode]=useState(false);
   const [mfaCode,setMfaCode]=useState('');
+  const [clock,setClock]=useState(Date.now());
+
+  useEffect(()=>{
+    if(!needsConfirmation||lastResend===null)return;
+    const timer=window.setInterval(()=>setClock(Date.now()),1000);
+    return()=>window.clearInterval(timer);
+  },[needsConfirmation,lastResend]);
 
   useEffect(()=>{
     updateNeutralPageMeta('دخول الإدارة — Fakahany SaaS','تسجيل الدخول إلى لوحة إدارة المتجر.');
@@ -24,7 +33,11 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
   const run=async(fn:()=>Promise<void>)=>{
     setBusy(true);setMsg('');
     try{await fn();onDone();}
-    catch(e:any){setMsg(e?.message||'حدث خطأ.');}
+    catch(e:any){
+      const message=String(e?.message||'حدث خطأ.');
+      if(message.includes('فعّل البريد الإلكتروني'))setNeedsConfirmation(true);
+      setMsg(message);
+    }
     finally{setBusy(false);}
   };
 
@@ -34,9 +47,28 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
       await signInAdmin(email,password);
       if(await mfaChallengeNeeded()){setMfaMode(true);return}
       onDone();
-    }catch(e:any){setMsg(e?.message||'تعذر تسجيل الدخول.')}
+    }catch(e:any){
+      const message=String(e?.message||'تعذر تسجيل الدخول.');
+      setMsg(message.includes('Invalid login credentials')?'البريد الإلكتروني أو كلمة المرور غير صحيحة، أو لم يتم إنشاء الحساب بعد. لو دي أول مرة تدخل المتجر، اضغط «لدي كود دعوة» لإنشاء الحساب أولًا.':message);
+    }
     finally{setBusy(false)}
   };
+
+  const resendConfirmation=async()=>{
+    if(!supabase||!email.trim())return setMsg('اكتب البريد الإلكتروني المستخدم في إنشاء الحساب.');
+    const wait=lastResend===null?0:60-Math.floor((Date.now()-lastResend)/1000);
+    if(wait>0)return;
+    setBusy(true);setMsg('');
+    try{
+      const result=await supabase.auth.resend({type:'signup',email:email.trim().toLowerCase()});
+      if(result.error)throw result.error;
+      setLastResend(Date.now());
+      setClock(Date.now());
+      setMsg('تم طلب رسالة تفعيل جديدة. راجع الوارد والرسائل غير المرغوب فيها؛ الإرسال يخضع لحدود خدمة البريد.');
+    }catch(e:any){setMsg(e?.message||'تعذر إعادة إرسال رسالة التفعيل. انتظر قليلًا وحاول مجددًا.')}
+    finally{setBusy(false)}
+  };
+  const resendWait=lastResend===null?0:Math.max(0,60-Math.floor((clock-lastResend)/1000));
 
   const verifySecondFactor=async()=>{
     setBusy(true);setMsg('');
@@ -51,12 +83,14 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
 
   return <div className="admin-login"><div className="login-card">
     <h1>{exists===false?'إنشاء أول مدير':joinMode?'انضمام بدعوة':'دخول الإدارة'}</h1>
-    {joinMode&&<label>اسم الموظف<input value={displayName} onChange={e=>setDisplayName(e.target.value)}/></label>}
+    {joinMode&&<label>اسم صاحب الحساب (المالك أو الموظف)<input value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="اكتب اسمك وليس رابط المتجر"/></label>}
     <label>البريد الإلكتروني<input type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label>
     <label>كلمة المرور<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
     {(joinMode||exists===false)&&<small className="muted">لإنشاء حساب جديد: 8 أحرف على الأقل، منها حرف إنجليزي كبير وصغير، ورقم، ورمز خاص مثل @. الحساب الموجود بالفعل يسجل دخوله بكلمة مروره الحالية.</small>}
     {joinMode&&<label>كود الدعوة<input value={inviteCode} onChange={e=>setInviteCode(e.target.value)} placeholder="الكود الذي أرسله لك المالك"/></label>}
+    {joinMode&&<p className="muted">لو أول مرة تنضم، أدخل بريد الدعوة وكودها وحدد كلمة مرور جديدة. الدعوة لا تعني إنشاء الحساب تلقائيًا، ورسالة التفعيل تُرسل بعد بدء التسجيل هنا.</p>}
     {msg&&<p className="info-box">{msg}</p>}
+    {joinMode&&needsConfirmation&&<button className="btn secondary" disabled={busy||resendWait>0} onClick={()=>void resendConfirmation()}>{resendWait>0?'إعادة إرسال التفعيل بعد '+resendWait+' ثانية':'إعادة إرسال إيميل تفعيل الحساب'}</button>}
     {exists===false?<><button className="btn" disabled={busy} onClick={()=>run(()=>createFirstAdmin(email,password))}>إنشاء أول مدير</button><button className="btn secondary" disabled={busy} onClick={()=>run(async()=>{if(!supabase)throw new Error('Supabase غير متصل');const r=await supabase.auth.signInWithPassword({email,password});if(r.error)throw r.error;await claimFirstAdminAfterLogin();})}>فعّلت البريد بالفعل — اجعلني المدير الأول</button></>:joinMode?<><button className="btn" disabled={busy} onClick={()=>run(()=>joinStaffWithInvite(email,password,inviteCode,displayName))}>إنشاء أو ربط الحساب</button><button className="btn secondary" disabled={busy} onClick={()=>{setJoinMode(false);setMsg('')}}>العودة لتسجيل الدخول</button></>:<><button className="btn" disabled={busy} onClick={()=>void login()}>دخول</button><button className="btn secondary" disabled={busy} onClick={()=>{setJoinMode(true);setMsg('')}}>لدي كود دعوة</button></>}
   </div></div>;
 }

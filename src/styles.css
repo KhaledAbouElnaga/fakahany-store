@@ -555,3 +555,20 @@ input,select,textarea{min-height:var(--control-h)}
 .platform-delete-resend:disabled{opacity:.56;cursor:not-allowed}
 .platform-delete-form .error-text{margin:0;font-weight:800}
 @media(max-width:480px){.platform-delete-dialog{padding:17px;gap:13px}.platform-delete-actions{flex-direction:column}.platform-delete-actions .btn{width:100%}}
+
+
+/* Merchant onboarding clarity and feature levels (not billing subscriptions) */
+.platform-invite-message{display:block;width:100%;padding:13px 15px;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;border:1px solid var(--border);border-radius:12px;background:#fff;line-height:1.8;font:inherit;font-size:.84rem}
+.platform-created{display:grid;gap:12px}
+.platform-created>div:first-child{display:grid;gap:5px}
+.platform-no-billing{font-size:.82rem;margin:10px 0}
+.platform-plan-explainer{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+.platform-plan-explainer article{display:grid;align-content:start;gap:7px;padding:13px;border:1px solid var(--border);border-radius:13px;background:#fcfdfb}
+.platform-plan-explainer article.selected{border-color:var(--green);background:#f2f9f2}
+.platform-plan-explainer article>b{font-size:.98rem}
+.platform-plan-explainer article>strong{font-size:.85rem}
+.platform-plan-explainer article>p{font-size:.79rem;color:var(--muted);line-height:1.6;margin:0}
+.platform-plan-inline{display:grid;align-content:center;gap:4px;font-size:.79rem;color:var(--muted)}
+.platform-plan-inline>b{color:var(--text);font-size:.83rem}
+.platform-plan-row{align-items:center}
+@media(max-width:700px){.platform-plan-explainer{grid-template-columns:1fr}.platform-plan-row{grid-template-columns:1fr}}
