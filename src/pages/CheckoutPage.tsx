@@ -12,7 +12,7 @@ import { tenantHref } from '../lib/tenant';
 function FieldTitle({children, required}:{children:ReactNode, required:boolean}){return <span className="field-title">{children}{required&&<span className="required-badge">مطلوب</span>}</span>}
 
 export default function CheckoutPage(){
-  const {data,loading,refresh}=useStore(); const {items,subtotal,clear}=useCart(); const nav=useNavigate();
+  const {data,loading,refresh,tenant}=useStore(); const {items,subtotal,clear}=useCart(); const nav=useNavigate();
   const [form,setForm]=useState({name:'',phone:'',address:'',areaId:'',notes:'',timing:'asap',requestedTime:''});
   const [website,setWebsite]=useState('');
   const [busy,setBusy]=useState(false); const [error,setError]=useState(''); const sending=useRef(false);
@@ -28,6 +28,7 @@ export default function CheckoutPage(){
   const areas=useMemo(()=>data?.deliveryAreas.filter(a=>a.enabled).sort((a,b)=>a.display_order-b.display_order)||[],[data]);
   if(loading||!data)return <Loading/>;
   if(!items.length)return <main className="container narrow"><div className="empty-state">السلة فارغة.<br/><Link to={tenantHref('/')}>العودة للمتجر</Link></div></main>;
+  const isShowroom=tenant?.slug==='demo-market';
   const deliveryEnabled=data.settings.delivery_enabled; const missing=Math.max(0,data.settings.min_order-subtotal); const area=areas.find(a=>a.id===form.areaId); const deliveryFee=deliveryEnabled?(area?.fee ?? data.settings.default_delivery_fee):0; const total=subtotal+deliveryFee;
   const set=(k:string,v:string)=>setForm(x=>({...x,[k]:v}));
 
@@ -64,16 +65,16 @@ export default function CheckoutPage(){
     if(missingFields.length)return setError(`من فضلك أكمل الحقول المطلوبة: ${missingFields.join('، ')}.`);
     if(form.phone.trim()&&!isPlausiblePhone(form.phone))return setError('رقم الهاتف غير صحيح. اكتب رقمًا مكونًا من 10 إلى 15 رقمًا.');
     if(form.timing==='scheduled'&&form.requestedTime&&new Date(form.requestedTime).getTime()<=Date.now())return setError('اختر موعدًا في المستقبل.');
-    const wa=normalizeWhatsAppNumber(data.settings.whatsapp_number); if(!wa)return setError('رقم واتساب غير مضبوط من لوحة الإدارة.');
+    const wa=normalizeWhatsAppNumber(data.settings.whatsapp_number); if(!wa&&!isShowroom)return setError('رقم واتساب غير مضبوط من لوحة الإدارة.');
 
     const mobile=/android|iphone|ipad|ipod/i.test(navigator.userAgent);
-    sending.current=true; setBusy(true); const win=mobile?null:window.open('about:blank','_blank');
+    sending.current=true; setBusy(true); const win=(mobile||isShowroom)?null:window.open('about:blank','_blank');
     try{
       await validateFreshCart();
       const orderId=uid(), orderNumber=makeOrderNumber();
       const requestedTime=(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)?(form.timing==='scheduled'?new Date(form.requestedTime).toLocaleString('ar-EG'):'في أقرب وقت'):'';
       const requestedFor=(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)&&form.timing==='scheduled'?new Date(form.requestedTime).toISOString():null;
-      const draft:Order={id:orderId,order_number:orderNumber,created_at:new Date().toISOString(),customer_name:form.name.trim(),customer_phone:form.phone.trim(),address:form.address.trim(),area_id:deliveryEnabled?(area?.id||null):null,area_name:deliveryEnabled?(area?.name_ar||''):'',product_subtotal:subtotal,delivery_fee:deliveryFee,total,notes:form.notes.trim(),requested_time:requestedTime,requested_for:requestedFor,client_token:submissionToken.current,internal_note:'',status:'جديد',items:items.map(i=>({id:uid(),order_id:orderId,product_id:i.product_id,product_name:i.product_name,option_id:i.option_id,option_name:i.option_name,unit_price:i.unit_price,quantity:i.quantity,line_total:i.unit_price*i.quantity}))};
+      const draft:Order={id:orderId,order_number:orderNumber,created_at:new Date().toISOString(),customer_name:isShowroom?'زائر تجريبي':form.name.trim(),customer_phone:isShowroom?'':form.phone.trim(),address:isShowroom?'عنوان تجريبي - لا يوجد توصيل':form.address.trim(),area_id:deliveryEnabled?(area?.id||null):null,area_name:deliveryEnabled?(area?.name_ar||''):'',product_subtotal:subtotal,delivery_fee:deliveryFee,total,notes:isShowroom?'طلب تجربة توضيحي - لا يُنفذ':form.notes.trim(),requested_time:requestedTime,requested_for:requestedFor,client_token:submissionToken.current,internal_note:'',status:'جديد',items:items.map(i=>({id:uid(),order_id:orderId,product_id:i.product_id,product_name:i.product_name,option_id:i.option_id,option_name:i.option_name,unit_price:i.unit_price,quantity:i.quantity,line_total:i.unit_price*i.quantity}))};
       const order=await saveOrder(draft);
       const values=orderTemplateValues(order,data.settings);
       let message=renderTemplate(data.settings.whatsapp_order_template,values);
@@ -88,8 +89,10 @@ export default function CheckoutPage(){
       }catch{}
       localStorage.setItem('fakahany-last-success',JSON.stringify({order,message}));
       clear(); await refresh(); nav(tenantHref('/order-success'),{replace:true});
-      if(mobile) window.setTimeout(()=>openWhatsApp(wa,message),120);
-      else openWhatsApp(wa,message,win);
+      if(!isShowroom){
+        if(mobile) window.setTimeout(()=>openWhatsApp(wa,message),120);
+        else openWhatsApp(wa,message,win);
+      }
     }catch(e:any){
       if(win)win.close();
       setError(e?.message||'تعذر حفظ الطلب. حاول مرة أخرى.');
@@ -97,6 +100,7 @@ export default function CheckoutPage(){
   };
 
   return <><Header settings={data.settings}/><main className="container narrow"><h1>إتمام الطلب</h1><div className="checkout-grid"><div className="panel checkout-form">
+    {isShowroom ? <div className="panel"><h2>طلب اختبار داخل المتجر الحقيقي</h2><p>هتسجل طلب تجريبي ببيانات وهمية تلقائيًا داخل متجر التجربة فقط. مش هنطلب اسمك أو رقمك الحقيقي، ومش هتتبعت رسالة واتساب ولا هيتم تنفيذ أي شراء.</p></div> : <>
     <label><FieldTitle required={data.settings.require_name}>الاسم</FieldTitle><input required={data.settings.require_name} value={form.name} onChange={e=>set('name',e.target.value)}/></label>
     <label><FieldTitle required={data.settings.require_phone}>رقم الهاتف</FieldTitle><input required={data.settings.require_phone} value={form.phone} onChange={e=>set('phone',e.target.value)} inputMode="tel"/></label>
     <label><FieldTitle required={data.settings.require_address}>العنوان</FieldTitle><textarea required={data.settings.require_address} value={form.address} onChange={e=>set('address',e.target.value)}/></label>
@@ -104,5 +108,6 @@ export default function CheckoutPage(){
     {(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)&&<div className="timing-box"><FieldTitle required={false}>موعد الطلب</FieldTitle><div className="timing-options"><label><input type="radio" name="timing" checked={form.timing==='asap'} onChange={()=>set('timing','asap')}/> في أقرب وقت</label><label><input type="radio" name="timing" checked={form.timing==='scheduled'} onChange={()=>set('timing','scheduled')}/> اختيار موعد</label></div>{form.timing==='scheduled'&&<><input type="datetime-local" value={form.requestedTime} onChange={e=>set('requestedTime',e.target.value)}/>{data.settings.delivery_capacity_enabled&&<small className="muted">عدد الطلبات في كل فترة محدود. إذا امتلأت الفترة سيطلب منك النظام اختيار موعد آخر.</small>}</>}</div>}
     <label><FieldTitle required={data.settings.require_notes}>ملاحظات</FieldTitle><textarea required={data.settings.require_notes} value={form.notes} onChange={e=>set('notes',e.target.value)}/></label>
     <label className="bot-trap" aria-hidden="true">الموقع<input tabIndex={-1} autoComplete="off" value={website} onChange={e=>setWebsite(e.target.value)}/></label>
-  </div><div className="summary-card checkout-summary"><h3>ملخص الطلب</h3>{items.map(i=><div key={i.key}><span>{i.product_name} ({i.option_name}) × {i.quantity}</span><b>{money(i.unit_price*i.quantity)}</b></div>)}<hr/><div><span>إجمالي المنتجات</span><b>{money(subtotal)}</b></div>{deliveryEnabled&&<div><span>التوصيل</span><b>{money(deliveryFee)}</b></div>}<div className="total-row"><span>الإجمالي</span><b>{money(total)}</b></div><small className="muted">يتم التأكد من السعر والمخزون مرة أخيرة قبل تسجيل الطلب.</small>{error&&<p className="error-text form-error">{error}</p>}<button className="btn whatsapp" disabled={busy} onClick={submit}>{busy?'جاري مراجعة الطلب...':'تسجيل الطلب وفتح واتساب'}</button><Link className="btn secondary block" to={tenantHref('/cart')}>العودة للسلة</Link></div></div></main></>;
+    </>}
+  </div><div className="summary-card checkout-summary"><h3>ملخص الطلب</h3>{items.map(i=><div key={i.key}><span>{i.product_name} ({i.option_name}) × {i.quantity}</span><b>{money(i.unit_price*i.quantity)}</b></div>)}<hr/><div><span>إجمالي المنتجات</span><b>{money(subtotal)}</b></div>{deliveryEnabled&&<div><span>التوصيل</span><b>{money(deliveryFee)}</b></div>}<div className="total-row"><span>الإجمالي</span><b>{money(total)}</b></div><small className="muted">{isShowroom?'الطلب للتجربة فقط وسيظهر داخل لوحة إدارة متجر التجربة، من غير إرسال واتساب أو طلب بيانات شخصية.':'يتم التأكد من السعر والمخزون مرة أخيرة قبل تسجيل الطلب.'}</small>{error&&<p className="error-text form-error">{error}</p>}<button className="btn whatsapp" disabled={busy} onClick={submit}>{busy?'جاري مراجعة الطلب...':isShowroom?'تسجيل طلب تجريبي':'تسجيل الطلب وفتح واتساب'}</button><Link className="btn secondary block" to={tenantHref('/cart')}>العودة للسلة</Link></div></div></main></>;
 }
