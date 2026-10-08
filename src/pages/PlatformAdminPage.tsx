@@ -3,7 +3,7 @@ import {
   createPlatformStore, endPlatformSupport, exportPlatformStore,
   getPlatformOverview, getPlatformSettings, isPlatformAdmin, listPlatformPlans,
   listPlatformStores, platformAdminUrl, platformStoreUrl, savePlatformSettings,
-  setPlatformStorePlan, setPlatformStoreStatus, setPlatformSubscription,
+  setPlatformStorePlan, setPlatformStoreStatus,
   platformAccessUnlocked, signInPlatform, signOutPlatform, startPlatformSupport, transferPlatformStoreOwner
 } from '../lib/platformApi';
 import type { PlatformOverview, PlatformPlan, PlatformSettings, PlatformStore } from '../types';
@@ -28,8 +28,23 @@ function when(value:string|null|undefined){
   if(Number.isNaN(d.getTime()))return '—';
   return d.toLocaleString('ar-EG',{dateStyle:'medium',timeStyle:'short'});
 }
-function billingLabel(status:PlatformStore['subscription_status']){
-  return status==='trial'?'تجريبي':status==='active'?'نشط':status==='past_due'?'متأخر':status==='paused'?'موقوف ماليًا':status;
+const PLAN_DESCRIPTIONS:Record<string,string>={
+  basic:'للمتاجر الصغيرة: كتالوج وطلبات وتقارير أساسية، بدون مخزون أو جدولة.',
+  pro:'للمتاجر المتوسطة: إمكانيات الأساسي، مع إدارة المخزون وجدولة الأسعار والطلبات.',
+  business:'نفس إمكانيات الاحترافي حاليًا، لكن بدون حد ثابت للمنتجات أو الموظفين.'
+};
+function planLimits(plan:PlatformPlan){
+  return `${plan.max_products===null?'منتجات غير محدودة':plan.max_products+' منتج'} · ${plan.max_staff===null?'حسابات غير محدودة':plan.max_staff+' حسابات'}`;
+}
+function ownerInviteMessage(origin:string,slug:string,email:string,code:string){
+  return [
+    'دعوة لإدارة المتجر — Fakahany SaaS',
+    'رابط تفعيل حساب المالك: '+origin+'/admin?store='+encodeURIComponent(slug)+'&join=1',
+    'البريد المخصص للدعوة: '+email,
+    'كود الدعوة: '+code,
+    'افتح الرابط، واضغط «لدي كود دعوة» إذا لم تظهر استمارة الدعوة، ثم أنشئ الحساب أو اربط حسابك الحالي.',
+    'إذا أنشأت حسابًا جديدًا، افتح رسالة تأكيد البريد الإلكتروني أولًا ثم عد وسجل الدخول.'
+  ].join('\n');
 }
 
 export default function PlatformAdminPage(){
@@ -87,7 +102,7 @@ export default function PlatformAdminPage(){
       const result=await createPlatformStore(form);
       setCreated({slug:result.slug,invite_code:result.invite_code,owner_email:result.owner_email,plan:result.plan});
       setForm(v=>({name:'',slug:'',ownerEmail:'',plan:v.plan}));
-      await refresh();setOk('تم إنشاء المتجر وبدء الفترة التجريبية.');
+      await refresh();setOk('تم إنشاء المتجر. لن يتم إرسال رسالة بريد تلقائيًا؛ انسخ الدعوة وشاركها مع المالك.');
     }catch(e:any){setError(e?.message||'تعذر إنشاء المتجر.')}
     finally{setBusy(false)}
   };
@@ -108,17 +123,18 @@ export default function PlatformAdminPage(){
     catch(e:any){setError(e?.message||'تعذر تغيير الباقة.')}finally{setBusy(false)}
   };
 
-  const editSubscription=async(store:PlatformStore)=>{
-    const status=window.prompt('حالة الاشتراك: trial / active / past_due / paused',store.subscription_status);
-    if(!status||!['trial','active','past_due','paused'].includes(status))return;
-    const paid=window.prompt('مدفوع حتى (YYYY-MM-DD) أو اتركه فارغًا',store.paid_until?.slice(0,10)||'');
-    if(paid===null)return;
-    const note=window.prompt('ملاحظة مالية اختيارية',store.billing_note||'')??'';
+  const issueOwnerInvite=async(store:PlatformStore)=>{
+    if(store.staff_count>0){setError('هذه العملية مخصصة للمتجر الذي لم ينضم مالكه بعد. لن يتم تغيير ملكية متجر نشط بهذه الطريقة.');return;}
+    const email=window.prompt('بريد المالك الذي سيستخدمه في إنشاء الحساب أو تسجيل الدخول:','');
+    if(!email)return;
     setBusy(true);setError('');setOk('');
     try{
-      await setPlatformSubscription(store.id,status as any,paid?new Date(paid+'T23:59:59').toISOString():null,note);
-      await refresh();setOk('تم تحديث حالة الاشتراك.');
-    }catch(e:any){setError(e?.message||'تعذر تحديث الاشتراك.')}finally{setBusy(false)}
+      const invitation=await transferPlatformStoreOwner(store.id,email);
+      setCreated({slug:store.slug,invite_code:invitation.code,owner_email:invitation.email,plan:store.plan});
+      await refresh();
+      setOk('تم إنشاء كود دعوة جديد، وأُلغي الكود السابق. انسخ نص الدعوة وأرسله للمالك بنفسك؛ النظام لا يرسلها تلقائيًا.');
+      window.scrollTo({top:0,behavior:'smooth'});
+    }catch(e:any){setError(e?.message||'تعذر إصدار دعوة جديدة.')}finally{setBusy(false)}
   };
 
   const support=async(store:PlatformStore)=>{
@@ -197,7 +213,7 @@ export default function PlatformAdminPage(){
     </header>
 
     <main className="platform-main">
-      <div className="page-title"><div><h1>لوحة المنصة</h1><p className="muted">إدارة العملاء، الباقات، الاشتراكات، الدعم والاستخدام من مكان واحد.</p></div></div>
+      <div className="page-title"><div><h1>لوحة المنصة</h1><p className="muted">إدارة المتاجر والمستخدمين وإمكانيات كل متجر والدعم الفني. لا توجد اشتراكات أو دفعات تلقائية.</p></div></div>
       {error&&<div className="form-error">{error}</div>}
       {ok&&<div className="platform-ok">{ok}</div>}
 
@@ -217,7 +233,7 @@ export default function PlatformAdminPage(){
         <div className="platform-section-title"><div><h2>إعدادات المنصة</h2><p className="muted">الدومين هنا للمنصة كلها مرة واحدة، وليس دومينًا خاصًا بكل عميل.</p></div></div>
         <div className="form-grid">
           <label>الدومين الأساسي للمنصة<input dir="ltr" value={settings.base_domain} onChange={e=>setSettings(v=>({...v,base_domain:e.target.value.replace(/^https?:\/\//,'').replace(/\/$/,'')}))} placeholder="yourbrand.com"/></label>
-          <label>الفترة التجريبية الافتراضية (يوم)<input type="number" min="0" max="365" value={settings.default_trial_days} onChange={e=>setSettings(v=>({...v,default_trial_days:Number(e.target.value)}))}/></label>
+          
           <label>مدة جلسة الدعم (دقيقة)<input type="number" min="5" max="240" value={settings.support_session_minutes} onChange={e=>setSettings(v=>({...v,support_session_minutes:Number(e.target.value)}))}/></label>
         </div>
         <div className="platform-domain-note">{settings.base_domain?<><b>نظام الـSubdomains جاهز:</b><span dir="ltr">store-name.{settings.base_domain}</span></>:<><b>حاليًا:</b><span>كل متجر يستخدم رابط <code>?store=slug</code>. عند ربط دومين واحد للمنصة، تتحول الروابط تلقائيًا إلى Subdomains.</span></>}</div>
@@ -225,23 +241,33 @@ export default function PlatformAdminPage(){
       </section>}
 
       {created&&<div className="platform-created">
-        <div><b>تم إنشاء المتجر بنجاح</b><span>أرسل رابط إعداد المالك وكود الدعوة لصاحب المتجر.</span></div>
+        <div><b>دعوة مالك المتجر جاهزة</b><span>تنبيه: إنشاء المتجر لا يرسل بريدًا تلقائيًا. انسخ الرسالة التالية وأرسلها للمالك عبر الإيميل أو واتساب. الكود مرتبط بالإيميل المحدد.</span></div>
         <div className="invite-code-box"><span dir="ltr">{created.owner_email}</span><strong dir="ltr">{created.invite_code}</strong><button className="btn secondary" onClick={()=>void navigator.clipboard.writeText(created.invite_code)}>نسخ الكود</button></div>
+        <pre className="platform-invite-message" dir="rtl">{ownerInviteMessage(origin,created.slug,created.owner_email,created.invite_code)}</pre>
+        <button className="btn" type="button" onClick={()=>void navigator.clipboard.writeText(ownerInviteMessage(origin,created.slug,created.owner_email,created.invite_code)).then(()=>setOk('تم نسخ رسالة الدعوة كاملة، وأصبحت جاهزة للإرسال.')).catch(()=>setError('تعذر نسخ الرسالة؛ انسخها يدويًا من المربع.'))}>نسخ رسالة الدعوة كاملة</button>
         <div className="platform-created-actions">
           <a className="btn secondary" href={platformStoreUrl(origin,{slug:created.slug} as PlatformStore,settings)} target="_blank" rel="noreferrer">معاينة المتجر</a>
-          <a className="btn" href={platformAdminUrl(origin,{slug:created.slug} as PlatformStore)} target="_blank" rel="noreferrer">رابط إعداد المالك</a>
+          <a className="btn" href={platformAdminUrl(origin,{slug:created.slug} as PlatformStore)+'&join=1'} target="_blank" rel="noreferrer">رابط انضمام المالك</a>
         </div>
       </div>}
 
       <section className="panel platform-create-panel">
-        <div className="platform-section-title"><div><h2>إضافة متجر جديد</h2><p className="muted">يتم إنشاء البيانات والأقسام وحالات الطلب والفترة التجريبية تلقائيًا.</p></div></div>
+        <div className="platform-section-title"><div><h2>إضافة متجر جديد</h2><p className="muted">أنشئ المتجر وحدد إمكانياته. حساب المالك يتفعل لاحقًا بكود الدعوة؛ لا يتم إرسال إيميل تلقائي.</p></div></div>
         <form className="platform-create-grid saas-create-grid" onSubmit={createStore}>
           <label>اسم المتجر<input required value={form.name} onChange={e=>setForm(v=>({...v,name:e.target.value}))} placeholder="مثال: فواكه أحمد"/></label>
           <label>Store Slug<input required dir="ltr" pattern="[a-z0-9-]{3,40}" value={form.slug} onChange={e=>setForm(v=>({...v,slug:e.target.value.toLowerCase().replace(/[^a-z0-9-]/g,'')}))} placeholder="ahmed"/></label>
           <label>بريد المالك<input required type="email" dir="ltr" value={form.ownerEmail} onChange={e=>setForm(v=>({...v,ownerEmail:e.target.value}))} placeholder="owner@example.com"/></label>
-          <label>الباقة<select value={form.plan} onChange={e=>setForm(v=>({...v,plan:e.target.value}))}>{plans.filter(x=>x.active).map(p=><option key={p.id} value={p.id}>{p.name_ar}</option>)}</select></label>
+          <label>مستوى إمكانيات المتجر<select value={form.plan} onChange={e=>setForm(v=>({...v,plan:e.target.value}))}>{plans.filter(x=>x.active).map(p=><option key={p.id} value={p.id}>{p.name_ar}</option>)}</select></label>
           <button className="btn" disabled={busy}>{busy?'جاري الإنشاء...':'+ إنشاء المتجر'}</button>
         </form>
+        <p className="muted platform-no-billing">هذه المستويات تحدد المميزات وحدود الاستخدام فقط، ولا تمثل أسعارًا أو اشتراكات أو دفعات.</p>
+        <div className="platform-plan-explainer">
+          {plans.filter(p=>p.active).map(plan=><article key={plan.id} className={form.plan===plan.id?'selected':''}>
+            <b>{plan.name_ar}</b>
+            <strong>{planLimits(plan)}</strong>
+            <p>{PLAN_DESCRIPTIONS[plan.id]||'مستوى إمكانيات للمتجر.'}</p>
+          </article>)}
+        </div>
       </section>
 
       <div className="platform-list-toolbar">
@@ -255,7 +281,7 @@ export default function PlatformAdminPage(){
           const publicUrl=storePublic(store);
           const lastActivity=[store.last_order_at,store.owner_last_login_at,store.last_visit_at].filter(Boolean).sort().at(-1)||null;
           return <article className="platform-store-card saas-store-card" key={store.id}>
-            <div className="platform-store-head"><div><h3>{store.name}</h3><code>{store.slug}</code></div><div className="platform-store-badges"><span className={'platform-status '+store.status}>{store.status==='active'?'نشط':'موقوف'}</span><span className={'billing-status '+store.subscription_status}>{billingLabel(store.subscription_status)}</span></div></div>
+            <div className="platform-store-head"><div><h3>{store.name}</h3><code>{store.slug}</code></div><div className="platform-store-badges"><span className={'platform-status '+store.status}>{store.status==='active'?'نشط':'موقوف'}</span></div></div>
 
             <div className="platform-link-box"><small>رابط العميل</small><a dir="ltr" href={publicUrl} target="_blank" rel="noreferrer">{publicUrl.replace(/^https?:\/\//,'')}</a><button onClick={()=>void navigator.clipboard.writeText(publicUrl)}>نسخ</button></div>
 
@@ -271,11 +297,13 @@ export default function PlatformAdminPage(){
             </div>
 
             <div className="platform-plan-row">
-              <label>الباقة<select value={store.plan} disabled={busy} onChange={e=>void changePlan(store,e.target.value)}>{plans.filter(x=>x.active).map(p=><option key={p.id} value={p.id}>{p.name_ar}</option>)}</select></label>
-              <button className="btn secondary" disabled={busy} onClick={()=>void editSubscription(store)}>الاشتراك: {billingLabel(store.subscription_status)}</button>
+              <label>مستوى إمكانيات المتجر<select value={store.plan} disabled={busy} onChange={e=>void changePlan(store,e.target.value)}>{plans.filter(x=>x.active).map(p=><option key={p.id} value={p.id}>{p.name_ar}</option>)}</select></label>
+              <div className="platform-plan-inline">
+                <b>{plan?planLimits(plan):'—'}</b>
+                <span>{PLAN_DESCRIPTIONS[store.plan]||'خصائص المتجر الحالية'}</span>
+              </div>
             </div>
-
-            <div className="platform-subscription-line"><span>{store.paid_until?`مدفوع حتى ${new Date(store.paid_until).toLocaleDateString('ar-EG')}`:store.trial_ends_at?`التجربة حتى ${new Date(store.trial_ends_at).toLocaleDateString('ar-EG')}`:'لا يوجد تاريخ'}</span><span className={store.setup_completed?'setup-done':'setup-pending'}>{store.setup_completed?'الإعداد مكتمل':'الإعداد غير مكتمل'}</span></div>
+            <div className="platform-subscription-line"><span>لا توجد اشتراكات أو دفعات تلقائية</span><span className={store.setup_completed?'setup-done':'setup-pending'}>{store.setup_completed?'الإعداد مكتمل':'الإعداد غير مكتمل'}</span></div>
 
             <div className="platform-card-actions primary-actions">
               <a className="btn secondary" href={publicUrl} target="_blank" rel="noreferrer">المتجر</a>
@@ -285,7 +313,7 @@ export default function PlatformAdminPage(){
             <div className="platform-card-actions secondary-actions">
               <button className="btn secondary" disabled={busy} onClick={()=>setBackupStore(store)}>نسخ احتياطي</button>
               <button className="btn secondary" disabled={busy} onClick={()=>void exportStore(store)}>Export</button>
-              <button className="btn secondary" disabled={busy} onClick={()=>void transferOwner(store)}>نقل الملكية</button>
+              {store.staff_count===0?<button className="btn secondary" disabled={busy} onClick={()=>void issueOwnerInvite(store)}>إنشاء / تجديد دعوة المالك</button>:<button className="btn secondary" disabled={busy} onClick={()=>void transferOwner(store)}>نقل الملكية</button>}
               <button className={'btn '+(store.status==='active'?'danger-action':'secondary')} disabled={busy} onClick={()=>void toggle(store)}>{store.status==='active'?'إيقاف':'إعادة التفعيل'}</button>
               {store.status==='suspended'&&<button className="btn danger-action" disabled={busy} onClick={()=>void removeStore(store)}>حذف نهائي</button>}
             </div>
