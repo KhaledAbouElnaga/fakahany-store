@@ -1,15 +1,10 @@
 import { supabase, supabaseConfigured } from './supabase';
 import type { StaffProfile, StaffRole } from '../types';
 import { requireTenantId } from './tenant';
+import { validateStrongPassword } from './passwordPolicy';
 
 const DEMO_KEY = 'fakahany-demo-admin';
 
-export function validateStrongPassword(password:string){
-  if(password.length<12)throw new Error('كلمة المرور يجب أن تكون 12 حرفًا على الأقل.');
-  if(!/[a-z]/.test(password)||!/[A-Z]/.test(password)||!/[0-9]/.test(password)||!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?`~]/.test(password)){
-    throw new Error('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم ورمز.');
-  }
-}
 
 export async function adminExists(): Promise<boolean> {
   if (!supabaseConfigured || !supabase) return true;
