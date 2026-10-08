@@ -4,57 +4,84 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
-  <meta name="description" content="نموذج تفاعلي مستقل لكتالوج متجر وطلب واتساب — بيانات تجريبية فقط">
-  <title>تجربة متجر واتساب | عرض توضيحي</title>
+  <meta name="description" content="نموذج تفاعلي مستقل لكتالوج متجر وطلب واتساب — صور حقيقية وبيانات تجريبية فقط">
+  <title>تجربة متجر واتساب | صور حقيقية</title>
   <style>
     :root{font-family:system-ui,-apple-system,"Segoe UI",Tahoma,sans-serif;color:#1f332b;background:#f7f8f5;font-synthesis:none}
-    *{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}a{color:inherit}button:focus-visible,input:focus-visible{outline:3px solid #a4c5b6;outline-offset:3px}
-    .wrap{max-width:1130px;margin:auto;padding:0 22px}.top{border-bottom:1px solid #e5ebe6;background:#fff}.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}
+    *{box-sizing:border-box}body{margin:0}button,input{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}button:focus-visible,input:focus-visible{outline:3px solid #a4c5b6;outline-offset:3px}
+    .wrap{max-width:1180px;margin:auto;padding:0 22px}.top{border-bottom:1px solid #e5ebe6;background:#fff}.bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}
     .brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:1.15rem}.brand-logo{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:#1b6c50;color:#fff}
     .demo-pill{background:#eaf5f0;border:1px solid #cee4d8;border-radius:999px;font-size:.82rem;color:#205e49;padding:7px 13px;font-weight:750}
     .notice{background:#fff0d0;color:#6d5118;padding:9px 18px;text-align:center;font-size:.86rem;font-weight:700}
-    .hero{margin:25px 0;display:flex;justify-content:space-between;align-items:center;gap:18px;background:linear-gradient(115deg,#0a5d44,#258464);color:#fff;border-radius:22px;padding:32px}
-    .hero h1{font-size:clamp(1.35rem,3.7vw,2.4rem);letter-spacing:-.035em;margin:0 0 11px}.hero p{margin:0;line-height:1.85;color:#e8f7ef;max-width:600px}
-    .hero .dec{font-size:5rem;filter:drop-shadow(0 12px 10px #00422e60)}.layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:22px;align-items:start}
-    .filters{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}.filter{border:1px solid #d7e2db;color:#345c4b;background:#fff;padding:9px 15px;border-radius:999px;font-weight:700}
-    .filter.active{color:white;background:#1d7255;border-color:#1d7255}h2{margin:0 0 15px;font-size:1.12rem}
+    .hero{margin:25px 0 18px;display:grid;grid-template-columns:minmax(0,1.2fr) 360px;gap:18px;align-items:stretch}
+    .hero-card{background:linear-gradient(115deg,#0a5d44,#258464);color:#fff;border-radius:22px;padding:30px;display:flex;flex-direction:column;justify-content:space-between;min-height:240px}
+    .hero-card h1{font-size:clamp(1.35rem,3.7vw,2.4rem);letter-spacing:-.035em;margin:0 0 11px}.hero-card p{margin:0;line-height:1.9;color:#e8f7ef;max-width:620px}
+    .hero-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.hero-tags span{background:#ffffff1f;border:1px solid #ffffff30;border-radius:999px;padding:7px 12px;font-size:.8rem;font-weight:750}
+    .hero-image{border-radius:22px;overflow:hidden;border:1px solid #dfe9e2;box-shadow:0 12px 40px #23523818;position:relative;min-height:240px;background:#edf3ef}
+    .hero-image img{width:100%;height:100%;object-fit:cover;display:block}.hero-image .overlay{position:absolute;inset:auto 14px 14px 14px;background:#ffffffde;border:1px solid #dce6de;border-radius:14px;padding:12px 14px;font-size:.82rem;color:#315647;line-height:1.7}
+    .preset-box{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;background:#fff;border:1px solid #e0e8e1;border-radius:18px;padding:16px 18px;margin-bottom:18px}
+    .preset-copy strong{display:block;margin-bottom:4px;font-size:1rem}.preset-copy p{margin:0;color:#68786f;line-height:1.8;font-size:.9rem}
+    .preset-actions{display:flex;gap:8px;flex-wrap:wrap}.preset{border:1px solid #d7e2db;color:#345c4b;background:#fff;padding:10px 16px;border-radius:999px;font-weight:800}.preset.active{color:#fff;background:#1d7255;border-color:#1d7255}
+    .layout{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:22px;align-items:start}
+    .filters{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}.filter{border:1px solid #d7e2db;color:#345c4b;background:#fff;padding:9px 15px;border-radius:999px;font-weight:700}.filter.active{color:white;background:#1d7255;border-color:#1d7255}
+    h2{margin:0 0 15px;font-size:1.12rem}
     .products{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}.product{background:#fff;border:1px solid #e4ebe5;border-radius:17px;overflow:hidden;box-shadow:0 5px 20px #1b49300a}
-    .product .picture{height:133px;background:linear-gradient(140deg,#eef5eb,#f9f2e5);display:grid;place-items:center;font-size:3.9rem}
-    .product .content{padding:15px}.product h3{font-size:1rem;margin:0 0 5px}.sub{font-size:.81rem;color:#718179;line-height:1.6}.price{font-weight:900;margin:10px 0;color:#15573f;font-size:1.04rem}
-    .add{display:block;width:100%;padding:10px 12px;border:0;border-radius:10px;color:#fff;background:#237755;font-weight:850}.add:hover,.primary:hover{background:#14583e}
+    .product .picture{height:166px;background:#edf3ef;overflow:hidden}.product .picture img{width:100%;height:100%;object-fit:cover;display:block}.product .content{padding:15px}.product h3{font-size:1rem;margin:0 0 5px}.sub{font-size:.81rem;color:#718179;line-height:1.6}.meta{display:flex;justify-content:space-between;gap:8px;margin-top:7px;color:#6e7f76;font-size:.77rem}
+    .price{font-weight:900;margin:10px 0;color:#15573f;font-size:1.04rem}.add{display:block;width:100%;padding:10px 12px;border:0;border-radius:10px;color:#fff;background:#237755;font-weight:850}.add:hover,.primary:hover{background:#14583e}
     .cart{position:sticky;top:17px;border:1px solid #e0e8e1;background:#fff;border-radius:20px;box-shadow:0 10px 40px #23483010;padding:20px}.cart h2{display:flex;justify-content:space-between;align-items:center}
     .count{background:#dceddf;color:#15573f;padding:3px 9px;border-radius:99px;font-size:.83rem}.empty{color:#7e8a83;text-align:center;line-height:1.9;padding:30px 5px}
     .item{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid #edf2ed;padding:12px 0}.item strong{font-size:.9rem}.item small{display:block;color:#778279;margin-top:3px}
     .steps{display:flex;gap:6px;align-items:center;direction:ltr}.steps button{border:1px solid #d9e6de;background:#f8fbf8;border-radius:7px;width:29px;height:29px;font-weight:800;color:#1c6b4e}.steps b{width:19px;text-align:center}
     .total{margin:19px 0;display:flex;justify-content:space-between;font-weight:850}.primary{background:#207553;color:#fff;border:0;border-radius:11px;padding:13px 17px;width:100%;font-weight:850}
-    .primary:disabled{opacity:.45;cursor:not-allowed}.help{font-size:.78rem;color:#728079;line-height:1.9;margin:12px 0 0}.extra{margin:34px 0 44px;border:1px solid #e2e8e1;border-radius:20px;background:#fff;padding:21px}
-    .extra h2{font-size:1.15rem}.benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.benefits div{background:#f2f8f3;padding:16px;border-radius:13px;line-height:1.8}.benefits strong{display:block;color:#125a3e}
+    .primary:disabled{opacity:.45;cursor:not-allowed}.help{font-size:.78rem;color:#728079;line-height:1.9;margin:12px 0 0}.cart-note{margin-top:14px;padding:12px;border-radius:12px;background:#f2f8f3;color:#365746;font-size:.82rem;line-height:1.8}
+    .extra{margin:34px 0 18px;border:1px solid #e2e8e1;border-radius:20px;background:#fff;padding:21px}.extra h2{font-size:1.15rem}.benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.benefits div{background:#f2f8f3;padding:16px;border-radius:13px;line-height:1.8}.benefits strong{display:block;color:#125a3e}
+    .sources{margin:0 0 44px;border:1px solid #e2e8e1;border-radius:20px;background:#fff;padding:20px}.sources ul{margin:0;padding-right:18px;color:#53655d;line-height:1.95;font-size:.9rem}.sources li+li{margin-top:6px}
     .dialog[hidden]{display:none}.dialog{position:fixed;inset:0;background:#071e14a6;display:grid;place-items:center;padding:17px;z-index:20}
     .dialog-panel{background:#fff;border-radius:19px;padding:23px;width:min(100%,520px);max-height:90vh;overflow:auto;box-shadow:0 15px 80px #0004}
     .dialog-head{display:flex;justify-content:space-between;align-items:center}.close{border:0;background:#eef4ef;border-radius:9px;width:34px;height:34px;font-size:1.2rem}
-    label{display:block;font-weight:750;margin:14px 0 6px}input{border:1px solid #cfded4;border-radius:10px;background:#fff;padding:12px;width:100%}.preview{white-space:pre-wrap;direction:rtl;background:#f2f7f3;border:1px dashed #a3cbb6;border-radius:12px;line-height:1.9;padding:14px;font-size:.91rem;min-height:90px}
+    .preview{white-space:pre-wrap;direction:rtl;background:#f2f7f3;border:1px dashed #a3cbb6;border-radius:12px;line-height:1.9;padding:14px;font-size:.91rem;min-height:90px}
     .dialog-actions{display:flex;gap:8px;margin-top:15px}.secondary{background:#e9f3ec;color:#1e6b4d;border:none;border-radius:10px;padding:10px 14px;font-weight:850}.dialog-actions .primary{flex:1}
-    .status{font-size:.86rem;color:#1e6b4d;min-height:1.7em;margin:10px 0 0}.foot{color:#78887e;text-align:center;font-size:.77rem;margin:30px 0}
-    @media(max-width:850px){.layout{grid-template-columns:1fr}.cart{position:static}.products{grid-template-columns:repeat(2,1fr)}.hero{padding:25px}.hero .dec{font-size:3.5rem}.benefits{grid-template-columns:1fr}}
-    @media(max-width:480px){.wrap{padding:0 14px}.hero .dec{display:none}.products{gap:9px}.product .picture{height:105px;font-size:3.1rem}.product .content{padding:11px}.product h3{font-size:.88rem}.filter{padding:8px 12px}.hero{margin:15px 0;border-radius:15px}.dialog-actions{flex-wrap:wrap}}
+    .status{font-size:.86rem;color:#1e6b4d;min-height:1.7em;margin:10px 0 0}.foot{color:#78887e;text-align:center;font-size:.77rem;margin:28px 0 34px}
+    @media(max-width:980px){.hero{grid-template-columns:1fr}.layout{grid-template-columns:1fr}.cart{position:static}.products{grid-template-columns:repeat(2,1fr)}.benefits{grid-template-columns:1fr}.hero-card,.hero-image{min-height:unset}}
+    @media(max-width:520px){.wrap{padding:0 14px}.products{gap:9px}.product .picture{height:130px}.product .content{padding:11px}.product h3{font-size:.9rem}.filter,.preset{padding:8px 12px}.hero{margin:15px 0;border-radius:15px}.dialog-actions{flex-wrap:wrap}.preset-box{padding:14px}.hero-card{padding:22px}}
   </style>
 </head>
 <body>
-  <div class="notice">بيانات وأسعار افتراضية للتوضيح فقط — لا يوجد متجر حقيقي ولا يُرسل هذا النموذج طلبات لأحد</div>
+  <div class="notice">بيانات وأسعار افتراضية للتوضيح فقط — الصور حقيقية من الويب، لكن النموذج لا يرسل طلبات فعلية ولا يجمع بيانات العملاء</div>
   <header class="top"><div class="wrap bar">
-    <div class="brand"><span class="brand-logo" aria-hidden="true">✳</span>سلة الخير <span class="sub">| متجر نموذجي</span></div>
-    <span class="demo-pill">تجربة مجانية</span>
+    <div class="brand"><span class="brand-logo" aria-hidden="true">✳</span><span id="brand-name">سلة البيت</span> <span class="sub">| متجر نموذجي</span></div>
+    <span class="demo-pill">صور حقيقية + كتالوج تجريبي</span>
   </div></header>
   <main class="wrap">
-    <section class="hero"><div><h1>فاكهة وخضار من موبايلك، في خطوات بسيطة.</h1><p>اختار المنتجات، حدّد الكمية، واعرض رسالة الطلب المرتبة اللي يقدر التاجر يستقبلها على واتساب. النموذج للمعاينة فقط.</p></div><span class="dec" aria-hidden="true">🥑</span></section>
+    <section class="hero">
+      <div class="hero-card">
+        <div>
+          <h1 id="hero-title">نموذج جاهز لمحلات السوبر ماركت والميني ماركت والطلبات عبر واتساب.</h1>
+          <p id="hero-copy">اعرض منتجاتك بصور حقيقية، اسمح للعميل باختيار الكمية، وخليه يشوف رسالة الطلب المرتبة قبل ما يرسلها. كل اللي هنا للتجربة فقط.</p>
+          <div class="hero-tags" id="hero-tags"></div>
+        </div>
+      </div>
+      <div class="hero-image">
+        <img id="hero-image" src="" alt="صورة حقيقية تجريبية لواجهة متجر" loading="eager" referrerpolicy="no-referrer">
+        <div class="overlay" id="hero-caption">عرض توضيحي مستقل بدون أي اتصال ببيانات المتاجر الحقيقية.</div>
+      </div>
+    </section>
+
+    <section class="preset-box" aria-label="اختيار نوع الديمو">
+      <div class="preset-copy">
+        <strong>اختر نوع الديمو المناسب للتاجر</strong>
+        <p id="preset-description">هذا النموذج متنوع علشان ينفع للميني ماركت، السوبر ماركت، أو متجر فريش/خضار وفاكهة.</p>
+      </div>
+      <div class="preset-actions" id="preset-actions">
+        <button class="preset active" type="button" data-preset="mini" aria-pressed="true">ميني ماركت / سوبر ماركت</button>
+        <button class="preset" type="button" data-preset="fresh" aria-pressed="false">فريش ماركت / خضار وفاكهة</button>
+      </div>
+    </section>
+
     <div class="layout">
       <section aria-label="المنتجات">
-        <h2>اختار من منتجاتنا التجريبية</h2>
-        <div class="filters" id="filters">
-          <button class="filter active" type="button" data-filter="all" aria-pressed="true">كل المنتجات</button>
-          <button class="filter" type="button" data-filter="fruit" aria-pressed="false">فواكه</button>
-          <button class="filter" type="button" data-filter="veg" aria-pressed="false">خضروات</button>
-        </div>
+        <h2 id="section-title">جرّب اختيار المنتجات من الكتالوج</h2>
+        <div class="filters" id="filters"></div>
         <div class="products" id="products"></div>
       </section>
       <aside class="cart" aria-label="سلة الطلب">
@@ -62,20 +89,32 @@
         <div id="cart-items"><div class="empty">السلة لسه فاضية.<br>اختار منتج علشان تبدأ.</div></div>
         <div class="total"><span>الإجمالي التوضيحي</span><strong id="total">0 ج.م</strong></div>
         <button id="checkout" class="primary" type="button" disabled>معاينة رسالة واتساب</button>
-        <p class="help">النموذج مستقل تمامًا، مش بيحفظ بيانات ولا بينفّذ أي طلب أو دفع.</p>
+        <p class="help">النموذج مستقل تمامًا، مش بيحفظ بيانات، ومخصص فقط لعرض فكرة المتجر للعميل.</p>
+        <div class="cart-note" id="cart-note">يمكن استخدام نفس الفكرة في محلات السوبر ماركت، الفريش، السناكس، المنظفات، والبقالة.</div>
       </aside>
     </div>
-    <section class="extra" aria-labelledby="why"><h2 id="why">إزاي النموذج ده بيفيد صاحب المحل؟</h2><div class="benefits">
-      <div><strong>كتالوج واضح</strong>العميل يشوف صورًا توضيحية وأسعار المنتجات والكميات قبل ما يبعت.</div>
-      <div><strong>رسالة طلب مرتبة</strong>بدل عشرات الرسائل اللي ناقصها اسم منتج أو كمية أو إجمالي.</div>
-      <div><strong>تجهيز ومساعدة</strong>خدمة إعداد متجر مناسب لنشاطك بدل ما تبدأ إعداد كل حاجة لوحدك.</div>
+
+    <section class="extra" aria-labelledby="why"><h2 id="why">ليه الديمو ده أقوى في البيع؟</h2><div class="benefits">
+      <div><strong>صور حقيقية</strong>العميل يشوف المنتجات بشكل أقرب للواقع بدل الإيموجي أو الرسومات التوضيحية.</div>
+      <div><strong>أكثر من نشاط</strong>نسختان داخل نفس الرابط: ميني ماركت متنوع + فريش ماركت للخضار والفاكهة.</div>
+      <div><strong>رسالة طلب مرتبة</strong>التاجر يشوف كيف يوصل له الطلب منظم على واتساب بدل محادثة عشوائية.</div>
     </div></section>
-    <p class="foot">نموذج توضيحي مستقل لخدمة إعداد متاجر واتساب — لا يجمع بيانات شخصية ولا يرسل طلبات فعلية.</p>
+
+    <section class="sources" aria-labelledby="sources-title">
+      <h2 id="sources-title">ملاحظات مهمة عن الصور</h2>
+      <ul>
+        <li>الصور المستخدمة حقيقية ومأخوذة من مكتبة صور مجانية مثل Pexels، وتم استخدامها هنا كأمثلة بصرية فقط.</li>
+        <li>أسماء المنتجات والأسعار والكميات تجريبية وليست مرتبطة بمتجر فعلي.</li>
+        <li>يمكن لاحقًا استبدال الصور بصور منتجات التاجر نفسه وقت الإعداد الفعلي.</li>
+      </ul>
+    </section>
+
+    <p class="foot">نموذج توضيحي مستقل لخدمة إعداد متاجر واتساب — بدون تسجيل طلبات حقيقية، وبدون ربط ببيانات أي عميل قائم.</p>
   </main>
   <div class="dialog" id="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title" hidden>
     <div class="dialog-panel">
       <div class="dialog-head"><h2 id="dialog-title">معاينة رسالة طلب واتساب</h2><button id="close" class="close" type="button" aria-label="إغلاق">×</button></div>
-      <p class="sub">دي الرسالة اللي كان ممكن توصل للتاجر بعد إتمام طلب حقيقي. البيانات هنا توضيحية ومش هنطلب اسمك أو رقمك.</p>
+      <p class="sub">دي الرسالة اللي كان ممكن توصل للتاجر بعد إتمام طلب حقيقي. البيانات هنا توضيحية فقط.</p>
       <div class="preview" id="preview"></div>
       <div class="dialog-actions"><button class="secondary" id="copy" type="button">نسخ رسالة المثال</button><button class="primary" id="done" type="button">تمام</button></div>
       <p class="status" id="copy-status" aria-live="polite"></p>
@@ -84,61 +123,199 @@
   <script>
     (() => {
       "use strict";
-      const products=[
-        {id:"p1",name:"تفاح أحمر",unit:"كيلو",price:65,emoji:"🍎",category:"fruit"},
-        {id:"p2",name:"موز بلدي",unit:"كيلو",price:40,emoji:"🍌",category:"fruit"},
-        {id:"p3",name:"برتقال",unit:"كيلو",price:30,emoji:"🍊",category:"fruit"},
-        {id:"p4",name:"طماطم",unit:"كيلو",price:20,emoji:"🍅",category:"veg"},
-        {id:"p5",name:"خيار",unit:"كيلو",price:25,emoji:"🥒",category:"veg"},
-        {id:"p6",name:"جزر",unit:"كيلو",price:18,emoji:"🥕",category:"veg"}
-      ];
-      const cart=new Map();
-      const $=id=>document.getElementById(id);
-      let activeFilter="all";
+      const pexels = id => `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800`;
+      const presets = {
+        mini: {
+          brand: "سلة البيت",
+          title: "نموذج جاهز لمحلات السوبر ماركت والميني ماركت والطلبات عبر واتساب.",
+          copy: "كتالوج تجريبي متنوع يناسب البقالة، السوبر ماركت، السناكس، المشروبات والمنظفات. اختر المنتجات، وراجع شكل الطلب قبل الإرسال.",
+          caption: "يمكن عرض نفس الفكرة على صاحب سوبر ماركت أو ميني ماركت مع صور حقيقية ومنتجات متنوعة.",
+          heroImage: pexels("26184234"),
+          heroAlt: "متسوقة تختار منتجًا من رف داخل سوبر ماركت",
+          description: "هذا النموذج متنوع علشان ينفع للميني ماركت، السوبر ماركت، أو المتجر متعدد الأقسام.",
+          sectionTitle: "جرّب اختيار المنتجات من كتالوج الميني ماركت",
+          cartNote: "نسخة البيع العامة: مناسبة للسوبر ماركت، الميني ماركت، البقالة، السناكس، المشروبات، والمنظفات.",
+          tags: ["صور حقيقية", "منتجات متنوعة", "مناسب للسوبر ماركت", "طلب مرتب على واتساب"],
+          categories: [
+            { id: "all", label: "كل المنتجات" },
+            { id: "produce", label: "خضار وفاكهة" },
+            { id: "dairy", label: "ألبان وبيض" },
+            { id: "beverages", label: "مشروبات" },
+            { id: "snacks", label: "سناكس" },
+            { id: "pantry", label: "بقالة" },
+            { id: "cleaning", label: "منظفات" }
+          ],
+          products: [
+            {id:"m1",name:"تفاح أحمر",unit:"كيلو",price:65,category:"produce",categoryLabel:"خضار وفاكهة",image:pexels("5816928"),alt:"فواكه وخضروات طازجة في سوق محلي"},
+            {id:"m2",name:"طماطم",unit:"كيلو",price:20,category:"produce",categoryLabel:"خضار وفاكهة",image:pexels("17302468"),alt:"خضروات وفواكه معروضة في سوق داخلي"},
+            {id:"m3",name:"لبن كامل الدسم",unit:"عبوة",price:38,category:"dairy",categoryLabel:"ألبان وبيض",image:pexels("5652184"),alt:"زجاجة لبن على طاولة خشبية"},
+            {id:"m4",name:"بيض مائدة",unit:"كرتونة",price:92,category:"dairy",categoryLabel:"ألبان وبيض",image:pexels("12969328"),alt:"بيض في علبة كرتون"},
+            {id:"m5",name:"مياه معدنية",unit:"عبوة",price:12,category:"beverages",categoryLabel:"مشروبات",image:pexels("18039942"),alt:"رف مشروبات داخل متجر"},
+            {id:"m6",name:"عصير مانجو",unit:"عبوة",price:28,category:"beverages",categoryLabel:"مشروبات",image:pexels("17546502"),alt:"ثلاجة مشروبات باردة في متجر"},
+            {id:"m7",name:"شيبسي ملح",unit:"كيس",price:15,category:"snacks",categoryLabel:"سناكس",image:pexels("13060695"),alt:"كيس شيبسي مفتوح يظهر رقائق البطاطس"},
+            {id:"m8",name:"بسكويت شاي",unit:"علبة",price:24,category:"snacks",categoryLabel:"سناكس",image:pexels("18925018"),alt:"أرفف مليئة بمنتجات سناكس وبسكويت"},
+            {id:"m9",name:"أرز مصري",unit:"كيلو",price:39,category:"pantry",categoryLabel:"بقالة",image:pexels("17546505"),alt:"ممر بقالة به أكياس أرز وحبوب"},
+            {id:"m10",name:"خبز طازج",unit:"رغيف",price:7,category:"pantry",categoryLabel:"بقالة",image:pexels("11214715"),alt:"رغيف خبز طازج مقطع"},
+            {id:"m11",name:"سائل أطباق",unit:"عبوة",price:46,category:"cleaning",categoryLabel:"منظفات",image:pexels("10558189"),alt:"عبوات تنظيف على رف معدني"},
+            {id:"m12",name:"منظف أرضيات",unit:"عبوة",price:58,category:"cleaning",categoryLabel:"منظفات",image:pexels("5217896"),alt:"مجموعة منظفات منزلية ملونة"}
+          ]
+        },
+        fresh: {
+          brand: "سلة الخير فريش",
+          title: "نسخة متخصصة لمحلات الخضار والفاكهة والفريش ماركت.",
+          copy: "لو المحل نشاطه الأساسي خضار وفاكهة، فدي نسخة أنسب للعرض: صور طازجة، كتالوج واضح، ورسالة واتساب مرتبة في النهاية.",
+          caption: "نسخة موجهة لمحلات الفريش ماركت والخضار والفاكهة مع صور حقيقية للسوق والمنتجات.",
+          heroImage: pexels("5816928"),
+          heroAlt: "بائع خضار وفاكهة يعرض منتجاته في متجر",
+          description: "نسخة مركزة على متاجر الفواكه والخضروات والطلبات اليومية السريعة.",
+          sectionTitle: "جرّب اختيار المنتجات من كتالوج الفريش ماركت",
+          cartNote: "نسخة الفريش مناسبة لمحلات الخضار والفاكهة والتوصيل المحلي اليومي.",
+          tags: ["فواكه وخضروات", "صور سوق حقيقية", "مناسب للفريش ماركت", "طلب يومي سريع"],
+          categories: [
+            { id: "all", label: "كل المنتجات" },
+            { id: "fruit", label: "فواكه" },
+            { id: "veg", label: "خضروات" }
+          ],
+          products: [
+            {id:"f1",name:"تفاح أحمر",unit:"كيلو",price:65,category:"fruit",categoryLabel:"فواكه",image:pexels("5816928"),alt:"تفاح وفواكه طازجة في سوق"},
+            {id:"f2",name:"موز بلدي",unit:"كيلو",price:40,category:"fruit",categoryLabel:"فواكه",image:pexels("37144372"),alt:"موز وفواكه متنوعة في سوق محلي"},
+            {id:"f3",name:"برتقال",unit:"كيلو",price:30,category:"fruit",categoryLabel:"فواكه",image:pexels("5816928"),alt:"برتقال وفاكهة معروضة في محل"},
+            {id:"f4",name:"عنب أحمر",unit:"كيلو",price:85,category:"fruit",categoryLabel:"فواكه",image:pexels("5816928"),alt:"عنب وفاكهة طازجة في سوق"},
+            {id:"f5",name:"طماطم",unit:"كيلو",price:20,category:"veg",categoryLabel:"خضروات",image:pexels("17302468"),alt:"خضروات طازجة في سوق داخلي"},
+            {id:"f6",name:"خيار",unit:"كيلو",price:25,category:"veg",categoryLabel:"خضروات",image:pexels("17302468"),alt:"خضروات متنوعة مع خيار وطماطم"},
+            {id:"f7",name:"بطاطس",unit:"كيلو",price:18,category:"veg",categoryLabel:"خضروات",image:pexels("5816928"),alt:"بطاطس وخضروات في صناديق عرض"},
+            {id:"f8",name:"جزر",unit:"كيلو",price:22,category:"veg",categoryLabel:"خضروات",image:pexels("5816928"),alt:"جزر وخضروات طازجة معروضة للبيع"}
+          ]
+        }
+      };
+
+      const cart = new Map();
+      const $ = id => document.getElementById(id);
+      let activePreset = "mini";
+      let activeFilter = "all";
+
       function amount(n){return new Intl.NumberFormat("ar-EG").format(n)+" ج.م";}
-      function renderProducts(){
-        $("products").replaceChildren();
-        products.filter(p=>activeFilter==="all"||p.category===activeFilter).forEach(p=>{
-          const card=document.createElement("article");card.className="product";
-          const picture=document.createElement("div");picture.className="picture";picture.textContent=p.emoji;picture.setAttribute("aria-hidden","true");
-          const content=document.createElement("div");content.className="content";
-          const h3=document.createElement("h3");h3.textContent=p.name;
-          const unit=document.createElement("div");unit.className="sub";unit.textContent="وحدة البيع: "+p.unit;
-          const price=document.createElement("div");price.className="price";price.textContent=amount(p.price);
-          const btn=document.createElement("button");btn.className="add";btn.type="button";btn.textContent="إضافة للسلة";btn.setAttribute("aria-label","أضف "+p.name+" للسلة");
-          btn.addEventListener("click",()=>{cart.set(p.id,(cart.get(p.id)||0)+1);renderCart();});
-          content.append(h3,unit,price,btn);card.append(picture,content);$("products").append(card);
+      function currentPreset(){return presets[activePreset];}
+      function currentProducts(){return currentPreset().products;}
+
+      function syncHeader(){
+        const preset = currentPreset();
+        $("brand-name").textContent = preset.brand;
+        $("hero-title").textContent = preset.title;
+        $("hero-copy").textContent = preset.copy;
+        $("hero-image").src = preset.heroImage;
+        $("hero-image").alt = preset.heroAlt;
+        $("hero-caption").textContent = preset.caption;
+        $("preset-description").textContent = preset.description;
+        $("section-title").textContent = preset.sectionTitle;
+        $("cart-note").textContent = preset.cartNote;
+        const tags = $("hero-tags");
+        tags.replaceChildren();
+        preset.tags.forEach(text=>{const tag=document.createElement("span");tag.textContent=text;tags.append(tag);});
+      }
+
+      function renderFilters(){
+        const wrap = $("filters");
+        wrap.replaceChildren();
+        currentPreset().categories.forEach(cat=>{
+          const button = document.createElement("button");
+          const isActive = cat.id===activeFilter;
+          button.className = `filter${isActive ? " active" : ""}`;
+          button.type = "button";
+          button.dataset.filter = cat.id;
+          button.setAttribute("aria-pressed", String(isActive));
+          button.textContent = cat.label;
+          wrap.append(button);
         });
       }
+
+      function renderProducts(){
+        const list = $("products");
+        list.replaceChildren();
+        currentProducts().filter(p=>activeFilter==="all"||p.category===activeFilter).forEach(p=>{
+          const card = document.createElement("article");card.className="product";
+          const picture = document.createElement("div");picture.className="picture";
+          const img = document.createElement("img");img.src=p.image;img.alt=p.alt;img.loading="lazy";img.referrerPolicy="no-referrer";picture.append(img);
+          const content = document.createElement("div");content.className="content";
+          const h3 = document.createElement("h3");h3.textContent=p.name;
+          const unit = document.createElement("div");unit.className="sub";unit.textContent=`وحدة البيع: ${p.unit}`;
+          const meta = document.createElement("div");meta.className="meta";
+          const category = document.createElement("span");category.textContent=p.categoryLabel;
+          const source = document.createElement("span");source.textContent="صورة حقيقية";
+          meta.append(category,source);
+          const price = document.createElement("div");price.className="price";price.textContent=amount(p.price);
+          const btn = document.createElement("button");btn.className="add";btn.type="button";btn.textContent="إضافة للسلة";btn.setAttribute("aria-label",`أضف ${p.name} للسلة`);
+          btn.addEventListener("click",()=>{cart.set(p.id,(cart.get(p.id)||0)+1);renderCart();});
+          content.append(h3,unit,meta,price,btn);
+          card.append(picture,content);
+          list.append(card);
+        });
+      }
+
       function renderCart(){
-        const count=[...cart.values()].reduce((a,b)=>a+b,0);
+        const products = currentProducts();
+        let count=0,total=0;
+        for(const [id,qty] of cart.entries()){
+          if(products.some(p=>p.id===id)){count+=qty;}
+        }
         $("count").textContent=String(count);
         $("checkout").disabled=count===0;
         const container=$("cart-items");container.replaceChildren();
-        if(!count){const empty=document.createElement("div");empty.className="empty";empty.textContent="السلة لسه فاضية. اختار منتج علشان تبدأ.";container.append(empty);}
-        let total=0;
+        if(!count){const empty=document.createElement("div");empty.className="empty";empty.innerHTML="السلة لسه فاضية.<br>اختار منتج علشان تبدأ.";container.append(empty);$("total").textContent=amount(0);return;}
         products.forEach(p=>{
           const q=cart.get(p.id)||0;if(!q)return;total+=p.price*q;
           const item=document.createElement("div");item.className="item";
-          const detail=document.createElement("div");const strong=document.createElement("strong");strong.textContent=p.name;
-          const small=document.createElement("small");small.textContent=amount(p.price*q);detail.append(strong,small);
+          const detail=document.createElement("div");
+          const strong=document.createElement("strong");strong.textContent=p.name;
+          const small=document.createElement("small");small.textContent=`${amount(p.price*q)} · ${q} ${p.unit}`;
+          detail.append(strong,small);
           const steps=document.createElement("div");steps.className="steps";
-          const minus=document.createElement("button");minus.type="button";minus.textContent="−";minus.setAttribute("aria-label","تقليل "+p.name);
+          const minus=document.createElement("button");minus.type="button";minus.textContent="−";minus.setAttribute("aria-label",`تقليل ${p.name}`);
           minus.addEventListener("click",()=>{if(q===1)cart.delete(p.id);else cart.set(p.id,q-1);renderCart();});
           const qty=document.createElement("b");qty.textContent=String(q);
-          const plus=document.createElement("button");plus.type="button";plus.textContent="+";plus.setAttribute("aria-label","زيادة "+p.name);
+          const plus=document.createElement("button");plus.type="button";plus.textContent="+";plus.setAttribute("aria-label",`زيادة ${p.name}`);
           plus.addEventListener("click",()=>{cart.set(p.id,q+1);renderCart();});
           steps.append(minus,qty,plus);item.append(detail,steps);container.append(item);
         });
         $("total").textContent=amount(total);
       }
+
       function orderMessage(){
-        const lines=["طلب توضيحي — سلة الخير","--------------------"];let sum=0;
-        products.forEach(p=>{const q=cart.get(p.id)||0;if(!q)return;sum+=q*p.price;lines.push(p.name+" — "+q+" "+p.unit+" = "+amount(q*p.price));});
-        lines.push("--------------------","الإجمالي: "+amount(sum),"هذا مثال فقط وليس طلبًا فعليًا.");
+        const preset=currentPreset();
+        const lines=[`طلب توضيحي — ${preset.brand}`,"--------------------"];let sum=0;
+        currentProducts().forEach(p=>{
+          const q=cart.get(p.id)||0;if(!q)return;sum+=q*p.price;lines.push(`${p.name} — ${q} ${p.unit} = ${amount(q*p.price)}`);
+        });
+        lines.push("--------------------",`الإجمالي: ${amount(sum)}`,"هذا مثال فقط وليس طلبًا فعليًا.");
         return lines.join("\n");
       }
+
+      function clearIrrelevantCart(){
+        const allowed = new Set(currentProducts().map(p=>p.id));
+        [...cart.keys()].forEach(id=>{if(!allowed.has(id))cart.delete(id);});
+      }
+
+      function switchPreset(next){
+        if(!presets[next]) return;
+        activePreset = next;
+        activeFilter = "all";
+        clearIrrelevantCart();
+        document.querySelectorAll(".preset").forEach(button=>{
+          const isActive = button.dataset.preset===next;
+          button.classList.toggle("active", isActive);
+          button.setAttribute("aria-pressed", String(isActive));
+        });
+        syncHeader();
+        renderFilters();
+        renderProducts();
+        renderCart();
+      }
+
       function closeDialog(){$("dialog").hidden=true;$("checkout").focus();}
+
+      $("preset-actions").addEventListener("click",e=>{
+        const button=e.target.closest("button[data-preset]");if(!button)return;switchPreset(button.dataset.preset);
+      });
       $("filters").addEventListener("click",e=>{
         const b=e.target.closest("button[data-filter]");if(!b)return;
         activeFilter=b.dataset.filter;
@@ -153,7 +330,8 @@
         try{await navigator.clipboard.writeText(orderMessage());$("copy-status").textContent="اتنسخت الرسالة التوضيحية.";}
         catch{$("copy-status").textContent="النسخ غير متاح في المتصفح؛ يمكنك تحديد النص ونسخه يدويًا.";}
       });
-      renderProducts();renderCart();
+
+      switchPreset("mini");
     })();
   </script>
 </body>
