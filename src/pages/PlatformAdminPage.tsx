@@ -12,6 +12,7 @@ import { downloadText, money, updateNeutralPageMeta } from '../lib/utils';
 import PlatformOperationsPanel from '../components/PlatformOperationsPanel';
 import PlatformBackupManager from '../components/PlatformBackupManager';
 import PlatformDeleteConfirm from '../components/PlatformDeleteConfirm';
+import type { PlatformDeleteResult } from '../lib/platformApi';
 
 const EMPTY_OVERVIEW:PlatformOverview={total_stores:0,active_stores:0,suspended_stores:0,stores_active_7d:0,stores_inactive_30d:0,orders_30d:0,revenue_30d:0,products_total:0,staff_total:0,errors_24h:0,visits_30d:0,storage_bytes:0};
 const EMPTY_SETTINGS:PlatformSettings={base_domain:'',default_trial_days:14,support_session_minutes:30};
@@ -179,10 +180,19 @@ export default function PlatformAdminPage(){
     setDeleteStore(store);
   };
 
-  const afterDeletion=async()=>{
+  const afterDeletion=async(result:PlatformDeleteResult)=>{
     setDeleteStore(null);
     await refresh();
-    setOk('تم حذف المتجر بنجاح بعد التحقق من كود البريد الإلكتروني.');
+    const summary=result.accounts_deleted>0
+      ?' وتم حذف '+result.accounts_deleted+' حساب دخول خاص به.'
+      :' ولم تكن هناك حسابات دخول خاصة به لحذفها.';
+    const shared=result.accounts_protected>0
+      ?' احتفظنا بـ '+result.accounts_protected+' حساب مشترك أو له صلاحيات بالمنصة.':'';
+    if(result.auth_cleanup_incomplete){
+      setError('تم حذف المتجر، لكن تعذر حذف بعض حسابات الدخول. تحتاج مراجعة الحسابات المتبقية بشكل منفصل.');
+      return;
+    }
+    setOk('تم حذف المتجر بنجاح بعد التحقق من الإيميل.'+summary+shared);
   };
 
   const saveSettings=async()=>{
