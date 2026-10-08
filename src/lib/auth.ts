@@ -5,7 +5,7 @@ import { requireTenantId } from './tenant';
 const DEMO_KEY = 'fakahany-demo-admin';
 
 export function validateStrongPassword(password:string){
-  if(password.length<12)throw new Error('كلمة المرور يجب أن تكون 12 حرفًا على الأقل.');
+  if(password.length<8)throw new Error('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
   if(!/[a-z]/.test(password)||!/[A-Z]/.test(password)||!/[0-9]/.test(password)||!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?`~]/.test(password)){
     throw new Error('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم ورمز.');
   }
