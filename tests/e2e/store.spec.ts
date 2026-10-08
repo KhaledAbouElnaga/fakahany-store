@@ -94,6 +94,22 @@ test('self-service signup is neutral and ready for merchants',async({page})=>{
   await expect(page.getByLabel('اسم المتجر')).toBeVisible();
 });
 
+
+test('new account passwords need 8 chars plus uppercase lowercase digit and symbol',async({page})=>{
+  await page.goto('/signup');
+  const pw=page.getByLabel('كلمة المرور',{exact:true});
+  await pw.fill('Abcd12@x');
+  const checklist=page.getByLabel('شروط كلمة المرور');
+  await expect(checklist.locator('.satisfied')).toHaveCount(5);
+
+  await pw.fill('abcdefg1');
+  await expect(checklist.locator('.satisfied')).toHaveCount(2);
+
+  await pw.fill('Ab12@');
+  await expect(checklist.locator('.pending')).toHaveCount(1);
+  await expect(checklist.getByText('8 أحرف على الأقل')).toBeVisible();
+});
+
 test('merchant support center loads from admin',async({page})=>{
   await page.goto('/admin');
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
