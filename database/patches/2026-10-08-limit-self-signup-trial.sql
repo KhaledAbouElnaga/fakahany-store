@@ -89,8 +89,7 @@ begin
 
   return jsonb_build_object('store_id',sid,'slug',slug_value,'name',left(btrim(name_input),120));
 end;
-$function$
-
+$function$;
 
 REVOKE ALL ON FUNCTION public.self_service_create_store(text,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.self_service_create_store(text,text) TO authenticated;
