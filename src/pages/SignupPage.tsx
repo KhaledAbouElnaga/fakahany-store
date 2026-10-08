@@ -82,7 +82,6 @@ export default function SignupPage(){
       </form>
 
       <div className="self-signup-note"><b>بدون دفع أو اشتراك تلقائي</b><span>إنشاء الحساب لا يفعّل أي عملية تحصيل. نموذج البيع يتم تحديده لاحقًا من إدارة المنصة.</span></div>
-      <a className="text-link" href="/platform">دخول إدارة المنصة</a>
     </div>
   </main>;
 }
