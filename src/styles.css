@@ -555,3 +555,13 @@ input,select,textarea{min-height:var(--control-h)}
 .platform-delete-resend:disabled{opacity:.56;cursor:not-allowed}
 .platform-delete-form .error-text{margin:0;font-weight:800}
 @media(max-width:480px){.platform-delete-dialog{padding:17px;gap:13px}.platform-delete-actions{flex-direction:column}.platform-delete-actions .btn{width:100%}}
+
+/* Shared account password policy feedback */
+.password-requirements{display:grid;gap:6px;padding:11px 13px;border:1px solid var(--border);background:#f8fbf9;border-radius:12px;font-size:.81rem;line-height:1.5}
+.password-requirements>span{font-weight:800}
+.password-requirements ul{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px 10px;padding:0;margin:0}
+.password-requirements li{display:flex;gap:6px;align-items:center;min-width:0}
+.password-requirements li>span{font-weight:900;width:16px;flex:0 0 16px;text-align:center}
+.password-requirements li.pending{color:var(--muted)}
+.password-requirements li.satisfied{color:#176735;font-weight:800}
+@media(max-width:490px){.password-requirements ul{grid-template-columns:1fr}}
