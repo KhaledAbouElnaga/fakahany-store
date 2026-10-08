@@ -174,8 +174,17 @@ async function functionsErrorMessage(error:any):Promise<string>{
   return message;
 }
 
-export async function deletePlatformStore(storeId:string,confirmSlug:string,confirmationCode:string):Promise<void>{
-  if(!supabaseConfigured||!supabase)return;
+export type PlatformDeleteResult={
+  ok:boolean;
+  deleted_files:number;
+  accounts_deleted:number;
+  accounts_protected:number;
+  auth_cleanup_incomplete:boolean;
+  auth_cleanup_errors:string[];
+};
+
+export async function deletePlatformStore(storeId:string,confirmSlug:string,confirmationCode:string):Promise<PlatformDeleteResult>{
+  if(!supabaseConfigured||!supabase)throw new Error('حذف المتجر غير متاح بدون الاتصال بقاعدة البيانات.');
   const {data:{session}}=await supabase.auth.getSession();
   if(!session)throw new Error('انتهت جلسة تسجيل الدخول.');
   const {data,error}=await supabase.functions.invoke('platform-delete-store',{
@@ -184,6 +193,7 @@ export async function deletePlatformStore(storeId:string,confirmSlug:string,conf
   });
   if(error)throw new Error(await functionsErrorMessage(error));
   if(data?.error)throw new Error(String(data.error));
+  return data as PlatformDeleteResult;
 }
 
 export function platformStoreUrl(origin:string,store:Pick<PlatformStore,'slug'>,settings:PlatformSettings){
