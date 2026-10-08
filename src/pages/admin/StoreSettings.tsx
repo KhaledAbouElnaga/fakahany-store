@@ -5,6 +5,7 @@ import { downloadText } from '../../lib/utils';
 import type { ShopSettings, StoreSnapshot } from '../../types';
 import { useUnsavedChanges } from '../../lib/unsaved';
 import StoreTransferPanel from './StoreTransferPanel';
+import PasswordRequirements from '../../components/PasswordRequirements';
 
 export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnapshot,refresh:()=>Promise<void>,owner?:boolean}){
   const [s,setS]=useState<ShopSettings>(structuredClone(data.settings));
@@ -207,11 +208,11 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
       {mfaEnroll&&<div className="mfa-enroll-box"><p><b>1.</b> امسح QR Code بتطبيق Google Authenticator أو Microsoft Authenticator.</p><img src={mfaEnroll.qrCode} alt="QR Code لتفعيل التحقق بخطوتين"/><details><summary>إدخال المفتاح يدويًا</summary><code dir="ltr">{mfaEnroll.secret}</code></details><label>رمز التحقق<input inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={mfaCode} onChange={e=>setMfaCode(e.target.value.replace(/\D/g,'').slice(0,6))}/></label><div className="page-actions"><button className="btn secondary" onClick={()=>{setMfaEnroll(null);setMfaCode('')}}>إلغاء</button><button className="btn" disabled={busy||mfaCode.length!==6} onClick={()=>void confirmMfa()}>تأكيد التفعيل</button></div></div>}
     </section>}
 
-    <section className="panel"><h3>حساب المدير</h3><p className="muted">الحساب الحالي: {email||'—'}</p><p className="muted">كلمة المرور الجديدة يجب أن تكون 12 حرفًا على الأقل وتحتوي على حرف كبير وصغير ورقم ورمز.</p><div className="form-grid">
+    <section className="panel"><h3>حساب المدير</h3><p className="muted">الحساب الحالي: {email||'—'}</p><p className="muted">كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل، وتشمل حرفًا كبيرًا وحرفًا صغيرًا ورقمًا ورمزًا مثل @.</p><div className="form-grid">
       <label>كلمة المرور الحالية<input type="password" autoComplete="current-password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/></label>
-      <label>كلمة مرور جديدة<input type="password" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="12 حرفًا على الأقل"/></label>
+      <label>كلمة مرور جديدة<input type="password" autoComplete="new-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="8 أحرف على الأقل"/></label>
       <label>تأكيد كلمة المرور<input type="password" autoComplete="new-password" value={password2} onChange={e=>setPassword2(e.target.value)}/></label>
-    </div><div className="account-security-actions"><button className="btn secondary" disabled={!currentPassword||!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button><button className="btn secondary" onClick={()=>void endOtherSessions()}>إنهاء الجلسات الأخرى</button></div><p className="muted">لو الحساب مفتوح على جهاز قديم أو غير معروف، استخدم «إنهاء الجلسات الأخرى» بدون التأثير على جلستك الحالية.</p></section>
+    </div><PasswordRequirements password={password}/><div className="account-security-actions"><button className="btn secondary" disabled={!currentPassword||!password} onClick={()=>void changePassword()}>تغيير كلمة المرور</button><button className="btn secondary" onClick={()=>void endOtherSessions()}>إنهاء الجلسات الأخرى</button></div><p className="muted">لو الحساب مفتوح على جهاز قديم أو غير معروف، استخدم «إنهاء الجلسات الأخرى» بدون التأثير على جلستك الحالية.</p></section>
 
     {ok&&<p className={ok.includes('بنجاح')?'success-text':'error-text'}>{ok}</p>}
     <button className="btn save-all" disabled={busy} onClick={()=>void save()}>{busy?'جاري الحفظ...':'حفظ كل الإعدادات'}</button>
