@@ -83,7 +83,10 @@ test('platform owner console requires explicit login and stays tenant-neutral',a
   await page.getByRole('button',{name:'دخول'}).click();
 
   await expect(page.getByRole('heading',{name:'لوحة المنصة'})).toBeVisible();
-  await expect(page.getByText('إدارة العملاء، الباقات، الاشتراكات، الدعم والاستخدام من مكان واحد.')).toBeVisible();
+  await expect(page.getByText('إدارة المتاجر والمستخدمين وإمكانيات كل متجر والدعم الفني. لا توجد اشتراكات أو دفعات تلقائية.')).toBeVisible();
+  await expect(page.getByText('هذه المستويات تحدد المميزات وحدود الاستخدام فقط، ولا تمثل أسعارًا أو اشتراكات أو دفعات.')).toBeVisible();
+  await expect(page.getByLabel('مستوى إمكانيات المتجر')).toBeVisible();
+  await expect(page.getByRole('button',{name:/الاشتراك:/})).toHaveCount(0);
   await expect(page.getByRole('heading',{name:'إضافة متجر جديد'})).toBeVisible();
 });
 
