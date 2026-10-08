@@ -1,4 +1,5 @@
 import { supabase, supabaseConfigured } from './supabase';
+import { validateStrongPassword } from './passwordPolicy';
 
 export type PendingSignup={name:string;slug:string};
 
@@ -21,6 +22,7 @@ export function clearPendingSignup(){
 }
 
 export async function signUpStoreOwner(email:string,password:string,pending:PendingSignup){
+  validateStrongPassword(password);
   if(!supabaseConfigured||!supabase)throw new Error('التسجيل يحتاج اتصال Supabase.');
   savePendingSignup(pending);
   const {data,error}=await supabase.auth.signUp({
