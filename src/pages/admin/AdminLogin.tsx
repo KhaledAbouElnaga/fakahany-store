@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminExists, claimFirstAdminAfterLogin, createFirstAdmin, joinStaffWithInvite, mfaChallengeNeeded, signInAdmin, verifyMfaLogin } from '../../lib/auth';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
 import { updateNeutralPageMeta } from '../../lib/utils';
+import PasswordRequirements from '../../components/PasswordRequirements';
 
 export default function AdminLogin({ onDone }: { onDone: () => void }) {
   const [exists,setExists]=useState<boolean|null>(null);
@@ -53,7 +54,8 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
     <h1>{exists===false?'إنشاء أول مدير':joinMode?'انضمام بدعوة':'دخول الإدارة'}</h1>
     {joinMode&&<label>اسم الموظف<input value={displayName} onChange={e=>setDisplayName(e.target.value)}/></label>}
     <label>البريد الإلكتروني<input type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label>
-    <label>كلمة المرور<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
+    <label>كلمة المرور<input type="password" autoComplete={joinMode||exists===false?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)}/></label>
+    {(joinMode||exists===false)&&<><PasswordRequirements password={password}/>{joinMode&&<p className="muted">الشروط دي للحساب الجديد فقط. لو عندك حساب بالفعل، سجل بنفس كلمة مرورك الحالية.</p>}</>}
     {joinMode&&<label>كود الدعوة<input value={inviteCode} onChange={e=>setInviteCode(e.target.value)} placeholder="الكود الذي أرسله لك المالك"/></label>}
     {msg&&<p className="info-box">{msg}</p>}
     {exists===false?<><button className="btn" disabled={busy} onClick={()=>run(()=>createFirstAdmin(email,password))}>إنشاء أول مدير</button><button className="btn secondary" disabled={busy} onClick={()=>run(async()=>{if(!supabase)throw new Error('Supabase غير متصل');const r=await supabase.auth.signInWithPassword({email,password});if(r.error)throw r.error;await claimFirstAdminAfterLogin();})}>فعّلت البريد بالفعل — اجعلني المدير الأول</button></>:joinMode?<><button className="btn" disabled={busy} onClick={()=>run(()=>joinStaffWithInvite(email,password,inviteCode,displayName))}>إنشاء أو ربط الحساب</button><button className="btn secondary" disabled={busy} onClick={()=>{setJoinMode(false);setMsg('')}}>العودة لتسجيل الدخول</button></>:<><button className="btn" disabled={busy} onClick={()=>void login()}>دخول</button><button className="btn secondary" disabled={busy} onClick={()=>{setJoinMode(true);setMsg('')}}>لدي كود دعوة</button></>}
