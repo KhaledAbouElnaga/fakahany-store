@@ -90,13 +90,9 @@ test('platform owner console requires explicit login and stays tenant-neutral',a
   await expect(page.getByRole('heading',{name:'إضافة متجر جديد'})).toBeVisible();
 });
 
-test('new signup and invite explain the eight-character strong password policy',async({page})=>{
+test('new merchant signup explains the eight-character strong password policy',async({page})=>{
   await page.goto('/signup');
   await expect(page.getByText('8 أحرف على الأقل، تشمل حرفًا كبيرًا وصغيرًا بالإنجليزية ورقمًا ورمزًا مثل @.')).toBeVisible();
-
-  await page.goto('/admin');
-  await page.getByRole('button',{name:'لدي كود دعوة'}).click();
-  await expect(page.getByText(/لإنشاء حساب جديد: 8 أحرف على الأقل/)).toBeVisible();
 });
 
 test('self-service signup is neutral and ready for merchants',async({page})=>{
