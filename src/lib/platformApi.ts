@@ -184,7 +184,7 @@ export type PlatformDeleteResult={
 };
 
 export async function deletePlatformStore(storeId:string,confirmSlug:string,confirmationCode:string):Promise<PlatformDeleteResult>{
-  if(!supabaseConfigured||!supabase)return;
+  if(!supabaseConfigured||!supabase)throw new Error('حذف المتجر غير متاح بدون الاتصال بقاعدة البيانات.');
   const {data:{session}}=await supabase.auth.getSession();
   if(!session)throw new Error('انتهت جلسة تسجيل الدخول.');
   const {data,error}=await supabase.functions.invoke('platform-delete-store',{
