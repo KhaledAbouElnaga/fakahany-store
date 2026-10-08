@@ -27,6 +27,7 @@ export default function PlatformDeleteConfirm({
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState('');
   const [sentAt,setSentAt]=useState<number|null>(null);
+  const [usingExistingCode,setUsingExistingCode]=useState(false);
   const [now,setNow]=useState(Date.now());
 
   useEffect(()=>{
@@ -37,7 +38,7 @@ export default function PlatformDeleteConfirm({
 
   const secondsSinceSent=sentAt===null?0:Math.floor((now-sentAt)/1000);
   const resendWait=Math.max(0,60-secondsSinceSent);
-  const expiresIn=Math.max(0,600-secondsSinceSent);
+  const expiresIn=usingExistingCode?null:Math.max(0,600-secondsSinceSent);
   const exactSlug=slug.trim()===store.slug;
   const validCode=/^[0-9]{6,8}$/.test(otp);
 
@@ -48,12 +49,16 @@ export default function PlatformDeleteConfirm({
       const result=await requestPlatformDeleteCode();
       setEmail(result.email);
       setOtp('');
+      setUsingExistingCode(false);
       setSentAt(Date.now());
       setNow(Date.now());
       setPhase('verify');
     }catch(e:any){
       const message=String(e?.message||'تعذر إرسال الكود.');
-      setError(message.includes('rate limit')||message.includes('429')?'يرجى الانتظار قليلًا قبل طلب كود جديد.':message);
+      const limited=e?.status===429||e?.code==='over_email_send_rate_limit'||/rate.?limit|429/i.test(message);
+      setError(limited
+        ?'وصلت المنصة للحد الأقصى لإرسال الإيميلات في Supabase (الخدمة الافتراضية ترسل حتى رسالتين في الساعة للمشروع كله). لا تحاول الإرسال بشكل متكرر؛ انتظر تجدد الحصة أو اربط خدمة SMTP مخصصة. لو عندك كود حديث، استخدم «لدي كود بالفعل» بدون إرسال جديد.'
+        :message);
     }finally{setBusy(false)}
   };
 
@@ -93,10 +98,18 @@ export default function PlatformDeleteConfirm({
           <button type="button" className="btn secondary" disabled={busy} onClick={onClose}>إلغاء</button>
           <button type="submit" className="btn danger-action" disabled={busy||!exactSlug}>{busy?'جاري إرسال الكود...':'إرسال كود التأكيد للإيميل'}</button>
         </div>
+        <button type="button" className="platform-delete-resend" disabled={busy||!exactSlug} onClick={()=>{
+          setUsingExistingCode(true);
+          setSentAt(null);
+          setOtp('');
+          setEmail('');
+          setError('');
+          setPhase('verify');
+        }}>لدي كود بالفعل — إدخاله بدون إرسال جديد</button>
       </form>:<form onSubmit={submit} className="platform-delete-form">
         <div className="platform-delete-email">
-          <strong>تم طلب كود تأكيد على بريد إدارة المنصة</strong>
-          <span dir="ltr">{email}</span>
+          <strong>{usingExistingCode?'إدخال كود التأكيد الموجود':'تم طلب كود تأكيد على بريد إدارة المنصة'}</strong>
+          {email&&<span dir="ltr">{email}</span>}
           <small>اكتب الكود كما ورد في الرسالة. قد يتكون من 6 أو 8 أرقام.</small>
         </div>
         <label htmlFor="delete-email-otp">كود تأكيد الحذف</label>
@@ -116,7 +129,11 @@ export default function PlatformDeleteConfirm({
           aria-describedby="delete-otp-expiry"
         />
         <p id="delete-otp-expiry" className="muted platform-delete-expiry">
-          {expiresIn>0?'تنتهي صلاحية الكود خلال '+Math.floor(expiresIn/60)+':'+String(expiresIn%60).padStart(2,'0')+' دقيقة.':'انتهت صلاحية الكود. اطلب كودًا جديدًا.'}
+          {usingExistingCode
+            ?'الكود صالح لمدة 10 دقائق من وقت إرسال الإيميل، وسيتم فحص صلاحيته على السيرفر قبل أي حذف.'
+            :expiresIn!==null&&expiresIn>0
+              ?'تنتهي صلاحية الكود خلال '+Math.floor(expiresIn/60)+':'+String(expiresIn%60).padStart(2,'0')+' دقيقة.'
+              :'انتهت صلاحية الكود. اطلب كودًا جديدًا.'}
         </p>
         {error&&<p className="error-text" role="alert">{error}</p>}
         <div className="platform-delete-actions">
