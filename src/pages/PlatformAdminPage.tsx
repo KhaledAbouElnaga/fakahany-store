@@ -113,6 +113,13 @@ export default function PlatformAdminPage(){
     if(!status||!['trial','active','past_due','paused'].includes(status))return;
     const paid=window.prompt('مدفوع حتى (YYYY-MM-DD) أو اتركه فارغًا',store.paid_until?.slice(0,10)||'');
     if(paid===null)return;
+    if(status==='active'){
+      const expiry=/^\d{4}-\d{2}-\d{2}$/.test(paid)?new Date(paid+'T23:59:59'):null;
+      if(!expiry||!Number.isFinite(expiry.getTime())||expiry.getTime()<=Date.now()){
+        setError('لتفعيل اشتراك نشط، حدد تاريخ سداد مستقبلي صحيح (YYYY-MM-DD).');
+        return;
+      }
+    }
     const note=window.prompt('ملاحظة مالية اختيارية',store.billing_note||'')??'';
     setBusy(true);setError('');setOk('');
     try{
