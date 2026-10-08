@@ -121,9 +121,29 @@ export async function setPlatformSubscription(storeId:string,status:'trial'|'act
 
 export async function startPlatformSupport(storeId:string):Promise<PlatformSupportStatus>{
   if(!supabaseConfigured||!supabase)return {active:true,store_id:storeId,expires_at:new Date(Date.now()+30*60000).toISOString()};
+
+  // Do not send an anonymous RPC when an old platform tab has lost its Auth
+  // session. Otherwise PostgREST reports a misleading function permission error.
+  const {data:{session},error:sessionError}=await supabase.auth.getSession();
+  if(sessionError||!session)throw new Error('انتهت جلسة إدارة المنصة. سجّل الدخول مجددًا ثم اضغط «دخول دعم».');
+  const {data:{user},error:userError}=await supabase.auth.getUser();
+  if(userError||!user||user.id!==session.user.id){
+    throw new Error('تعذر التحقق من جلسة إدارة المنصة. سجّل الدخول مجددًا.');
+  }
+  const {data:allowed,error:permissionError}=await supabase.rpc('is_platform_admin');
+  if(permissionError||allowed!==true)throw new Error('حسابك لا يملك صلاحية دخول دعم المنصة. أعد تسجيل الدخول بحساب مدير المنصة.');
+
   const {data,error}=await supabase.rpc('platform_start_support',{store_id_input:storeId});
-  if(error)throw error;
-  return {active:true,...(data as any)} as PlatformSupportStatus;
+  if(error){
+    if(error.code==='42501'||error.code==='PGRST301'){
+      throw new Error('تعذر بدء الدعم بسبب صلاحيات جلسة الدخول. أعد تسجيل الدخول إلى المنصة، ثم حاول مرة أخرى.');
+    }
+    throw error;
+  }
+  if(!data||data.store_id!==storeId||!data.expires_at){
+    throw new Error('لم يتم تأكيد بدء جلسة الدعم. لم نفتح لوحة المتجر.');
+  }
+  return {active:true,...data} as PlatformSupportStatus;
 }
 
 export async function endPlatformSupport():Promise<void>{
