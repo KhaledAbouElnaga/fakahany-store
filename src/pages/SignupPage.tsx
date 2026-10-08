@@ -2,6 +2,8 @@ import { FormEvent, useEffect, useState } from 'react';
 import { finalizeSelfServiceStore, loadPendingSignup, signUpStoreOwner } from '../lib/signupApi';
 import { supabase } from '../lib/supabase';
 import { updateNeutralPageMeta } from '../lib/utils';
+import PasswordRequirements from '../components/PasswordRequirements';
+import { validateStrongPassword } from '../lib/passwordPolicy';
 
 export default function SignupPage(){
   const [form,setForm]=useState({name:'',slug:'',email:'',password:''});
@@ -48,7 +50,7 @@ export default function SignupPage(){
     const slug=form.slug.trim().toLowerCase();
     if(name.length<2){setBusy(false);return setError('اكتب اسم المتجر.')}
     if(!/^[a-z0-9][a-z0-9-]{2,39}$/.test(slug)){setBusy(false);return setError('Store Slug يجب أن يكون 3–40 حرفًا إنجليزيًا أو رقمًا ويمكن استخدام -.');}
-    if(form.password.length<8){setBusy(false);return setError('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');}
+    try{validateStrongPassword(form.password)}catch(e:any){setBusy(false);return setError(e?.message||'كلمة المرور غير مستوفية للشروط.');}
 
     try{
       const data=await signUpStoreOwner(form.email,form.password,{name,slug});
@@ -78,6 +80,7 @@ export default function SignupPage(){
         <small className="muted">ده الجزء المميز من رابط متجرك، ويمكن تغييره قبل إنشاء الحساب فقط.</small>
         <label>البريد الإلكتروني<input required type="email" dir="ltr" autoComplete="email" value={form.email} onChange={e=>setForm(v=>({...v,email:e.target.value}))} placeholder="owner@example.com"/></label>
         <label>كلمة المرور<input required type="password" minLength={8} autoComplete="new-password" value={form.password} onChange={e=>setForm(v=>({...v,password:e.target.value}))}/></label>
+        <PasswordRequirements password={form.password}/>
         <button className="btn" disabled={busy||completing}>{busy||completing?'جاري التجهيز...':'إنشاء الحساب والمتجر'}</button>
       </form>
 
