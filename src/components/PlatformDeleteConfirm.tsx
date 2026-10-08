@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from 'react';
 import type { PlatformStore } from '../types';
 import { deletePlatformStore, requestPlatformDeleteCode } from '../lib/platformApi';
+import type { PlatformDeleteResult } from '../lib/platformApi';
 
 type Phase='confirm'|'verify';
 
@@ -17,7 +18,7 @@ export default function PlatformDeleteConfirm({
 }:{
   store:PlatformStore;
   onClose:()=>void;
-  onDeleted:()=>Promise<void>;
+  onDeleted:(result:PlatformDeleteResult)=>Promise<void>;
 }){
   const [phase,setPhase]=useState<Phase>('confirm');
   const [slug,setSlug]=useState('');
@@ -63,9 +64,9 @@ export default function PlatformDeleteConfirm({
     if(expiresIn===0)return setError('انتهت صلاحية الكود. اطلب كودًا جديدًا.');
     setBusy(true);setError('');
     try{
-      await deletePlatformStore(store.id,store.slug,otp);
+      const result=await deletePlatformStore(store.id,store.slug,otp);
       setOtp('');
-      await onDeleted();
+      await onDeleted(result);
     }catch(e:any){
       setError(e?.message||'تعذر حذف المتجر. لم يتم تأكيد نجاح الحذف.');
     }finally{setBusy(false)}
@@ -82,7 +83,7 @@ export default function PlatformDeleteConfirm({
       </div>
       <div className="platform-delete-warning">
         <strong>تحذير: عملية نهائية لا يمكن التراجع عنها.</strong>
-        سيتم عمل نسخة احتياطية قبل حذف بيانات المتجر وملفاته. لا يتأثر أي متجر آخر.
+        سيتم عمل نسخة احتياطية ثم حذف بيانات المتجر وحسابات الدخول الخاصة به، ما لم تكن هذه الحسابات مرتبطة بمتاجر أخرى أو بإدارة المنصة. لا يتأثر أي متجر آخر.
       </div>
       {phase==='confirm'?<form onSubmit={e=>{e.preventDefault();void requestCode()}} className="platform-delete-form">
         <label htmlFor="delete-store-slug">للتأكيد، اكتب رمز المتجر التالي: <code dir="ltr">{store.slug}</code></label>
