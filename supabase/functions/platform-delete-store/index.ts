@@ -67,6 +67,20 @@ Deno.serve(async req=>{
     return json({error:"تعذر إنشاء النسخة الاحتياطية قبل الحذف: "+backup.error.message},500);
   }
 
+  // Collect account candidates only AFTER backup is complete. IDs stay internal.
+  // Platform-admin and shared accounts are excluded by the DB function.
+  const candidatesResponse=await userClient.rpc("platform_store_auth_cleanup_candidates",{
+    store_id_input:storeId
+  });
+  if(candidatesResponse.error){
+    console.error("account cleanup preflight failed",candidatesResponse.error.message);
+    return json({error:"تعذر التحقق من حسابات المتجر قبل حذفه: "+candidatesResponse.error.message},500);
+  }
+  const candidates=candidatesResponse.data||{};
+  const userIds=Array.isArray(candidates.delete_user_ids)
+    ?candidates.delete_user_ids.filter((id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f-]{36}$/i.test(id))
+    :[];
+
   let deletedFiles=0;
   try{
     const files=await listFiles(adminClient,"store-images",storeId);
@@ -81,20 +95,6 @@ Deno.serve(async req=>{
     console.error("storage cleanup failed",message);
     return json({error:"تعذر تنظيف ملفات المتجر: "+message},500);
   }
-
-  // Collect account candidates only AFTER backup is complete. IDs stay internal.
-  // Platform-admin and shared accounts are excluded by the DB function.
-  const candidatesResponse=await userClient.rpc("platform_store_auth_cleanup_candidates",{
-    store_id_input:storeId
-  });
-  if(candidatesResponse.error){
-    console.error("account cleanup preflight failed",candidatesResponse.error.message);
-    return json({error:"تعذر التحقق من حسابات المتجر قبل حذفه: "+candidatesResponse.error.message},500);
-  }
-  const candidates=candidatesResponse.data||{};
-  const userIds=Array.isArray(candidates.delete_user_ids)
-    ?candidates.delete_user_ids.filter((id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f-]{36}$/i.test(id))
-    :[];
 
   const removed=await userClient.rpc("platform_delete_store_record",{store_id_input:storeId,confirm_slug_input:confirmSlug});
   if(removed.error){
