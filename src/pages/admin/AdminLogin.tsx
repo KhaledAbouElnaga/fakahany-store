@@ -83,7 +83,7 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
 
   return <div className="admin-login"><div className="login-card">
     <h1>{exists===false?'إنشاء أول مدير':joinMode?'انضمام بدعوة':'دخول الإدارة'}</h1>
-    {joinMode&&<label>اسم الموظف<input value={displayName} onChange={e=>setDisplayName(e.target.value)}/></label>}
+    {joinMode&&<label>اسم صاحب الحساب (المالك أو الموظف)<input value={displayName} onChange={e=>setDisplayName(e.target.value)} placeholder="اكتب اسمك وليس رابط المتجر"/></label>}
     <label>البريد الإلكتروني<input type="email" value={email} onChange={e=>setEmail(e.target.value)}/></label>
     <label>كلمة المرور<input type="password" value={password} onChange={e=>setPassword(e.target.value)}/></label>
     {(joinMode||exists===false)&&<small className="muted">لإنشاء حساب جديد: 8 أحرف على الأقل، منها حرف إنجليزي كبير وصغير، ورقم، ورمز خاص مثل @. الحساب الموجود بالفعل يسجل دخوله بكلمة مروره الحالية.</small>}
