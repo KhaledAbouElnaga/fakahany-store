@@ -572,3 +572,18 @@ input,select,textarea{min-height:var(--control-h)}
 .platform-plan-inline>b{color:var(--text);font-size:.83rem}
 .platform-plan-row{align-items:center}
 @media(max-width:700px){.platform-plan-explainer{grid-template-columns:1fr}.platform-plan-row{grid-template-columns:1fr}}
+
+
+/* Password-confirmed deletion of individual platform backups */
+.platform-backup-row-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.platform-backup-delete-btn{background:#b42318!important;border:1px solid #b42318!important;color:#fff!important}
+.platform-backup-delete-btn:hover:not(:disabled){background:#8e1b12!important}
+.platform-backup-delete-confirm{display:grid;gap:10px;padding:15px;border:1px solid #edaaa5;border-radius:14px;background:#fff7f5}
+.platform-backup-delete-heading{display:grid;gap:7px}
+.platform-backup-delete-heading h3{margin:0;color:#94231d;font-size:1.03rem}
+.platform-backup-delete-heading p{margin:0;line-height:1.6;font-size:.86rem}
+.platform-backup-delete-confirm label{font-size:.85rem;font-weight:800}
+.platform-backup-delete-confirm input{width:100%;min-height:45px;padding:10px 12px;border:1px solid #d6deda;border-radius:10px;background:#fff;font:inherit}
+.platform-backup-delete-confirm input:focus-visible{outline:2px solid #b42318;outline-offset:2px}
+.platform-backup-delete-actions{display:flex;flex-wrap:wrap;gap:8px}
+@media(max-width:700px){.platform-backup-row-actions{justify-content:stretch;width:100%}.platform-backup-row-actions .btn{flex:1}.platform-backup-delete-actions{flex-direction:column}.platform-backup-delete-actions .btn{width:100%}}
