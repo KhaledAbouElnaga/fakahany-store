@@ -82,11 +82,59 @@ Deno.serve(async req=>{
     return json({error:"تعذر تنظيف ملفات المتجر: "+message},500);
   }
 
+  // Collect account candidates only AFTER backup is complete. IDs stay internal.
+  // Platform-admin and shared accounts are excluded by the DB function.
+  const candidatesResponse=await userClient.rpc("platform_store_auth_cleanup_candidates",{
+    store_id_input:storeId
+  });
+  if(candidatesResponse.error){
+    console.error("account cleanup preflight failed",candidatesResponse.error.message);
+    return json({error:"تعذر التحقق من حسابات المتجر قبل حذفه: "+candidatesResponse.error.message},500);
+  }
+  const candidates=candidatesResponse.data||{};
+  const userIds=Array.isArray(candidates.delete_user_ids)
+    ?candidates.delete_user_ids.filter((id:unknown):id is string=>typeof id==="string"&&/^[0-9a-f-]{36}$/i.test(id))
+    :[];
+
   const removed=await userClient.rpc("platform_delete_store_record",{store_id_input:storeId,confirm_slug_input:confirmSlug});
   if(removed.error){
     console.error("store record delete failed",removed.error.message);
     return json({error:removed.error.message},400);
   }
 
-  return json({ok:true,deleted_files:deletedFiles});
+  // Deleting auth users has to go through Supabase Auth Admin, not a SQL DELETE.
+  // Re-check after store removal to avoid deleting an account reused elsewhere.
+  let accountsDeleted=0;
+  let accountsProtected=Number(candidates.protected_count||0);
+  const cleanupErrors:string[]=[];
+  for(const userId of userIds){
+    const allowed=await userClient.rpc("platform_auth_user_safe_to_delete",{user_id_input:userId});
+    if(allowed.error){
+      console.error("auth recheck failed",allowed.error.message);
+      cleanupErrors.push("تعذر التحقق من أحد الحسابات");
+      continue;
+    }
+    if(allowed.data!==true){
+      accountsProtected++;
+      continue;
+    }
+    const deletion=await adminClient.auth.admin.deleteUser(userId);
+    if(deletion.error){
+      console.error("auth user deletion failed",deletion.error.message);
+      cleanupErrors.push("تعذر حذف أحد حسابات الدخول");
+      continue;
+    }
+    accountsDeleted++;
+  }
+
+  // Store deletion is complete at this point even if Auth cleanup needs follow-up.
+  // Never report the whole operation as failed and trigger a confusing retry.
+  return json({
+    ok:true,
+    deleted_files:deletedFiles,
+    accounts_deleted:accountsDeleted,
+    accounts_protected:accountsProtected,
+    auth_cleanup_incomplete:cleanupErrors.length>0,
+    auth_cleanup_errors:cleanupErrors
+  });
 });
