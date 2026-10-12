@@ -66,7 +66,7 @@ test('real glass banner stays translucent and font controls save per store',asyn
   await expect(glassSlider).toBeVisible();
   const oldHeading=Number(await headingSlider.inputValue());
   await headingSlider.focus();
-  await headingSlider.press('ArrowRight');
+  await headingSlider.press('ArrowLeft'); // RTL range: left arrow increases the value
   await expect(headingSlider).toHaveValue(String(oldHeading+1));
   await expect(page.locator('.hero-appearance-preview .hero-glass h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
 
