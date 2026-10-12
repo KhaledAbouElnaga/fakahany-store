@@ -81,8 +81,12 @@ export default function Storefront() {
     <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
     <a className="skip-link" href="#store-main">تخطي إلى المحتوى</a>
     <main className="container storefront" id="store-main" tabIndex={-1}>
-      <section className="hero" style={settings.banner_url ? { backgroundImage: `linear-gradient(90deg,rgba(0,0,0,.08),rgba(0,0,0,.6)),url(${settings.banner_url})` } : undefined}>
-        <div><h1>{settings.hero_title}</h1><p>{settings.hero_subtitle}</p>{settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}</div>
+      <section className="hero" style={settings.banner_url ? { backgroundImage: `url(${settings.banner_url})` } : undefined}>
+        <div className="hero-glass">
+          <h1>{settings.hero_title}</h1>
+          {settings.hero_subtitle&&<p>{settings.hero_subtitle}</p>}
+          {settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}
+        </div>
       </section>
 
       <div className="store-action-row" aria-label="إجراءات المتجر">

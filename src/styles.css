@@ -587,3 +587,94 @@ input,select,textarea{min-height:var(--control-h)}
 .platform-backup-delete-confirm input:focus-visible{outline:2px solid #b42318;outline-offset:2px}
 .platform-backup-delete-actions{display:flex;flex-wrap:wrap;gap:8px}
 @media(max-width:700px){.platform-backup-row-actions{justify-content:stretch;width:100%}.platform-backup-row-actions .btn{flex:1}.platform-backup-delete-actions{flex-direction:column}.platform-backup-delete-actions .btn{width:100%}}
+
+
+/* Store banner: preserve the uploaded artwork and its central branding.
+   Copy stays inside a compact, legible, iOS-inspired frosted panel. */
+.storefront .hero{
+  min-height:270px;
+  padding:clamp(16px,2.2vw,28px);
+  justify-content:flex-start;
+  background-size:cover;
+  background-position:center;
+}
+.storefront .hero .hero-glass{
+  box-sizing:border-box;
+  width:min(31%,390px);
+  max-width:none;
+  margin-inline:0;
+  padding:clamp(16px,1.8vw,24px);
+  border:1px solid rgba(255,255,255,.82);
+  border-radius:20px;
+  background:rgba(251,253,252,.77);
+  -webkit-backdrop-filter:blur(17px) saturate(145%);
+  backdrop-filter:blur(17px) saturate(145%);
+  box-shadow:0 12px 34px rgba(7,32,25,.12),inset 0 1px 0 rgba(255,255,255,.66);
+  color:#173629;
+  text-align:right;
+  overflow-wrap:anywhere;
+}
+.storefront .hero .hero-glass h1{
+  margin:0 0 9px;
+  font-size:clamp(1.22rem,1.9vw,1.7rem);
+  font-weight:800;
+  line-height:1.5;
+  letter-spacing:-.02em;
+  text-wrap:balance;
+  color:#142f26;
+}
+.storefront .hero .hero-glass p{
+  margin:0;
+  font-size:clamp(.82rem,1.05vw,.97rem);
+  font-weight:500;
+  line-height:1.8;
+  color:#345247;
+  text-wrap:pretty;
+}
+.storefront .hero .hero-glass .hero-welcome{
+  margin-top:12px;
+  max-width:100%;
+  padding:5px 11px;
+  background:rgba(241,248,244,.9);
+  color:#265744;
+  border:1px solid rgba(35,103,70,.17);
+  border-radius:999px;
+  font-size:.76rem;
+  line-height:1.6;
+  white-space:normal;
+}
+@media(max-width:1000px) and (min-width:701px){
+  .storefront .hero .hero-glass{width:min(42%,350px)}
+  .storefront .hero .hero-glass h1{font-size:clamp(1.14rem,2.45vw,1.5rem)}
+}
+@media(max-width:700px){
+  .storefront .hero{
+    min-height:315px;
+    padding:13px;
+    align-items:flex-end;
+    background-position:center;
+    border-radius:19px;
+  }
+  .storefront .hero .hero-glass{
+    width:min(100%,420px);
+    padding:13px 15px;
+    border-radius:16px;
+    background:rgba(251,253,252,.82);
+    -webkit-backdrop-filter:blur(15px) saturate(140%);
+    backdrop-filter:blur(15px) saturate(140%);
+  }
+  .storefront .hero .hero-glass h1{
+    font-size:clamp(1.04rem,4.5vw,1.38rem);
+    line-height:1.45;
+    margin-bottom:5px;
+  }
+  .storefront .hero .hero-glass p{font-size:.82rem;line-height:1.65}
+  .storefront .hero .hero-glass .hero-welcome{
+    margin-top:8px;
+    font-size:.7rem;
+    padding:4px 9px;
+  }
+}
+@media(prefers-reduced-transparency:reduce){
+  .storefront .hero .hero-glass{background:rgba(251,253,252,.94)}
+}
