@@ -45,6 +45,13 @@ export interface Product {
 
 export type StoreStatusMode = 'auto' | 'open' | 'closed';
 
+export interface BannerDisplaySettings {
+  fit: 'full'|'contain'|'cover';
+  ratio: '5/1'|'4/1'|'3/1'|'16/9';
+  position_x: number;
+  position_y: number;
+}
+
 export interface HeroCopyStyle {
   background_mode: 'solid'|'translucent'|'glass'|'none';
   background_color: string;
@@ -64,6 +71,7 @@ export interface ShopSettings {
   site_name: string;
   logo_url: string;
   banner_url: string;
+  banner_display: BannerDisplaySettings;
   share_image_url: string;
   site_description: string;
   hero_title: string;

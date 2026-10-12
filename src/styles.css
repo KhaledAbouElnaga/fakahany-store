@@ -591,15 +591,6 @@ input,select,textarea{min-height:var(--control-h)}
 
 /* Storefront hero: show the uploaded banner artwork unobstructed.
    Title, subtitle and welcome message belong to a separate panel below. */
-.storefront .hero{
-  display:block;
-  height:clamp(195px,22vw,280px);
-  min-height:0;
-  padding:0;
-  border-radius:22px;
-  background-size:cover;
-  background-position:center;
-}
 .storefront .hero-copy,
 .hero-appearance-preview .hero-copy{
   box-sizing:border-box;
@@ -651,11 +642,6 @@ input,select,textarea{min-height:var(--control-h)}
   white-space:normal;
 }
 @media(max-width:700px){
-  .storefront .hero{
-    height:clamp(175px,50vw,235px);
-    border-radius:18px;
-    background-position:center;
-  }
   .storefront .hero-copy,
   .hero-appearance-preview .hero-copy{
     margin-top:10px;
@@ -694,17 +680,8 @@ input,select,textarea{min-height:var(--control-h)}
 .hero-appearance-control input[type=range]{width:100%;padding:0;accent-color:var(--green)}
 .hero-appearance-control small{font-size:.73rem;line-height:1.5}
 .hero-appearance-preview{display:block;box-sizing:border-box;min-width:0}
-.hero-appearance-banner{
-  display:block;
-  height:clamp(150px,22vw,255px);
-  border-radius:17px;
-  background:linear-gradient(135deg,var(--green),var(--green2));
-  background-size:cover;
-  background-position:center;
-}
 @media(max-width:820px){.hero-appearance-sliders{grid-template-columns:1fr}}
 @media(max-width:700px){
-  .hero-appearance-banner{height:clamp(165px,50vw,220px);border-radius:15px}
 }
 
 /* Merchant-controlled text card; glass lives BELOW the banner, never over it. */
@@ -754,4 +731,79 @@ input,select,textarea{min-height:var(--control-h)}
   .hero-style-grid{grid-template-columns:1fr}
   .hero-presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .hero-preset{padding:10px 7px}
+}
+
+/* One banner image renderer shared by the live storefront and both previews.
+   Using a real img rather than background-size:cover prevents hidden cropping. */
+.store-banner{
+  position:relative;
+  display:block;
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+  border-radius:22px;
+  background:var(--pale);
+}
+.store-banner img{display:block;width:100%}
+.store-banner[data-fit="full"] img{
+  height:auto;
+  max-height:440px;
+  object-fit:contain;
+  object-position:center;
+}
+.store-banner[data-fit="contain"],
+.store-banner[data-fit="cover"]{
+  aspect-ratio:var(--store-banner-ratio,5/1);
+}
+.store-banner[data-fit="contain"] img,
+.store-banner[data-fit="cover"] img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-position:var(--store-banner-x,50%) var(--store-banner-y,50%);
+}
+.store-banner[data-fit="contain"] img{object-fit:contain}
+.store-banner[data-fit="cover"] img{object-fit:cover}
+.store-banner:not(.has-image){
+  min-height:175px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(135deg,var(--green),var(--green2));
+}
+.store-banner-empty{padding:20px;text-align:center;color:white;font-weight:700;font-size:.92rem}
+.banner-layout-editor{
+  display:grid;
+  gap:13px;
+  margin-top:16px;
+  padding:15px;
+  border:1px solid var(--border);
+  border-radius:17px;
+  background:#f8fbf9;
+}
+.banner-layout-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.banner-layout-grid>label{
+  display:grid;
+  gap:8px;
+  padding:12px;
+  background:white;
+  border:1px solid var(--border);
+  border-radius:12px;
+  font-size:.85rem;
+  font-weight:700;
+  min-width:0;
+}
+.banner-layout-grid select{max-width:100%;min-width:0;width:100%}
+.banner-layout-preview-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.banner-layout-preview-heading strong{font-size:.94rem}
+.banner-preview-switch{display:flex;gap:3px;padding:3px;border:1px solid var(--border);background:white;border-radius:999px}
+.banner-preview-switch button{border:0;border-radius:999px;padding:7px 13px;font-size:.8rem;background:transparent;color:var(--text)}
+.banner-preview-switch button.active{background:var(--green);color:white;font-weight:700}
+.banner-layout-preview{width:100%;min-width:0}
+.banner-layout-preview.preview-mobile{width:min(390px,100%);margin-inline:auto}
+.banner-layout-editor small.muted{font-size:.78rem;line-height:1.7}
+@media(max-width:700px){
+  .store-banner{border-radius:18px}
+  .banner-layout-grid{grid-template-columns:1fr}
+  .banner-layout-editor{padding:12px}
 }

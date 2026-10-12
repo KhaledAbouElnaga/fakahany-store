@@ -12,14 +12,15 @@ test.beforeEach(async({page})=>{
   },{snapshot});
 });
 
-test('storefront banner shows artwork without text overlay on desktop and mobile',async({page})=>{
+test('storefront banner never places copy on the image',async({page})=>{
   await page.setViewportSize({width:1395,height:900});
   await page.goto('/');
-  const banner=page.locator('.storefront .hero');
+  const banner=page.locator('.storefront .store-banner');
   const copy=page.locator('.storefront .hero-copy');
   await expect(banner).toBeVisible();
   await expect(copy.locator('h1')).toBeVisible();
   await expect(banner.locator('h1,p,.hero-glass')).toHaveCount(0);
+  await expect(banner).toHaveAttribute('data-fit','full');
 
   for(const width of [1395,390]){
     await page.setViewportSize({width,height:900});
@@ -34,6 +35,74 @@ test('storefront banner shows artwork without text overlay on desktop and mobile
   }
 });
 
+test('banner full-image preview uses the same renderer and dimensions on storefront',async({page})=>{
+  const imageSvg='<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="300"><rect width="1500" height="300" fill="blue"/><rect y="260" width="1500" height="40" fill="red"/></svg>';
+  const bannerUrl='data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(imageSvg);
+  await page.goto('/');
+  await page.evaluate(src=>{
+    const snapshot=JSON.parse(localStorage.getItem('fakahany-demo-snapshot-v1')||'null');
+    if(!snapshot)throw Error('Missing demo snapshot');
+    snapshot.settings.banner_url=src;
+    snapshot.settings.banner_display={fit:'full',ratio:'5/1',position_x:50,position_y:50};
+    localStorage.setItem('fakahany-demo-snapshot-v1',JSON.stringify(snapshot));
+  },bannerUrl);
+  await page.reload();
+  const image=page.locator('.storefront .store-banner img');
+  await expect(image).toBeVisible();
+  const dimensions=await image.evaluate(el=>({width:el.naturalWidth,height:el.naturalHeight,fit:getComputedStyle(el).objectFit}));
+  expect(dimensions).toEqual({width:1500,height:300,fit:'contain'});
+  let live=await image.boundingBox();
+  if(!live)throw Error('Missing storefront banner image');
+  expect(live.width/live.height).toBeCloseTo(5,1);
+
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
+  await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
+  const preview=page.locator('.banner-layout-preview .store-banner');
+  await expect(preview).toHaveAttribute('data-fit','full');
+  const previewImg=preview.locator('img');
+  await expect(previewImg).toBeVisible();
+  const previewBox=await previewImg.boundingBox();
+  if(!previewBox)throw Error('Missing preview image');
+  expect(previewBox.width/previewBox.height).toBeCloseTo(live.width/live.height,2);
+  await expect(page.getByText('الوضع الحالي يحافظ على كل أجزاء الصورة دون قص.')).toBeVisible();
+  await page.getByRole('button',{name:'موبايل'}).click();
+  await expect(page.locator('.banner-layout-preview.preview-mobile')).toBeVisible();
+  const mobilePreviewBox=await previewImg.boundingBox();
+  if(!mobilePreviewBox)throw Error('Missing mobile preview image');
+  expect(mobilePreviewBox.width/mobilePreviewBox.height).toBeCloseTo(5,1);
+});
+
+test('merchant can choose contain or cropped cover with a saved focal point',async({page})=>{
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
+  await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
+  const mode=page.getByRole('combobox',{name:'طريقة عرض صورة الغلاف'});
+  const preview=page.locator('.banner-layout-preview .store-banner');
+  await mode.selectOption('contain');
+  await page.getByRole('combobox',{name:'نسبة أبعاد إطار الغلاف'}).selectOption('16/9');
+  await expect(preview).toHaveAttribute('data-fit','contain');
+  await expect(preview).toHaveCSS('aspect-ratio','16 / 9');
+
+  await mode.selectOption('cover');
+  await page.getByRole('slider',{name:'موضع الغلاف رأسيًا'}).press('End');
+  await page.getByRole('slider',{name:'موضع الغلاف أفقيًا'}).press('End');
+  await expect(preview).toHaveAttribute('data-fit','cover');
+  await page.getByRole('button',{name:'حفظ كل الإعدادات'}).click();
+  await expect(page.getByText('تم حفظ التعديلات بنجاح')).toBeVisible();
+  await page.goto('/');
+  const storefront=page.locator('.storefront .store-banner');
+  await expect(storefront).toHaveAttribute('data-fit','cover');
+  await expect(storefront).toHaveCSS('aspect-ratio','16 / 9');
+  await expect(storefront).toHaveCSS('--store-banner-y','100%');
+  await expect(storefront).toHaveCSS('--store-banner-x','100%');
+
+  await page.goto('/admin');
+  await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
+  await expect(mode).toHaveValue('cover');
+  await expect(page.getByRole('slider',{name:'موضع الغلاف رأسيًا'})).toHaveValue('100');
+});
+
 test('font controls update the separate title card and persist after save',async({page})=>{
   await page.goto('/admin');
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
@@ -44,9 +113,9 @@ test('font controls update the separate title card and persist after save',async
   await expect(descriptionSlider).toBeVisible();
   await expect(page.getByRole('slider',{name:'شفافية خلفية النص الزجاجية'})).toHaveCount(0);
   const preview=page.locator('.hero-appearance-preview');
-  await expect(preview.locator('.hero-appearance-banner')).toBeVisible();
+  await expect(preview.locator('.store-banner')).toBeVisible();
   await expect(preview.locator('.hero-copy h1')).toBeVisible();
-  await expect(preview.locator('.hero-appearance-banner .hero-copy')).toHaveCount(0);
+  await expect(preview.locator('.store-banner .hero-copy')).toHaveCount(0);
 
   const oldHeading=Number(await headingSlider.inputValue());
   await headingSlider.focus();
