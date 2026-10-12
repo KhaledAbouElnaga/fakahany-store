@@ -6,9 +6,13 @@ import type { HeroCopyStyle, ShopSettings, StoreSnapshot } from '../../types';
 import { HERO_COPY_PRESETS, heroCopyCss, heroTextContrast } from '../../lib/heroCopyStyle';
 import { useUnsavedChanges } from '../../lib/unsaved';
 import StoreTransferPanel from './StoreTransferPanel';
+import StoreBanner from '../../components/StoreBanner';
+import type { BannerDisplaySettings } from '../../types';
 
 export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnapshot,refresh:()=>Promise<void>,owner?:boolean}){
   const [s,setS]=useState<ShopSettings>(structuredClone(data.settings));
+  const [bannerDimensions,setBannerDimensions]=useState<{width:number;height:number}|null>(null);
+  const [bannerPreviewMobile,setBannerPreviewMobile]=useState(false);
   const [busy,setBusy]=useState(false);
   const [ok,setOk]=useState(()=>{
     const saved=sessionStorage.getItem('fakahany-settings-saved-notice')||'';
@@ -31,6 +35,7 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
 
   const set=(k:keyof ShopSettings,v:any)=>setS(x=>({...x,[k]:v}));
   const setHeroStyle=<K extends keyof HeroCopyStyle>(key:K,value:HeroCopyStyle[K])=>setS(x=>({...x,hero_copy_style:{...x.hero_copy_style,[key]:value}}));
+  const setBannerDisplay=<K extends keyof BannerDisplaySettings>(key:K,value:BannerDisplaySettings[K])=>setS(x=>({...x,banner_display:{...x.banner_display,[key]:value}}));
   const upload=async(file:File|undefined,field:'logo_url'|'banner_url'|'share_image_url')=>{
     if(!file)return;
     try{
@@ -142,6 +147,51 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
       <label>صورة الغلاف<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0],'banner_url')}/></label>
       <label>رسالة الترحيب<input value={s.welcome_message} onChange={e=>set('welcome_message',e.target.value)}/></label>
     </div>
+    <div className="banner-layout-editor">
+      <div className="hero-appearance-intro">
+        <b>طريقة عرض صورة الغلاف</b>
+        <span className="muted">الوضع الافتراضي يعرض الغلاف كاملًا بدون أي قص. نفس طريقة العرض مستخدمة في معاينة الإدارة وفي المتجر الفعلي.</span>
+      </div>
+      <div className="banner-layout-grid">
+        <label>طريقة عرض الصورة
+          <select aria-label="طريقة عرض صورة الغلاف" value={s.banner_display.fit} onChange={e=>setBannerDisplay('fit',e.target.value as BannerDisplaySettings['fit'])}>
+            <option value="full">الصورة كاملة بحجمها النسبي (بدون قص)</option>
+            <option value="contain">الصورة كاملة داخل إطار (بدون قص)</option>
+            <option value="cover">ملء الإطار بالصورة (قد يقص الأطراف)</option>
+          </select>
+        </label>
+        {s.banner_display.fit!=='full'&&<label>نسبة عرض الإطار
+          <select aria-label="نسبة أبعاد إطار الغلاف" value={s.banner_display.ratio} onChange={e=>setBannerDisplay('ratio',e.target.value as BannerDisplaySettings['ratio'])}>
+            <option value="5/1">عريض جدًا (5:1)</option>
+            <option value="4/1">عريض (4:1)</option>
+            <option value="3/1">متوسط (3:1)</option>
+            <option value="16/9">مستطيل (16:9)</option>
+          </select>
+        </label>}
+        {s.banner_display.fit==='cover'&&<>
+          <label className="hero-appearance-control">
+            <span>موضع الصورة أفقيًا <output>{s.banner_display.position_x}%</output></span>
+            <input type="range" min="0" max="100" step="1" aria-label="موضع الغلاف أفقيًا" value={s.banner_display.position_x} onChange={e=>setBannerDisplay('position_x',Number(e.target.value))}/>
+          </label>
+          <label className="hero-appearance-control">
+            <span>موضع الصورة رأسيًا <output>{s.banner_display.position_y}%</output></span>
+            <input type="range" min="0" max="100" step="1" aria-label="موضع الغلاف رأسيًا" value={s.banner_display.position_y} onChange={e=>setBannerDisplay('position_y',Number(e.target.value))}/>
+          </label>
+        </>}
+      </div>
+      <div className="banner-layout-preview-heading">
+        <strong>معاينة الغلاف الحقيقي</strong>
+        <div className="banner-preview-switch" role="group" aria-label="حجم شاشة معاينة الغلاف">
+          <button type="button" className={!bannerPreviewMobile?'active':''} aria-pressed={!bannerPreviewMobile} onClick={()=>setBannerPreviewMobile(false)}>كمبيوتر</button>
+          <button type="button" className={bannerPreviewMobile?'active':''} aria-pressed={bannerPreviewMobile} onClick={()=>setBannerPreviewMobile(true)}>موبايل</button>
+        </div>
+      </div>
+      <div className={`banner-layout-preview${bannerPreviewMobile?' preview-mobile':''}`}>
+        <StoreBanner src={s.banner_url} alt="معاينة الغلاف بدون تغيير أبعاده" display={s.banner_display} onDimensions={(width,height)=>setBannerDimensions({width,height})}/>
+      </div>
+      {bannerDimensions&&s.banner_url&&<small className="muted">أبعاد الصورة المرفوعة بعد تجهيزها: <span dir="ltr">{bannerDimensions.width} × {bannerDimensions.height}</span> بكسل. {s.banner_display.fit==='cover'?'وضع ملء الإطار ممكن يقص جزءًا من الصورة؛ غيّر الموضع أو استخدم العرض الكامل.':'الوضع الحالي يحافظ على كل أجزاء الصورة دون قص.'}</small>}
+      <small className="muted">لأفضل غلاف عريض: صورة بنسبة قريبة من 5:1، مثل 1800 × 360 بكسل. لو استخدمت مقاسًا مختلفًا، اختيار «الصورة كاملة» يحافظ على محتواها.</small>
+    </div>
     <div className="hero-appearance-editor">
       <div className="hero-appearance-intro">
         <b>استوديو تصميم العنوان أسفل الغلاف</b>
@@ -225,7 +275,7 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
       </div>
       {s.hero_copy_style.background_mode==='solid'&&(heroTextContrast(s.hero_copy_style.title_color,s.hero_copy_style.background_color)<4.5||heroTextContrast(s.hero_copy_style.subtitle_color,s.hero_copy_style.background_color)<4.5)&&<p className="hero-contrast-warning">تنبيه: درجة التباين بين لون النص والخلفية ضعيفة؛ جرّب لونًا أوضح لسهولة القراءة.</p>}
       <div className="hero-appearance-preview" style={heroCopyCss(s.hero_copy_style,s.hero_title_font_size,s.hero_subtitle_font_size)}>
-        <div className="hero-appearance-banner" role="img" aria-label="معاينة صورة الغلاف" style={s.banner_url?{backgroundImage:`url(${s.banner_url})`}:undefined}/>
+        <StoreBanner src={s.banner_url} alt="معاينة الغلاف مع العنوان" display={s.banner_display}/>
         <div className="hero-copy" data-appearance={s.hero_copy_style.background_mode}>
           <h1>{s.hero_title||'العنوان أسفل الغلاف'}</h1>
           {s.hero_subtitle&&<p>{s.hero_subtitle}</p>}
