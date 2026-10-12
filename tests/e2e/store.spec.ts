@@ -60,6 +60,44 @@ test('font controls update the separate title card and persist after save',async
   await expect(page.locator('.storefront .hero-copy h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
 });
 
+test('merchant design studio saves glass, font and alignment independently per store',async({page})=>{
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
+  await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
+
+  const preview=page.locator('.hero-appearance-preview .hero-copy');
+  await page.getByRole('button',{name:'زجاج مائي'}).click();
+  await expect(preview).toHaveAttribute('data-appearance','glass');
+  await expect(preview).toHaveCSS('backdrop-filter',/blur\(14px\)/);
+  await expect(page.getByRole('slider',{name:'درجة شفافية خلفية العنوان'})).toBeVisible();
+  await expect(page.getByRole('slider',{name:'ضبابية الزجاج المائي'})).toBeVisible();
+
+  await page.getByRole('combobox',{name:'نوع خط العنوان'}).selectOption('tajawal');
+  await page.getByRole('combobox',{name:'محاذاة العنوان'}).selectOption('right');
+  await expect(preview).toHaveCSS('text-align','right');
+  await expect(preview).toHaveCSS('font-family',/Tajawal/);
+
+  await page.getByRole('button',{name:'حفظ كل الإعدادات'}).click();
+  await expect(page.getByText('تم حفظ التعديلات بنجاح')).toBeVisible();
+  await page.goto('/');
+  const card=page.locator('.storefront .hero-copy');
+  await expect(card).toHaveAttribute('data-appearance','glass');
+  await expect(card).toHaveCSS('text-align','right');
+  await expect(card).toHaveCSS('font-family',/Tajawal/);
+  await expect(card).toHaveCSS('backdrop-filter',/blur\(14px\)/);
+  await expect(page.locator('.storefront .hero h1')).toHaveCount(0);
+
+  await page.goto('/admin');
+  await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
+  await page.getByRole('button',{name:'داكن فاخر'}).click();
+  await expect(preview).toHaveCSS('background-color','rgb(22, 53, 35)');
+  await expect(preview.locator('h1')).toHaveCSS('color','rgb(255, 255, 255)');
+  await page.getByRole('button',{name:'بدون خلفية'}).click();
+  await expect(preview).toHaveAttribute('data-appearance','none');
+  await expect(preview).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
+  await expect(page.getByRole('slider',{name:'درجة شفافية خلفية العنوان'})).toHaveCount(0);
+});
+
 test('storefront to cart to checkout works',async({page})=>{
   await page.goto('/');
   await expect(page.getByRole('heading',{name:'الطازج لحد باب بيتك'})).toBeVisible();

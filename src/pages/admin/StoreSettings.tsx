@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { changeAdminPassword, currentAdminEmail, getMfaState, removeMfaFactor, signOutOtherSessions, startMfaEnrollment, verifyMfaEnrollment } from '../../lib/auth';
 import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
-import type { ShopSettings, StoreSnapshot } from '../../types';
+import type { HeroCopyStyle, ShopSettings, StoreSnapshot } from '../../types';
+import { HERO_COPY_PRESETS, heroCopyCss, heroTextContrast } from '../../lib/heroCopyStyle';
 import { useUnsavedChanges } from '../../lib/unsaved';
 import StoreTransferPanel from './StoreTransferPanel';
 
@@ -29,6 +30,7 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
   useEffect(()=>()=>{for(const url of Object.values(pendingUploads.current)){if(url)void deleteImage(url).catch(()=>{})}},[]);
 
   const set=(k:keyof ShopSettings,v:any)=>setS(x=>({...x,[k]:v}));
+  const setHeroStyle=<K extends keyof HeroCopyStyle>(key:K,value:HeroCopyStyle[K])=>setS(x=>({...x,hero_copy_style:{...x.hero_copy_style,[key]:value}}));
   const upload=async(file:File|undefined,field:'logo_url'|'banner_url'|'share_image_url')=>{
     if(!file)return;
     try{
@@ -40,6 +42,11 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
     }catch(e:any){alert(e?.message||'تعذر رفع الصورة')}
   };
   const save=async()=>{
+    if(!/^#[0-9A-F]{6}$/i.test(s.hero_copy_style.background_color)||
+       !/^#[0-9A-F]{6}$/i.test(s.hero_copy_style.title_color)||
+       !/^#[0-9A-F]{6}$/i.test(s.hero_copy_style.subtitle_color)){
+      return setOk('تأكد من صحة الألوان المختارة.');
+    }
     if(!Number.isInteger(s.hero_title_font_size)||s.hero_title_font_size<18||s.hero_title_font_size>42||
        !Number.isInteger(s.hero_subtitle_font_size)||s.hero_subtitle_font_size<12||s.hero_subtitle_font_size>22){
       return setOk('قيم حجم الخط خارج الحدود المسموحة.');
@@ -137,8 +144,8 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
     </div>
     <div className="hero-appearance-editor">
       <div className="hero-appearance-intro">
-        <b>تخصيص النصوص أسفل الغلاف</b>
-        <span className="muted">الصورة تظهر وحدها بالأعلى، والعنوان والوصف يظهران تحتها. تحكم في حجم الخط ثم اضغط «حفظ كل الإعدادات». أحجام الموبايل تتكيف تلقائيًا.</span>
+        <b>استوديو تصميم العنوان أسفل الغلاف</b>
+        <span className="muted">اختار شكل الخلفية ولون الخط ونوعه وشوف النتيجة فورًا قبل ما تحفظ. كل متجر ليه تصميمه الخاص.</span>
       </div>
       <div className="hero-appearance-sliders">
         <label className="hero-appearance-control">
@@ -150,12 +157,76 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
           <input type="range" min="12" max="22" step="1" value={s.hero_subtitle_font_size} onChange={e=>set('hero_subtitle_font_size',Number(e.target.value))} aria-label="حجم الوصف أسفل الغلاف"/>
         </label>
       </div>
-      <div className="hero-appearance-preview" style={{
-        '--hero-title-size':`${s.hero_title_font_size}px`,
-        '--hero-subtitle-size':`${s.hero_subtitle_font_size}px`
-      } as CSSProperties}>
+      <div className="hero-style-header">
+        <strong>تصميمات جاهزة</strong>
+        <span className="muted">ابدأ بتصميم جاهز أو خصّص كل تفصيلة بنفسك</span>
+      </div>
+      <div className="hero-presets" aria-label="تصميمات جاهزة للعنوان">
+        {HERO_COPY_PRESETS.map(preset=><button type="button" key={preset.id} className={JSON.stringify(s.hero_copy_style)===JSON.stringify(preset.style)?'hero-preset active':'hero-preset'} onClick={()=>set('hero_copy_style',{...preset.style})}>{preset.label}</button>)}
+      </div>
+      <div className="hero-style-grid">
+        <label className="hero-style-field">نوع الخلفية
+          <select aria-label="نوع خلفية العنوان" value={s.hero_copy_style.background_mode} onChange={e=>setHeroStyle('background_mode',e.target.value as HeroCopyStyle['background_mode'])}>
+            <option value="solid">لون ثابت</option>
+            <option value="translucent">شفافة عادية</option>
+            <option value="glass">زجاج مائي بضبابية</option>
+            <option value="none">بدون خلفية</option>
+          </select>
+        </label>
+        <label className="hero-style-field">نوع الخط
+          <select aria-label="نوع خط العنوان" value={s.hero_copy_style.font_family} onChange={e=>setHeroStyle('font_family',e.target.value as HeroCopyStyle['font_family'])}>
+            <option value="system">الخط الافتراضي</option>
+            <option value="cairo">Cairo — كايرو</option>
+            <option value="tajawal">Tajawal — تجوال</option>
+            <option value="almarai">Almarai — المراعي</option>
+            <option value="tahoma">Tahoma — تاهوما</option>
+          </select>
+        </label>
+        <label className="hero-style-field">محاذاة النص
+          <select aria-label="محاذاة العنوان" value={s.hero_copy_style.text_align} onChange={e=>setHeroStyle('text_align',e.target.value as HeroCopyStyle['text_align'])}>
+            <option value="center">في المنتصف</option>
+            <option value="right">على اليمين</option>
+            <option value="left">على الشمال</option>
+          </select>
+        </label>
+        <label className="hero-style-field hero-style-shadow"><span>ظل البطاقة</span>
+          <input type="checkbox" checked={s.hero_copy_style.shadow} onChange={e=>setHeroStyle('shadow',e.target.checked)} aria-label="إظهار ظل البطاقة"/>
+        </label>
+        <label className="hero-style-color">لون الخلفية
+          <span className="hero-style-color-pair">
+            <input type="color" aria-label="اختيار لون الخلفية" value={s.hero_copy_style.background_color} onChange={e=>setHeroStyle('background_color',e.target.value)} disabled={s.hero_copy_style.background_mode==='none'}/>
+            <code dir="ltr">{s.hero_copy_style.background_color}</code>
+          </span>
+        </label>
+        <label className="hero-style-color">لون العنوان
+          <span className="hero-style-color-pair">
+            <input type="color" aria-label="اختيار لون العنوان" value={s.hero_copy_style.title_color} onChange={e=>setHeroStyle('title_color',e.target.value)}/>
+            <code dir="ltr">{s.hero_copy_style.title_color}</code>
+          </span>
+        </label>
+        <label className="hero-style-color">لون الوصف
+          <span className="hero-style-color-pair">
+            <input type="color" aria-label="اختيار لون الوصف" value={s.hero_copy_style.subtitle_color} onChange={e=>setHeroStyle('subtitle_color',e.target.value)}/>
+            <code dir="ltr">{s.hero_copy_style.subtitle_color}</code>
+          </span>
+        </label>
+        <label className="hero-appearance-control">
+          <span>استدارة الزوايا <output>{s.hero_copy_style.radius} بكسل</output></span>
+          <input type="range" min="0" max="32" value={s.hero_copy_style.radius} onChange={e=>setHeroStyle('radius',Number(e.target.value))} aria-label="استدارة زوايا البطاقة"/>
+        </label>
+        {(s.hero_copy_style.background_mode==='translucent'||s.hero_copy_style.background_mode==='glass')&&<label className="hero-appearance-control">
+          <span>شفافية الخلفية <output>{100-s.hero_copy_style.background_opacity}%</output></span>
+          <input type="range" min="5" max="95" value={s.hero_copy_style.background_opacity} onChange={e=>setHeroStyle('background_opacity',Number(e.target.value))} aria-label="درجة شفافية خلفية العنوان"/>
+        </label>}
+        {s.hero_copy_style.background_mode==='glass'&&<label className="hero-appearance-control">
+          <span>قوة الضبابية <output>{s.hero_copy_style.glass_blur} بكسل</output></span>
+          <input type="range" min="0" max="24" value={s.hero_copy_style.glass_blur} onChange={e=>setHeroStyle('glass_blur',Number(e.target.value))} aria-label="ضبابية الزجاج المائي"/>
+        </label>}
+      </div>
+      {s.hero_copy_style.background_mode==='solid'&&(heroTextContrast(s.hero_copy_style.title_color,s.hero_copy_style.background_color)<4.5||heroTextContrast(s.hero_copy_style.subtitle_color,s.hero_copy_style.background_color)<4.5)&&<p className="hero-contrast-warning">تنبيه: درجة التباين بين لون النص والخلفية ضعيفة؛ جرّب لونًا أوضح لسهولة القراءة.</p>}
+      <div className="hero-appearance-preview" style={heroCopyCss(s.hero_copy_style,s.hero_title_font_size,s.hero_subtitle_font_size)}>
         <div className="hero-appearance-banner" role="img" aria-label="معاينة صورة الغلاف" style={s.banner_url?{backgroundImage:`url(${s.banner_url})`}:undefined}/>
-        <div className="hero-copy">
+        <div className="hero-copy" data-appearance={s.hero_copy_style.background_mode}>
           <h1>{s.hero_title||'العنوان أسفل الغلاف'}</h1>
           {s.hero_subtitle&&<p>{s.hero_subtitle}</p>}
           {s.welcome_message&&<small className="hero-welcome">{s.welcome_message}</small>}

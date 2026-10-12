@@ -605,18 +605,21 @@ input,select,textarea{min-height:var(--control-h)}
   box-sizing:border-box;
   margin-top:12px;
   padding:clamp(15px,2vw,23px) clamp(16px,2.5vw,30px);
-  border:1px solid var(--border);
-  border-radius:18px;
-  background:#fff;
-  box-shadow:0 8px 22px rgba(20,52,35,.055);
-  color:var(--text);
-  text-align:center;
+  border:1px solid var(--hero-card-border,var(--border));
+  border-radius:var(--hero-card-radius,18px);
+  background:var(--hero-card-bg,#fff);
+  -webkit-backdrop-filter:var(--hero-card-blur,none);
+  backdrop-filter:var(--hero-card-blur,none);
+  box-shadow:var(--hero-card-shadow,0 8px 22px rgba(20,52,35,.055));
+  color:var(--hero-title-color,var(--text));
+  font-family:var(--hero-card-font,inherit);
+  text-align:var(--hero-card-align,center);
   overflow-wrap:anywhere;
 }
 .storefront .hero-copy h1,
 .hero-appearance-preview .hero-copy h1{
   margin:0;
-  color:var(--text);
+  color:var(--hero-title-color,var(--text));
   font-size:clamp(18px,var(--hero-title-size,27px),42px);
   font-weight:800;
   line-height:1.45;
@@ -627,7 +630,7 @@ input,select,textarea{min-height:var(--control-h)}
 .storefront .hero-copy p,
 .hero-appearance-preview .hero-copy p{
   margin:7px 0 0;
-  color:#52675b;
+  color:var(--hero-subtitle-color,#52675b);
   font-size:clamp(12px,var(--hero-subtitle-size,15px),22px);
   font-weight:500;
   line-height:1.7;
@@ -639,10 +642,10 @@ input,select,textarea{min-height:var(--control-h)}
   display:inline-block;
   margin-top:9px;
   padding:5px 11px;
-  border:1px solid var(--border);
+  border:1px solid rgba(100,120,120,.22);
   border-radius:999px;
-  background:var(--pale);
-  color:var(--text);
+  background:rgba(142,176,166,.13);
+  color:var(--hero-title-color,var(--text));
   font-size:.77rem;
   line-height:1.6;
   white-space:normal;
@@ -702,4 +705,53 @@ input,select,textarea{min-height:var(--control-h)}
 @media(max-width:820px){.hero-appearance-sliders{grid-template-columns:1fr}}
 @media(max-width:700px){
   .hero-appearance-banner{height:clamp(165px,50vw,220px);border-radius:15px}
+}
+
+/* Merchant-controlled text card; glass lives BELOW the banner, never over it. */
+.storefront .hero-copy[data-appearance="glass"],
+.hero-appearance-preview .hero-copy[data-appearance="glass"]{
+  position:relative;
+  background-image:linear-gradient(125deg,rgba(255,255,255,.27),rgba(255,255,255,.04) 45%,rgba(145,223,242,.16));
+  /* The shadow toggle is controlled by the shared card rule above. */
+}
+.storefront .hero-copy[data-appearance="none"],
+.hero-appearance-preview .hero-copy[data-appearance="none"]{padding-inline:8px}
+.hero-style-header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.hero-style-header strong{font-size:.96rem}
+.hero-style-header .muted{font-size:.82rem}
+.hero-presets{display:flex;flex-wrap:wrap;gap:9px}
+.hero-preset{
+  border:1px solid var(--border);
+  border-radius:99px;
+  padding:9px 15px;
+  background:white;
+  color:var(--text);
+  font-size:.82rem;
+  font-weight:700;
+}
+.hero-preset.active{border-color:var(--green);background:var(--pale);color:var(--green)}
+.hero-preset:focus-visible,.hero-style-grid input:focus-visible,.hero-style-grid select:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.hero-style-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.hero-style-grid > label{
+  display:grid;
+  gap:8px;
+  padding:12px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:white;
+  font-size:.84rem;
+  font-weight:700;
+  min-width:0;
+}
+.hero-style-grid .hero-style-shadow{display:flex;align-items:center;justify-content:space-between}
+.hero-style-grid .hero-style-shadow input{width:19px;height:19px;accent-color:var(--green)}
+.hero-style-color-pair{display:flex;align-items:center;gap:12px;min-height:44px}
+.hero-style-color-pair input[type=color]{width:55px;height:42px;min-height:0;padding:3px;border-radius:9px;cursor:pointer}
+.hero-style-color-pair code{font-size:.8rem;color:var(--muted);direction:ltr}
+.hero-style-grid .hero-appearance-control{margin:0}
+.hero-contrast-warning{margin:0;padding:11px 13px;background:#fff4e6;border:1px solid #edd6a5;border-radius:10px;font-size:.8rem;color:#774915}
+@media(max-width:700px){
+  .hero-style-grid{grid-template-columns:1fr}
+  .hero-presets{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .hero-preset{padding:10px 7px}
 }

@@ -45,6 +45,19 @@ export interface Product {
 
 export type StoreStatusMode = 'auto' | 'open' | 'closed';
 
+export interface HeroCopyStyle {
+  background_mode: 'solid'|'translucent'|'glass'|'none';
+  background_color: string;
+  background_opacity: number;
+  glass_blur: number;
+  title_color: string;
+  subtitle_color: string;
+  font_family: 'system'|'cairo'|'tajawal'|'almarai'|'tahoma';
+  text_align: 'center'|'right'|'left';
+  radius: number;
+  shadow: boolean;
+}
+
 export interface ShopSettings {
   id: string;
   store_name: string;
@@ -57,7 +70,8 @@ export interface ShopSettings {
   hero_subtitle: string;
   hero_title_font_size: number;
   hero_subtitle_font_size: number;
-  hero_glass_tint_percent: number;
+  hero_glass_tint_percent: number; // legacy setting retained for backwards compatibility
+  hero_copy_style: HeroCopyStyle;
   phone: string;
   whatsapp_number: string;
   address: string;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import InstallPwaButton from '../components/InstallPwaButton';
@@ -11,6 +11,7 @@ import { getPublicPageUrl, isOutOfStock, normalizeWhatsAppNumber, smartArabicMat
 import { recordVisit } from '../lib/storeApi';
 import type { Order, Product } from '../types';
 import { tenantHref } from '../lib/tenant';
+import { heroCopyCss } from '../lib/heroCopyStyle';
 
 export default function Storefront() {
   const { data, loading, error, refresh } = useStore();
@@ -87,10 +88,7 @@ export default function Storefront() {
         aria-label={`صورة غلاف متجر ${settings.store_name}`}
         style={settings.banner_url ? { backgroundImage: `url(${settings.banner_url})` } : undefined}
       />
-      <section className="hero-copy" aria-label="ترحيب المتجر" style={{
-        '--hero-title-size': `${settings.hero_title_font_size}px`,
-        '--hero-subtitle-size': `${settings.hero_subtitle_font_size}px`
-      } as CSSProperties}>
+      <section className="hero-copy" aria-label="ترحيب المتجر" data-appearance={settings.hero_copy_style.background_mode} style={heroCopyCss(settings.hero_copy_style,settings.hero_title_font_size,settings.hero_subtitle_font_size)}>
         <h1>{settings.hero_title}</h1>
         {settings.hero_subtitle&&<p>{settings.hero_subtitle}</p>}
         {settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}
