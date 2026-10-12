@@ -55,6 +55,9 @@ export interface ShopSettings {
   site_description: string;
   hero_title: string;
   hero_subtitle: string;
+  hero_title_font_size: number;
+  hero_subtitle_font_size: number;
+  hero_glass_tint_percent: number;
   phone: string;
   whatsapp_number: string;
   address: string;

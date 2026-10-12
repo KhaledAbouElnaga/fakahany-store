@@ -43,6 +43,39 @@ test('banner copy stays in a compact glass panel on desktop and mobile',async({p
   expect(mobileFont).toBeLessThanOrEqual(24);
 });
 
+test('real glass banner stays translucent and font controls save per store',async({page})=>{
+  await page.goto('/');
+  const glass=page.locator('.storefront .hero-glass');
+  await expect(glass).toBeVisible();
+  const initialGlassAlpha=await glass.evaluate(el=>{
+    const color=getComputedStyle(el).backgroundColor;
+    const match=color.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([.\d]+)\)/);
+    return match?Number(match[1]):1;
+  });
+  expect(initialGlassAlpha).toBeLessThan(.5);
+  expect(initialGlassAlpha).toBeGreaterThan(0);
+
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
+  await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
+  const headingSlider=page.getByRole('slider',{name:'حجم عنوان الغلاف'});
+  const descriptionSlider=page.getByRole('slider',{name:'حجم وصف الغلاف'});
+  const glassSlider=page.getByRole('slider',{name:'شفافية خلفية النص الزجاجية'});
+  await expect(headingSlider).toBeVisible();
+  await expect(descriptionSlider).toBeVisible();
+  await expect(glassSlider).toBeVisible();
+  const oldHeading=Number(await headingSlider.inputValue());
+  await headingSlider.focus();
+  await headingSlider.press('ArrowLeft'); // RTL range: left arrow increases the value
+  await expect(headingSlider).toHaveValue(String(oldHeading+1));
+  await expect(page.locator('.hero-appearance-preview .hero-glass h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
+
+  await page.getByRole('button',{name:'حفظ كل الإعدادات'}).click();
+  await expect(page.getByText('تم حفظ التعديلات بنجاح')).toBeVisible();
+  await page.goto('/');
+  await expect(page.locator('.storefront .hero-glass h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
+});
+
 test('storefront to cart to checkout works',async({page})=>{
   await page.goto('/');
   await expect(page.getByRole('heading',{name:'الطازج لحد باب بيتك'})).toBeVisible();

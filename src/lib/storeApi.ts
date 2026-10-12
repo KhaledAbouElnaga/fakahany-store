@@ -22,7 +22,7 @@ export const DEFAULT_ORDER_STATUSES: OrderStatusDefinition[] = [
 
 function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): ShopSettings {
   const defaults: ShopSettings = {
-    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', announcement_enabled:false, announcement_text:'', maintenance_mode:false, maintenance_message:'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.', setup_completed:false, theme_preset:'green', public_site_url:'', order_alert_minutes:15, audit_retention_days:180, inventory_retention_days:365, visit_retention_days:180, feature_flags:{tracking:true,reports:true,staff:true,scheduled_prices:true,scheduled_orders:true,inventory:true,favorites:true,reorder:true}, dashboard_widgets:['orders_today','new_orders','overdue','sales_today','sales_week','avg_order','repeat_customers','cancel_rate','top_product','peak_hour','low_stock'], min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
+    id:'main', store_name:'سوق الطازج', site_name:'سوق الطازج', logo_url:'', banner_url:'', share_image_url:'', site_description:'', hero_title:'الطازج لحد باب بيتك', hero_subtitle:'أفضل الفواكه والخضروات الطازجة', hero_title_font_size:27, hero_subtitle_font_size:15, hero_glass_tint_percent:25, phone:'', whatsapp_number:'', address:'', welcome_message:'أهلاً بك', announcement_enabled:false, announcement_text:'', maintenance_mode:false, maintenance_message:'المتجر تحت الصيانة مؤقتًا. نعود قريبًا.', setup_completed:false, theme_preset:'green', public_site_url:'', order_alert_minutes:15, audit_retention_days:180, inventory_retention_days:365, visit_retention_days:180, feature_flags:{tracking:true,reports:true,staff:true,scheduled_prices:true,scheduled_orders:true,inventory:true,favorites:true,reorder:true}, dashboard_widgets:['orders_today','new_orders','overdue','sales_today','sales_week','avg_order','repeat_customers','cancel_rate','top_product','peak_hour','low_stock'], min_order:0, delivery_enabled:true, default_delivery_fee:0, opening_time:'09:00', closing_time:'23:00', working_days:['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'], manual_open:true, store_status_mode:'auto', low_stock_threshold:5, scheduled_orders_enabled:false, delivery_capacity_enabled:false, delivery_slot_minutes:60, delivery_slot_capacity:0, show_search:true, show_categories:true, show_featured:true, show_offers:true, require_name:true, require_phone:true, require_address:true, require_area:true, require_notes:false, whatsapp_order_template:DEFAULT_ORDER_TEMPLATE, whatsapp_received_template:DEFAULT_RECEIVED_TEMPLATE, whatsapp_preparing_template:DEFAULT_PREPARING_TEMPLATE, whatsapp_delivery_template:DEFAULT_DELIVERY_TEMPLATE,
   };
   const s = settings || {};
   const merged = { ...defaults, ...s } as ShopSettings;
@@ -62,6 +62,14 @@ function normalizeSettings(settings: Partial<ShopSettings> | null | undefined): 
   merged.require_notes = s.require_notes ?? false;
   merged.share_image_url = s.share_image_url ?? '';
   merged.site_description = s.site_description ?? '';
+  // Normalize old snapshots and user-controlled font sizes before rendering.
+  const safeSize=(raw:unknown,fallback:number,min:number,max:number)=>{
+    const n=Number(raw);
+    return Number.isFinite(n)?Math.min(max,Math.max(min,Math.round(n))):fallback;
+  };
+  merged.hero_title_font_size=safeSize(s.hero_title_font_size,27,18,42);
+  merged.hero_subtitle_font_size=safeSize(s.hero_subtitle_font_size,15,12,22);
+  merged.hero_glass_tint_percent=safeSize(s.hero_glass_tint_percent,25,8,50);
   merged.whatsapp_order_template = s.whatsapp_order_template || DEFAULT_ORDER_TEMPLATE;
   merged.whatsapp_received_template = s.whatsapp_received_template || DEFAULT_RECEIVED_TEMPLATE;
   merged.whatsapp_preparing_template = s.whatsapp_preparing_template || DEFAULT_PREPARING_TEMPLATE;
