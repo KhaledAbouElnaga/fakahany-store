@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { changeAdminPassword, currentAdminEmail, getMfaState, removeMfaFactor, signOutOtherSessions, startMfaEnrollment, verifyMfaEnrollment } from '../../lib/auth';
 import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
@@ -154,7 +154,7 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
         '--hero-title-size':`${s.hero_title_font_size}px`,
         '--hero-subtitle-size':`${s.hero_subtitle_font_size}px`,
         '--hero-glass-alpha':s.hero_glass_tint_percent/100
-      } as React.CSSProperties}>
+      } as CSSProperties}>
         <div className="hero-glass">
           <h1>{s.hero_title||'عنوان الغلاف'}</h1>
           {s.hero_subtitle&&<p>{s.hero_subtitle}</p>}
