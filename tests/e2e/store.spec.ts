@@ -19,7 +19,7 @@ test('banner copy stays in a compact glass panel on desktop and mobile',async({p
   const panel=hero.locator('.hero-glass');
   const title=panel.locator('h1');
   await expect(title).toBeVisible();
-  await expect(panel).toHaveCSS('backdrop-filter',/blur\\(/);
+  await expect(panel).toHaveCSS('backdrop-filter',/blur\(/);
 
   const desktopHero=await hero.boundingBox();
   const desktopPanel=await panel.boundingBox();
