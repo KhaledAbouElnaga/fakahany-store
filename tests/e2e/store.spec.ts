@@ -49,7 +49,7 @@ test('real glass banner stays translucent and font controls save per store',asyn
   await expect(glass).toBeVisible();
   const initialGlassAlpha=await glass.evaluate(el=>{
     const color=getComputedStyle(el).backgroundColor;
-    const match=color.match(/rgba\\([^,]+,[^,]+,[^,]+,\\s*([.\\d]+)\\)/);
+    const match=color.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([.\d]+)\)/);
     return match?Number(match[1]):1;
   });
   expect(initialGlassAlpha).toBeLessThan(.5);
