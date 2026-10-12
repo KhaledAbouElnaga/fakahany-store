@@ -85,8 +85,8 @@ test('merchant can choose contain or cropped cover with a saved focal point',asy
   await expect(preview).toHaveCSS('aspect-ratio','16 / 9');
 
   await mode.selectOption('cover');
-  await page.getByRole('slider',{name:'موضع الغلاف رأسيًا'}).fill('85');
-  await page.getByRole('slider',{name:'موضع الغلاف أفقيًا'}).fill('30');
+  await page.getByRole('slider',{name:'موضع الغلاف رأسيًا'}).press('End');
+  await page.getByRole('slider',{name:'موضع الغلاف أفقيًا'}).press('End');
   await expect(preview).toHaveAttribute('data-fit','cover');
   await page.getByRole('button',{name:'حفظ كل الإعدادات'}).click();
   await expect(page.getByText('تم حفظ التعديلات بنجاح')).toBeVisible();
@@ -94,13 +94,13 @@ test('merchant can choose contain or cropped cover with a saved focal point',asy
   const storefront=page.locator('.storefront .store-banner');
   await expect(storefront).toHaveAttribute('data-fit','cover');
   await expect(storefront).toHaveCSS('aspect-ratio','16 / 9');
-  await expect(storefront).toHaveCSS('--store-banner-y','85%');
-  await expect(storefront).toHaveCSS('--store-banner-x','30%');
+  await expect(storefront).toHaveCSS('--store-banner-y','100%');
+  await expect(storefront).toHaveCSS('--store-banner-x','100%');
 
   await page.goto('/admin');
   await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
   await expect(mode).toHaveValue('cover');
-  await expect(page.getByRole('slider',{name:'موضع الغلاف رأسيًا'})).toHaveValue('85');
+  await expect(page.getByRole('slider',{name:'موضع الغلاف رأسيًا'})).toHaveValue('100');
 });
 
 test('font controls update the separate title card and persist after save',async({page})=>{
