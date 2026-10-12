@@ -36,6 +36,11 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
     }catch(e:any){alert(e?.message||'تعذر رفع الصورة')}
   };
   const save=async()=>{
+    if(!Number.isInteger(s.hero_title_font_size)||s.hero_title_font_size<18||s.hero_title_font_size>42||
+       !Number.isInteger(s.hero_subtitle_font_size)||s.hero_subtitle_font_size<12||s.hero_subtitle_font_size>22||
+       !Number.isInteger(s.hero_glass_tint_percent)||s.hero_glass_tint_percent<8||s.hero_glass_tint_percent>50){
+      return setOk('قيم حجم الخط وشفافية الغلاف خارج الحدود المسموحة.');
+    }
     if(Number(s.min_order)<0||Number(s.default_delivery_fee)<0||Number(s.low_stock_threshold)<0||Number(s.delivery_slot_capacity)<0)return setOk('القيم الرقمية لا يمكن أن تكون سالبة.');
     if(s.delivery_capacity_enabled&&(Number(s.delivery_slot_minutes)<15||Number(s.delivery_slot_minutes)>240))return setOk('مدة فترة التوصيل يجب أن تكون بين 15 و240 دقيقة.');
     if(Number(s.order_alert_minutes)<1||Number(s.order_alert_minutes)>240)return setOk('تنبيه الطلب المنتظر يجب أن يكون بين دقيقة و240 دقيقة.');
@@ -123,6 +128,39 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
       <label>النص أسفل العنوان<input value={s.hero_subtitle} onChange={e=>set('hero_subtitle',e.target.value)}/></label>
       <label>صورة الغلاف<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0],'banner_url')}/></label>
       <label>رسالة الترحيب<input value={s.welcome_message} onChange={e=>set('welcome_message',e.target.value)}/></label>
+    </div>
+    <div className="hero-appearance-editor">
+      <div className="hero-appearance-intro">
+        <b>تخصيص الغلاف والنصوص</b>
+        <span className="muted">غيّر الأحجام والشفافية بنفسك، وبعدها اضغط «حفظ كل الإعدادات». حجم الخط على الموبايل بيتظبط تلقائيًا.</span>
+      </div>
+      <div className="hero-appearance-sliders">
+        <label className="hero-appearance-control">
+          <span>حجم عنوان الغلاف <output>{s.hero_title_font_size} بكسل</output></span>
+          <input type="range" min="18" max="42" step="1" value={s.hero_title_font_size} onChange={e=>set('hero_title_font_size',Number(e.target.value))} aria-label="حجم عنوان الغلاف"/>
+        </label>
+        <label className="hero-appearance-control">
+          <span>حجم الوصف <output>{s.hero_subtitle_font_size} بكسل</output></span>
+          <input type="range" min="12" max="22" step="1" value={s.hero_subtitle_font_size} onChange={e=>set('hero_subtitle_font_size',Number(e.target.value))} aria-label="حجم وصف الغلاف"/>
+        </label>
+        <label className="hero-appearance-control">
+          <span>شفافية الزجاج <output>{100-s.hero_glass_tint_percent}%</output></span>
+          <input type="range" min="8" max="50" step="1" value={s.hero_glass_tint_percent} onChange={e=>set('hero_glass_tint_percent',Number(e.target.value))} aria-label="شفافية خلفية النص الزجاجية"/>
+          <small className="muted">حرّك لليسار لزجاج أوضح وشفافية أعلى، ولليمين لخلفية أغمق وقراءة أسهل.</small>
+        </label>
+      </div>
+      <div className="hero-appearance-preview" style={{
+        ...(s.banner_url ? {backgroundImage:`url(${s.banner_url})`}:{}),
+        '--hero-title-size':`${s.hero_title_font_size}px`,
+        '--hero-subtitle-size':`${s.hero_subtitle_font_size}px`,
+        '--hero-glass-alpha':s.hero_glass_tint_percent/100
+      } as React.CSSProperties}>
+        <div className="hero-glass">
+          <h1>{s.hero_title||'عنوان الغلاف'}</h1>
+          {s.hero_subtitle&&<p>{s.hero_subtitle}</p>}
+        </div>
+      </div>
+      <small className="muted">معاينة مباشرة قبل الحفظ — التصميم هيتطبق على الغلاف في المتجر بعد الحفظ.</small>
     </div>
     <div className="settings-subsection"><label className="toggle-setting"><input type="checkbox" checked={s.announcement_enabled} onChange={e=>set('announcement_enabled',e.target.checked)}/> تفعيل إعلان أعلى المتجر</label>{s.announcement_enabled&&<label>نص الإعلان<input value={s.announcement_text} maxLength={180} onChange={e=>set('announcement_text',e.target.value)} placeholder="مثال: التوصيل متوقف اليوم من 3 إلى 5"/></label>}</div>
     <div className="settings-subsection danger-zone-soft"><label className="toggle-setting"><input type="checkbox" checked={s.maintenance_mode} onChange={e=>set('maintenance_mode',e.target.checked)}/> وضع الصيانة</label><p className="muted">عند تفعيله لن يتمكن العملاء من التسوق أو إرسال طلبات جديدة، بينما تظل لوحة الإدارة وتتبّع الطلبات متاحين.</p>{s.maintenance_mode&&<label>رسالة الصيانة<input value={s.maintenance_message} maxLength={220} onChange={e=>set('maintenance_message',e.target.value)}/></label>}</div>
