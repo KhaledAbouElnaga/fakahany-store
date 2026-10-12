@@ -12,6 +12,37 @@ test.beforeEach(async({page})=>{
   },{snapshot});
 });
 
+test('banner copy stays in a compact glass panel on desktop and mobile',async({page})=>{
+  await page.setViewportSize({width:1395,height:900});
+  await page.goto('/');
+  const hero=page.locator('.storefront .hero');
+  const panel=hero.locator('.hero-glass');
+  const title=panel.locator('h1');
+  await expect(title).toBeVisible();
+  await expect(panel).toHaveCSS('backdrop-filter',/blur\\(/);
+
+  const desktopHero=await hero.boundingBox();
+  const desktopPanel=await panel.boundingBox();
+  if(!desktopHero||!desktopPanel)throw new Error('Desktop hero or glass panel is missing');
+  expect(desktopPanel.width).toBeLessThan(desktopHero.width*.38);
+  expect(desktopPanel.x).toBeGreaterThanOrEqual(desktopHero.x);
+  expect(desktopPanel.x+desktopPanel.width).toBeLessThanOrEqual(desktopHero.x+desktopHero.width+1);
+  const desktopFont=Number.parseFloat(await title.evaluate(el=>getComputedStyle(el).fontSize));
+  expect(desktopFont).toBeLessThanOrEqual(30);
+
+  await page.setViewportSize({width:390,height:844});
+  await expect(panel).toBeVisible();
+  const mobileHero=await hero.boundingBox();
+  const mobilePanel=await panel.boundingBox();
+  if(!mobileHero||!mobilePanel)throw new Error('Mobile hero or glass panel is missing');
+  expect(mobilePanel.width).toBeLessThanOrEqual(mobileHero.width-22);
+  expect(mobilePanel.x).toBeGreaterThanOrEqual(mobileHero.x);
+  expect(mobilePanel.x+mobilePanel.width).toBeLessThanOrEqual(mobileHero.x+mobileHero.width+1);
+  expect(mobilePanel.y+mobilePanel.height).toBeLessThanOrEqual(mobileHero.y+mobileHero.height+1);
+  const mobileFont=Number.parseFloat(await title.evaluate(el=>getComputedStyle(el).fontSize));
+  expect(mobileFont).toBeLessThanOrEqual(24);
+});
+
 test('storefront to cart to checkout works',async({page})=>{
   await page.goto('/');
   await expect(page.getByRole('heading',{name:'الطازج لحد باب بيتك'})).toBeVisible();
