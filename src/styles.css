@@ -798,6 +798,6 @@ input,select,textarea{min-height:var(--control-h)}
 @media(max-width:700px){
   .hero-appearance-preview{min-height:295px;align-items:flex-end;padding:12px}
   .hero-appearance-preview .hero-glass{width:100%;border-radius:17px;padding:13px 15px}
-  .hero-appearance-preview .hero-glass h1{font-size:clamp(16px,calc(var(--hero-title-size,27px)*.78),32px)}
-  .hero-appearance-preview .hero-glass p{font-size:clamp(12px,calc(var(--hero-subtitle-size,15px)*.92),20px)}
+  .hero-appearance-preview .hero-glass h1{font-size:clamp(16px,calc(var(--hero-title-size,27px) * .78),32px)}
+  .hero-appearance-preview .hero-glass p{font-size:clamp(12px,calc(var(--hero-subtitle-size,15px) * .92),20px)}
 }
