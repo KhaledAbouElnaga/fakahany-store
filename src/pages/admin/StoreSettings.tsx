@@ -3,7 +3,7 @@ import { changeAdminPassword, currentAdminEmail, getMfaState, removeMfaFactor, s
 import { DEFAULT_ORDER_TEMPLATE, deleteImage, loadOrders, saveSettings, uploadImage } from '../../lib/storeApi';
 import { downloadText } from '../../lib/utils';
 import type { HeroCopyStyle, ShopSettings, StoreSnapshot } from '../../types';
-import { DEFAULT_HERO_COPY_STYLE, HERO_COPY_PRESETS, heroCopyCss, heroTextContrast } from '../../lib/heroCopyStyle';
+import { HERO_COPY_PRESETS, heroCopyCss, heroTextContrast } from '../../lib/heroCopyStyle';
 import { useUnsavedChanges } from '../../lib/unsaved';
 import StoreTransferPanel from './StoreTransferPanel';
 
