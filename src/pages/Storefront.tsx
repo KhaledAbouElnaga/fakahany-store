@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
+import StoreBanner from '../components/StoreBanner';
 import InstallPwaButton from '../components/InstallPwaButton';
 import Loading from '../components/Loading';
 import ProductCard from '../components/ProductCard';
@@ -82,12 +83,7 @@ export default function Storefront() {
     <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
     <a className="skip-link" href="#store-main">تخطي إلى المحتوى</a>
     <main className="container storefront" id="store-main" tabIndex={-1}>
-      <div
-        className="hero"
-        role="img"
-        aria-label={`صورة غلاف متجر ${settings.store_name}`}
-        style={settings.banner_url ? { backgroundImage: `url(${settings.banner_url})` } : undefined}
-      />
+      <StoreBanner src={settings.banner_url} alt={`صورة غلاف متجر ${settings.store_name}`} display={settings.banner_display}/>
       <section className="hero-copy" aria-label="ترحيب المتجر" data-appearance={settings.hero_copy_style.background_mode} style={heroCopyCss(settings.hero_copy_style,settings.hero_title_font_size,settings.hero_subtitle_font_size)}>
         <h1>{settings.hero_title}</h1>
         {settings.hero_subtitle&&<p>{settings.hero_subtitle}</p>}
