@@ -11,6 +11,8 @@ interface StoreContextValue {
   loading: boolean;
   error: string;
   refresh: () => Promise<void>;
+  /** Apply a small optimistic edit without setting global loading or refetching the store. */
+  updateSnapshot: (updater: (snapshot: StoreSnapshot) => StoreSnapshot) => void;
 }
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -29,9 +31,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     finally { setLoading(false); }
   };
 
+  const updateSnapshot = (updater: (snapshot: StoreSnapshot) => StoreSnapshot) =>
+    setData(previous => previous ? updater(previous) : previous);
+
   useEffect(() => { void refresh(true); }, [location.search]);
   const value = useMemo(() => ({ data, tenant, loading, error, refresh }), [data, tenant, loading, error]);
-  return <StoreContext.Provider value={{...value,refresh:()=>refresh(false)}}>{children}</StoreContext.Provider>;
+  return <StoreContext.Provider value={{...value,refresh:()=>refresh(false),updateSnapshot}}>{children}</StoreContext.Provider>;
 }
 
 export function useStore() {
