@@ -81,17 +81,19 @@ export default function Storefront() {
     <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
     <a className="skip-link" href="#store-main">تخطي إلى المحتوى</a>
     <main className="container storefront" id="store-main" tabIndex={-1}>
-      <section className="hero" style={{
-        ...(settings.banner_url ? { backgroundImage: `url(${settings.banner_url})` } : {}),
+      <div
+        className="hero"
+        role="img"
+        aria-label={`صورة غلاف متجر ${settings.store_name}`}
+        style={settings.banner_url ? { backgroundImage: `url(${settings.banner_url})` } : undefined}
+      />
+      <section className="hero-copy" aria-label="ترحيب المتجر" style={{
         '--hero-title-size': `${settings.hero_title_font_size}px`,
-        '--hero-subtitle-size': `${settings.hero_subtitle_font_size}px`,
-        '--hero-glass-alpha': settings.hero_glass_tint_percent / 100
+        '--hero-subtitle-size': `${settings.hero_subtitle_font_size}px`
       } as CSSProperties}>
-        <div className="hero-glass">
-          <h1>{settings.hero_title}</h1>
-          {settings.hero_subtitle&&<p>{settings.hero_subtitle}</p>}
-          {settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}
-        </div>
+        <h1>{settings.hero_title}</h1>
+        {settings.hero_subtitle&&<p>{settings.hero_subtitle}</p>}
+        {settings.welcome_message&&<small className="hero-welcome">{settings.welcome_message}</small>}
       </section>
 
       <div className="store-action-row" aria-label="إجراءات المتجر">
