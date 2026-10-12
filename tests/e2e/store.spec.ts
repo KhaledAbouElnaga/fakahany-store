@@ -181,6 +181,50 @@ test('storefront to cart to checkout works',async({page})=>{
   await expect(page.getByText(/تم استلام طلبك|تم تسجيل طلبك/)).toBeVisible();
 });
 
+test('product deletion is immediate, requires no timer or page reload and preserves search',async({page})=>{
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
+  await page.getByRole('button',{name:'المنتجات',exact:true}).click();
+
+  const search=page.locator('.admin-search');
+  await search.fill('مانجو عويس');
+  const row=page.locator('.product-admin-table tbody tr').filter({hasText:'مانجو عويس'});
+  await expect(row).toHaveCount(1);
+  let confirms=0;
+  page.on('dialog',async dialog=>{
+    confirms++;
+    expect(dialog.type()).toBe('confirm');
+    expect(dialog.message()).not.toMatch(/10 ثوان|تراجع خلال المهلة/);
+    await dialog.accept();
+  });
+  await row.getByRole('button',{name:'حذف'}).click();
+  await expect(row).toHaveCount(0);
+  await expect(search).toHaveValue('مانجو عويس');
+  await expect(page.locator('.undo-toast')).toHaveCount(0);
+  await expect(page.locator('.center-state')).toHaveCount(0);
+  expect(confirms).toBe(1);
+
+  const snapshot=await page.evaluate(()=>JSON.parse(localStorage.getItem('fakahany-demo-snapshot-v1')||'null'));
+  expect(snapshot.products.some((p:{name_ar:string})=>p.name_ar==='مانجو عويس')).toBe(false);
+  await search.clear();
+  await expect(page.locator('.product-admin-table tbody tr').first()).toBeVisible();
+  await page.reload();
+  await page.getByRole('button',{name:'المنتجات',exact:true}).click();
+  await expect(page.locator('.product-admin-table tbody')).not.toContainText('مانجو عويس');
+});
+
+test('cancelling the permanent product delete keeps the row and data intact',async({page})=>{
+  await page.goto('/admin');
+  await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
+  await page.getByRole('button',{name:'المنتجات',exact:true}).click();
+  const row=page.locator('.product-admin-table tbody tr').filter({hasText:'مانجو عويس'});
+  await expect(row).toHaveCount(1);
+  page.once('dialog',async dialog=>{await dialog.dismiss()});
+  await row.getByRole('button',{name:'حذف'}).click();
+  await expect(row).toHaveCount(1);
+  await expect(page.locator('.undo-toast')).toHaveCount(0);
+});
+
 test('admin demo login and product tools load',async({page})=>{
   await page.goto('/admin');
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
