@@ -68,7 +68,7 @@ test('merchant design studio saves glass, font and alignment independently per s
   const preview=page.locator('.hero-appearance-preview .hero-copy');
   await page.getByRole('button',{name:'زجاج مائي'}).click();
   await expect(preview).toHaveAttribute('data-appearance','glass');
-  await expect(preview).toHaveCSS('backdrop-filter',/blur\\(14px\\)/);
+  await expect(preview).toHaveCSS('backdrop-filter',/blur\(14px\)/);
   await expect(page.getByRole('slider',{name:'درجة شفافية خلفية العنوان'})).toBeVisible();
   await expect(page.getByRole('slider',{name:'ضبابية الزجاج المائي'})).toBeVisible();
 
@@ -84,7 +84,7 @@ test('merchant design studio saves glass, font and alignment independently per s
   await expect(card).toHaveAttribute('data-appearance','glass');
   await expect(card).toHaveCSS('text-align','right');
   await expect(card).toHaveCSS('font-family',/Tajawal/);
-  await expect(card).toHaveCSS('backdrop-filter',/blur\\(14px\\)/);
+  await expect(card).toHaveCSS('backdrop-filter',/blur\(14px\)/);
   await expect(page.locator('.storefront .hero h1')).toHaveCount(0);
 
   await page.goto('/admin');
