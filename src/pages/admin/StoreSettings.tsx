@@ -9,7 +9,11 @@ import StoreTransferPanel from './StoreTransferPanel';
 export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnapshot,refresh:()=>Promise<void>,owner?:boolean}){
   const [s,setS]=useState<ShopSettings>(structuredClone(data.settings));
   const [busy,setBusy]=useState(false);
-  const [ok,setOk]=useState('');
+  const [ok,setOk]=useState(()=>{
+    const saved=sessionStorage.getItem('fakahany-settings-saved-notice')||'';
+    if(saved)sessionStorage.removeItem('fakahany-settings-saved-notice');
+    return saved;
+  });
   const [currentPassword,setCurrentPassword]=useState('');
   const [password,setPassword]=useState('');
   const [password2,setPassword2]=useState('');
@@ -57,6 +61,9 @@ export default function StoreSettings({data,refresh,owner=false}:{data:StoreSnap
           delete pendingUploads.current[field];
         }
       }
+      // AdminPage briefly unmounts this settings tab while refresh() loads.
+      // Keep the success notice through that remount so the owner sees it.
+      sessionStorage.setItem('fakahany-settings-saved-notice','تم حفظ التعديلات بنجاح');
       document.title=s.site_name||s.store_name;await refresh();setOk('تم حفظ التعديلات بنجاح');
     }
     catch(e:any){setOk(e?.message||'تعذر الحفظ')}finally{setBusy(false)}
