@@ -12,68 +12,52 @@ test.beforeEach(async({page})=>{
   },{snapshot});
 });
 
-test('banner copy stays in a compact glass panel on desktop and mobile',async({page})=>{
+test('storefront banner shows artwork without text overlay on desktop and mobile',async({page})=>{
   await page.setViewportSize({width:1395,height:900});
   await page.goto('/');
-  const hero=page.locator('.storefront .hero');
-  const panel=hero.locator('.hero-glass');
-  const title=panel.locator('h1');
-  await expect(title).toBeVisible();
-  await expect(panel).toHaveCSS('backdrop-filter',/blur\(/);
+  const banner=page.locator('.storefront .hero');
+  const copy=page.locator('.storefront .hero-copy');
+  await expect(banner).toBeVisible();
+  await expect(copy.locator('h1')).toBeVisible();
+  await expect(banner.locator('h1,p,.hero-glass')).toHaveCount(0);
 
-  const desktopHero=await hero.boundingBox();
-  const desktopPanel=await panel.boundingBox();
-  if(!desktopHero||!desktopPanel)throw new Error('Desktop hero or glass panel is missing');
-  expect(desktopPanel.width).toBeLessThan(desktopHero.width*.38);
-  expect(desktopPanel.x).toBeGreaterThanOrEqual(desktopHero.x);
-  expect(desktopPanel.x+desktopPanel.width).toBeLessThanOrEqual(desktopHero.x+desktopHero.width+1);
-  const desktopFont=Number.parseFloat(await title.evaluate(el=>getComputedStyle(el).fontSize));
-  expect(desktopFont).toBeLessThanOrEqual(30);
-
-  await page.setViewportSize({width:390,height:844});
-  await expect(panel).toBeVisible();
-  const mobileHero=await hero.boundingBox();
-  const mobilePanel=await panel.boundingBox();
-  if(!mobileHero||!mobilePanel)throw new Error('Mobile hero or glass panel is missing');
-  expect(mobilePanel.width).toBeLessThanOrEqual(mobileHero.width-22);
-  expect(mobilePanel.x).toBeGreaterThanOrEqual(mobileHero.x);
-  expect(mobilePanel.x+mobilePanel.width).toBeLessThanOrEqual(mobileHero.x+mobileHero.width+1);
-  expect(mobilePanel.y+mobilePanel.height).toBeLessThanOrEqual(mobileHero.y+mobileHero.height+1);
-  const mobileFont=Number.parseFloat(await title.evaluate(el=>getComputedStyle(el).fontSize));
-  expect(mobileFont).toBeLessThanOrEqual(24);
+  for(const width of [1395,390]){
+    await page.setViewportSize({width,height:900});
+    const imageBox=await banner.boundingBox();
+    const copyBox=await copy.boundingBox();
+    if(!imageBox||!copyBox)throw new Error('Banner or separate copy section is missing');
+    expect(copyBox.y).toBeGreaterThanOrEqual(imageBox.y+imageBox.height+8);
+    expect(copyBox.x).toBeGreaterThanOrEqual(imageBox.x-1);
+    expect(copyBox.x+copyBox.width).toBeLessThanOrEqual(imageBox.x+imageBox.width+1);
+    const pageOverflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
+    expect(pageOverflow).toBe(false);
+  }
 });
 
-test('real glass banner stays translucent and font controls save per store',async({page})=>{
-  await page.goto('/');
-  const glass=page.locator('.storefront .hero-glass');
-  await expect(glass).toBeVisible();
-  const initialGlassAlpha=await glass.evaluate(el=>{
-    const color=getComputedStyle(el).backgroundColor;
-    const match=color.match(/rgba\([^,]+,[^,]+,[^,]+,\s*([.\d]+)\)/);
-    return match?Number(match[1]):1;
-  });
-  expect(initialGlassAlpha).toBeLessThan(.5);
-  expect(initialGlassAlpha).toBeGreaterThan(0);
-
+test('font controls update the separate title card and persist after save',async({page})=>{
   await page.goto('/admin');
   await page.getByRole('button',{name:'دخول تجريبي كمدير'}).click();
   await page.locator('.admin-side nav').getByRole('button',{name:'إعدادات المتجر'}).click();
-  const headingSlider=page.getByRole('slider',{name:'حجم عنوان الغلاف'});
-  const descriptionSlider=page.getByRole('slider',{name:'حجم وصف الغلاف'});
-  const glassSlider=page.getByRole('slider',{name:'شفافية خلفية النص الزجاجية'});
+  const headingSlider=page.getByRole('slider',{name:'حجم العنوان أسفل الغلاف'});
+  const descriptionSlider=page.getByRole('slider',{name:'حجم الوصف أسفل الغلاف'});
   await expect(headingSlider).toBeVisible();
   await expect(descriptionSlider).toBeVisible();
-  await expect(glassSlider).toBeVisible();
+  await expect(page.getByRole('slider',{name:'شفافية خلفية النص الزجاجية'})).toHaveCount(0);
+  const preview=page.locator('.hero-appearance-preview');
+  await expect(preview.locator('.hero-appearance-banner')).toBeVisible();
+  await expect(preview.locator('.hero-copy h1')).toBeVisible();
+  await expect(preview.locator('.hero-appearance-banner .hero-copy')).toHaveCount(0);
+
   const oldHeading=Number(await headingSlider.inputValue());
   await headingSlider.focus();
-  await headingSlider.press('ArrowLeft'); // RTL range: left arrow increases the value
+  await headingSlider.press('ArrowLeft'); // In RTL, ArrowLeft increases the range.
   await expect(headingSlider).toHaveValue(String(oldHeading+1));
-  await expect(page.locator('.hero-appearance-preview .hero-glass h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
+  await expect(preview.locator('.hero-copy h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
 
   await page.getByRole('button',{name:'حفظ كل الإعدادات'}).click();
   await expect(page.getByText('تم حفظ التعديلات بنجاح')).toBeVisible();
   await page.goto('/');
-  await expect(page.locator('.storefront .hero-glass h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
+  await expect(page.locator('.storefront .hero-copy h1')).toHaveCSS('font-size',`${oldHeading+1}px`);
 });
 
 test('storefront to cart to checkout works',async({page})=>{
