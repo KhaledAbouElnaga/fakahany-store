@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import InstallPwaButton from '../components/InstallPwaButton';
@@ -81,7 +81,12 @@ export default function Storefront() {
     <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
     <a className="skip-link" href="#store-main">تخطي إلى المحتوى</a>
     <main className="container storefront" id="store-main" tabIndex={-1}>
-      <section className="hero" style={settings.banner_url ? { backgroundImage: `url(${settings.banner_url})` } : undefined}>
+      <section className="hero" style={{
+        ...(settings.banner_url ? { backgroundImage: `url(${settings.banner_url})` } : {}),
+        '--hero-title-size': `${settings.hero_title_font_size}px`,
+        '--hero-subtitle-size': `${settings.hero_subtitle_font_size}px`,
+        '--hero-glass-alpha': settings.hero_glass_tint_percent / 100
+      } as CSSProperties}>
         <div className="hero-glass">
           <h1>{settings.hero_title}</h1>
           {settings.hero_subtitle&&<p>{settings.hero_subtitle}</p>}
