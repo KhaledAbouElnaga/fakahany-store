@@ -1,3 +1,4 @@
+import { storeStorageKey } from './storeLinks';
 import type { AdminAuditLog, AdminSearchResult, Category, ClientErrorLog, DeliveryArea, InventoryAdjustment, Order, OrderCleanupLog, OrderEvent, OrderStatusDefinition, Product, ProductOption, ScheduledPrice, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
 import { supabase, supabaseConfigured } from './supabase';
 import { getDemoOrders, getDemoSnapshot, setDemoOrders, setDemoSnapshot } from './demoData';
@@ -302,8 +303,8 @@ export function newProduct(order=999):Product{const id=uid();return{id,name_ar:'
 
 
 export async function recordVisit():Promise<void>{
-  if(sessionStorage.getItem('fakahany-visit-recorded')==='1') return;
-  sessionStorage.setItem('fakahany-visit-recorded','1');
+  if(sessionStorage.getItem(storeStorageKey('fakahany-visit-recorded'))==='1') return;
+  sessionStorage.setItem(storeStorageKey('fakahany-visit-recorded'),'1');
   if(!supabaseConfigured||!supabase) return;
   try{
     let country='غير معروف';
@@ -320,7 +321,7 @@ export async function recordVisit():Promise<void>{
     const referrer=document.referrer ? (()=>{try{return new URL(document.referrer).hostname}catch{return ''}})() : '';
     const storeId=await requireTenantId(); await supabase.rpc('record_store_visit',{store_id_input:storeId,country_input:country,device_input:device,referrer_input:referrer});
   }catch{
-    sessionStorage.removeItem('fakahany-visit-recorded');
+    sessionStorage.removeItem(storeStorageKey('fakahany-visit-recorded'));
   }
 }
 

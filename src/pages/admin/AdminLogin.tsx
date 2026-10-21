@@ -1,3 +1,4 @@
+import { tenantHref } from '../../lib/tenant';
 import { useEffect, useState } from 'react';
 import { adminExists, claimFirstAdminAfterLogin, createFirstAdmin, joinStaffWithInvite, mfaChallengeNeeded, signInAdmin, verifyMfaLogin } from '../../lib/auth';
 import { supabase, supabaseConfigured } from '../../lib/supabase';
@@ -25,7 +26,7 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
   },[needsConfirmation,lastResend]);
 
   useEffect(()=>{
-    updateNeutralPageMeta('دخول الإدارة — Fakahany SaaS','تسجيل الدخول إلى لوحة إدارة المتجر.');
+    updateNeutralPageMeta('دخول الإدارة — Matgark — متجرك','تسجيل الدخول إلى لوحة إدارة المتجر.');
     sessionStorage.removeItem('fakahany-idle-logout');
     adminExists().then(setExists).catch(e=>setMsg(e.message));
   },[]);
@@ -60,7 +61,7 @@ export default function AdminLogin({ onDone }: { onDone: () => void }) {
     if(wait>0)return;
     setBusy(true);setMsg('');
     try{
-      const result=await supabase.auth.resend({type:'signup',email:email.trim().toLowerCase()});
+      const result=await supabase.auth.resend({type:'signup',email:email.trim().toLowerCase(),options:{emailRedirectTo:location.origin+tenantHref('/admin')}});
       if(result.error)throw result.error;
       setLastResend(Date.now());
       setClock(Date.now());

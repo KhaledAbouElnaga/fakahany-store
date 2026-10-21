@@ -19,7 +19,7 @@ export default function SignupPage(){
     setCompleting(true);setError('');setMessage('جاري إنشاء متجرك...');
     try{
       const result=await finalizeSelfServiceStore(pending);
-      location.assign('/admin?store='+encodeURIComponent(result.slug));
+      location.assign('/s/'+encodeURIComponent(result.slug)+'/admin');
       return true;
     }catch(e:any){
       const msg=e?.message||'تعذر إنشاء المتجر.';
@@ -34,7 +34,7 @@ export default function SignupPage(){
   };
 
   useEffect(()=>{
-    updateNeutralPageMeta('إنشاء متجر — Fakahany SaaS','أنشئ متجرك وابدأ الإعداد مباشرة.');
+    updateNeutralPageMeta('إنشاء متجر — Matgark — متجرك','أنشئ متجرك وابدأ الإعداد مباشرة.');
     void finishPending();
     if(!supabase)return;
     const {data}=supabase.auth.onAuthStateChange((_event,session)=>{
@@ -66,7 +66,7 @@ export default function SignupPage(){
 
   return <main className="self-signup-page">
     <div className="self-signup-card">
-      <div className="self-signup-brand"><strong>Fakahany SaaS</strong><span>إنشاء متجر جديد</span></div>
+      <div className="self-signup-brand"><strong>Matgark — متجرك</strong><span>إنشاء متجر جديد</span></div>
       <h1>ابدأ متجرك</h1>
       <p className="muted">أنشئ حسابك، وبعدها سيظهر لك معالج إعداد المتجر خطوة بخطوة.</p>
 
