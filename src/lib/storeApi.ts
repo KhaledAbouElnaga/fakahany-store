@@ -1,3 +1,4 @@
+import { productImages, withProductImages } from './productImages';
 import { storeStorageKey } from './storeLinks';
 import type { AdminAuditLog, AdminSearchResult, Category, ClientErrorLog, DeliveryArea, InventoryAdjustment, Order, OrderCleanupLog, OrderEvent, OrderStatusDefinition, Product, ProductOption, ScheduledPrice, SellingUnit, ShopSettings, StoreSnapshot, SiteVisit } from '../types';
 import { supabase, supabaseConfigured } from './supabase';
@@ -116,6 +117,7 @@ export async function saveDeliveryArea(area:DeliveryArea){ if(!supabaseConfigure
 export async function deleteDeliveryArea(id:string){ if(!supabaseConfigured||!supabase){const s=getDemoSnapshot();s.deliveryAreas=s.deliveryAreas.filter(x=>x.id!==id);setDemoSnapshot(s);return;} const {error}=await supabase.from('delivery_areas').delete().eq('id',id);if(error)throw error; }
 
 export async function saveProduct(product: Product) {
+  product=withProductImages(product,productImages(product));
   if (!supabaseConfigured || !supabase) { const s=getDemoSnapshot(); const i=s.products.findIndex(x=>x.id===product.id); if(i>=0)s.products[i]=product;else s.products.push(product);setDemoSnapshot(s);return product; }
   const storeId=await requireTenantId();
 

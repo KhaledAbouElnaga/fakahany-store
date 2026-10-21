@@ -1,3 +1,4 @@
+import { productImages, withProductImages, MAX_PRODUCT_IMAGES } from '../../lib/productImages';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import AdminLogin from './AdminLogin';
@@ -309,7 +310,7 @@ function Products(){
       .sort((a,b)=>a.display_order-b.display_order);
 
     const validate=(p:Product)=>{if(!p.name_ar.trim())return 'اكتب اسم المنتج.';if(!p.options.length)return 'أضف خيار بيع واحدًا على الأقل.';for(const o of p.options){if(!o.name_ar.trim())return 'كل خيار بيع يجب أن يكون له اسم.';if(Number(o.price)<0)return 'السعر لا يمكن أن يكون سالبًا.';if(o.old_price!==null&&Number(o.old_price)<0)return 'السعر القديم لا يمكن أن يكون سالبًا.';if(o.track_stock&&Number(o.stock_qty??0)<0)return 'المخزون لا يمكن أن يكون سالبًا.';}if(p.track_stock&&Number(p.stock_qty??0)<0)return 'المخزون لا يمكن أن يكون سالبًا.';return '';};
-    const save=async(p:Product)=>{const v=validate(p);if(v)return setMsg(v);setBusy(true);setMsg('');const oldImage=data!.products.find(x=>x.id===p.id)?.image_url||'';try{await saveProduct(p);if(oldImage&&oldImage!==p.image_url)await deleteImage(oldImage).catch(()=>{});await refresh();setEditing(null);setMsg('تم حفظ المنتج بنجاح.');}catch(e:any){setMsg(e?.message||'تعذر حفظ المنتج.')}finally{setBusy(false)}};
+    const save=async(p:Product)=>{const v=validate(p);if(v)return setMsg(v);setBusy(true);setMsg('');try{await saveProduct(p);await refresh();setEditing(null);setMsg('تم حفظ المنتج بنجاح.');}catch(e:any){setMsg(e?.message||'تعذر حفظ المنتج.')}finally{setBusy(false)}};
     const duplicate=(p:Product)=>{const id=uid();setEditing({...structuredClone(p),id,name_ar:`${p.name_ar} - نسخة`,display_order:data!.products.length+1,options:p.options.map(o=>({...o,id:uid(),product_id:id}))})};
     const quick=async(p:Product,field:'available'|'hidden'|'featured',value:boolean)=>{await updateProductFields(p.id,{[field]:value});await refresh()};
     const move=async(p:Product,dir:-1|1)=>{const sorted=[...data!.products].sort((a,b)=>a.display_order-b.display_order);const i=sorted.findIndex(x=>x.id===p.id);const j=i+dir;if(j<0||j>=sorted.length)return;const other=sorted[j];const a=p.display_order,b=other.display_order;await Promise.all([updateProductFields(p.id,{display_order:b}),updateProductFields(other.id,{display_order:a})]);await refresh();};
@@ -341,8 +342,7 @@ function Products(){
       try{
         await deleteProduct(p.id);
         setMsg(`تم حذف «${p.name_ar}» بنجاح.`);
-        // Image cleanup must not hold up the interface after the database confirms deletion.
-        if(p.image_url)void deleteImage(p.image_url).catch(()=>{});
+        // Saved image URLs can be shared by duplicated products or backups.
       }catch(e:any){
         // A failed backend delete is NOT a successful deletion: restore the same product.
         updateSnapshot(snapshot=>snapshot.products.some(product=>product.id===p.id)?snapshot:{
@@ -372,13 +372,45 @@ function ProductEditor({product,onChange,onCancel,onSave,busy}:{product:Product,
     const initialSnapshot=useRef(JSON.stringify(product));
     const dirty=JSON.stringify(product)!==initialSnapshot.current;
     useUnsavedChanges(dirty);
-    const originalImage=data!.products.find(x=>x.id===product.id)?.image_url||'';
+    const productRef=useRef(product);productRef.current=product;
+    // Only delete unsaved uploads. A save attempt may persist URLs before other fields fail.
+    const staged=useRef(new Set<string>());
+    const images=productImages(product);
     const set=(k:keyof Product,v:any)=>onChange({...product,[k]:v});
+    const setImages=(urls:string[])=>onChange(withProductImages(productRef.current,urls));
     const setOpt=(id:string,k:keyof ProductOption,v:any)=>set('options',product.options.map(o=>o.id===id?{...o,[k]:v}:o));
-    const upload=async(file?:File)=>{if(!file)return;setImageBusy(true);try{const previous=product.image_url;const url=await uploadImage(file);set('image_url',url);if(previous&&previous!==originalImage)await deleteImage(previous).catch(()=>{});}catch(e:any){alert(e?.message||'تعذر رفع الصورة')}finally{setImageBusy(false)}};
-    const cancel=async()=>{if(dirty&&!confirm('لديك تعديلات غير محفوظة. هل تريد إغلاق المنتج بدون حفظها؟'))return;if(product.image_url&&product.image_url!==originalImage)await deleteImage(product.image_url).catch(()=>{});onCancel();};
-    const removeImage=async()=>{if(!confirm('حذف صورة المنتج؟'))return;if(product.image_url&&product.image_url!==originalImage)await deleteImage(product.image_url).catch(()=>{});set('image_url','');};
-    return <div className="modal-backdrop"><div className="modal-card large"><div className="modal-head"><h2>{product.name_ar||'منتج جديد'}</h2><button disabled={imageBusy||busy} onClick={()=>void cancel()}>✕</button></div><div className="form-grid"><label>اسم المنتج<input value={product.name_ar} onChange={e=>set('name_ar',e.target.value)}/></label><label>القسم<select value={product.category_id||''} onChange={e=>set('category_id',e.target.value||null)}><option value="">بدون قسم</option>{data!.categories.map(c=><option value={c.id} key={c.id}>{c.name_ar}</option>)}</select></label><label className="full">الوصف<textarea value={product.description_ar} onChange={e=>set('description_ar',e.target.value)}/></label><label>ترتيب الظهور<input type="number" min="0" value={product.display_order} onChange={e=>set('display_order',Number(e.target.value))}/></label><label>صورة المنتج<input disabled={imageBusy} type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void upload(e.target.files?.[0])}/><small>يتم ضغط الصورة تلقائيًا لتسريع الموقع.</small></label></div>{product.image_url&&<div className="image-admin-row"><img className="edit-preview" src={product.image_url}/><button className="btn secondary danger" onClick={()=>void removeImage()}>حذف الصورة</button></div>}<div className="toggle-row"><label><input type="checkbox" checked={product.available} onChange={e=>set('available',e.target.checked)}/> متاح</label><label><input type="checkbox" checked={product.featured} onChange={e=>set('featured',e.target.checked)}/> مميز</label><label><input type="checkbox" checked={product.hidden} onChange={e=>set('hidden',e.target.checked)}/> مخفي</label><label><input type="checkbox" checked={product.track_stock} onChange={e=>set('track_stock',e.target.checked)}/> تتبع مخزون المنتج</label>{product.track_stock&&<label>الكمية<input className="stock-input" type="number" min="0" value={product.stock_qty??0} onChange={e=>set('stock_qty',Number(e.target.value))}/></label>}</div><h3>الأوزان / الأحجام / الخيارات</h3><datalist id="selling-units-list">{data!.units.filter(u=>u.active).map(u=><option key={u.id} value={u.name_ar}/>)}</datalist><div className="option-list">{[...product.options].sort((a,b)=>a.display_order-b.display_order).map(o=><div className="option-row final-option-row" key={o.id}><input list="selling-units-list" placeholder="مثال: نصف كيلو" value={o.name_ar} onChange={e=>setOpt(o.id,'name_ar',e.target.value)}/><input type="number" min="0" placeholder="السعر" value={o.price} onChange={e=>setOpt(o.id,'price',Number(e.target.value))}/><input type="number" min="0" placeholder="السعر القديم" value={o.old_price??''} onChange={e=>setOpt(o.id,'old_price',e.target.value===''?null:Number(e.target.value))}/><input type="number" min="0" title="الترتيب" value={o.display_order} onChange={e=>setOpt(o.id,'display_order',Number(e.target.value))}/><label><input type="checkbox" checked={o.available} onChange={e=>setOpt(o.id,'available',e.target.checked)}/> متاح</label><label><input type="checkbox" checked={o.track_stock} onChange={e=>setOpt(o.id,'track_stock',e.target.checked)}/> مخزون</label>{o.track_stock&&<input type="number" min="0" title="الكمية" value={o.stock_qty??0} onChange={e=>setOpt(o.id,'stock_qty',Number(e.target.value))}/>}<button className="danger" onClick={()=>set('options',product.options.filter(x=>x.id!==o.id))}>حذف</button></div>)}</div><button className="btn secondary" onClick={()=>set('options',[...product.options,{id:uid(),product_id:product.id,name_ar:'',price:0,old_price:null,available:true,track_stock:false,stock_qty:null,display_order:product.options.length+1}])}>+ إضافة خيار</button><div className="modal-actions"><button className="btn secondary" disabled={imageBusy||busy} onClick={()=>void cancel()}>إلغاء</button><button className="btn" disabled={busy||imageBusy} onClick={onSave}>{busy?'جاري الحفظ...':'حفظ المنتج'}</button></div></div></div>;
+    const upload=async(files:File[])=>{
+      if(!files.length)return;
+      if(images.length+files.length>MAX_PRODUCT_IMAGES){alert('يمكن إضافة '+MAX_PRODUCT_IMAGES+' صور لكل منتج كحد أقصى.');return;}
+      setImageBusy(true);const added:string[]=[];
+      try{
+        for(const file of files){const url=await uploadImage(file);added.push(url);staged.current.add(url);}
+        setImages([...images,...added]);
+      }catch(e:any){
+        await Promise.allSettled(added.map(url=>deleteImage(url)));added.forEach(url=>staged.current.delete(url));
+        alert(e?.message||'تعذر رفع الصور. لم تتغير صور المنتج.');
+      }finally{setImageBusy(false)}
+    };
+    const cancel=async()=>{
+      if(dirty&&!confirm('لديك تعديلات غير محفوظة. هل تريد إغلاق المنتج بدون حفظها؟'))return;
+      setImageBusy(true);await Promise.allSettled([...staged.current].map(url=>deleteImage(url)));onCancel();
+    };
+    const removeImage=async(url:string)=>{
+      if(!confirm('إزالة الصورة من المنتج؟'))return;
+      setImages(images.filter(image=>image!==url));
+      if(staged.current.has(url)){staged.current.delete(url);await deleteImage(url).catch(()=>{});}
+    };
+    const reorderImage=(index:number,delta:number)=>{
+      const next=[...images];const other=index+delta;
+      if(other<0||other>=next.length)return;
+      [next[index],next[other]]=[next[other],next[index]];setImages(next);
+    };
+    return <div className="modal-backdrop"><div className="modal-card large"><div className="modal-head"><h2>{product.name_ar||'منتج جديد'}</h2><button disabled={imageBusy||busy} onClick={()=>void cancel()}>✕</button></div><div className="form-grid"><label>اسم المنتج<input value={product.name_ar} onChange={e=>set('name_ar',e.target.value)}/></label><label>القسم<select value={product.category_id||''} onChange={e=>set('category_id',e.target.value||null)}><option value="">بدون قسم</option>{data!.categories.map(c=><option value={c.id} key={c.id}>{c.name_ar}</option>)}</select></label><label className="full">الوصف<textarea value={product.description_ar} onChange={e=>set('description_ar',e.target.value)}/></label><label>ترتيب الظهور<input type="number" min="0" value={product.display_order} onChange={e=>set('display_order',Number(e.target.value))}/></label><label>صور المنتج<input aria-label="صور المنتج" disabled={imageBusy||busy||images.length>=MAX_PRODUCT_IMAGES} type="file" multiple accept="image/jpeg,image/png,image/webp" onChange={e=>{const files=Array.from(e.target.files||[]);e.target.value='';void upload(files)}}/><small>{imageBusy?'جاري رفع الصور...':'اختر عدة صور معًا (حتى 10). يتم ضغطها تلقائيًا. أول صورة هي الغلاف.'}</small></label></div><div className="product-images-editor" aria-label="إدارة صور المنتج">{images.map((url,index)=><div className="product-image-editor-item" key={url}>
+<img className="edit-preview" src={url} alt={'صورة المنتج '+(index+1)}/><small>{index===0?'صورة الغلاف':'صورة '+(index+1)}</small>
+<div><button type="button" disabled={imageBusy||busy||index===0} aria-label={'تعيين الصورة '+(index+1)+' كغلاف'} onClick={()=>setImages([url,...images.filter(image=>image!==url)])}>غلاف</button>
+<button type="button" disabled={imageBusy||busy||index===0} aria-label={'تقديم الصورة '+(index+1)} onClick={()=>reorderImage(index,-1)}>→</button>
+<button type="button" disabled={imageBusy||busy||index===images.length-1} aria-label={'تأخير الصورة '+(index+1)} onClick={()=>reorderImage(index,1)}>←</button>
+<button type="button" className="danger" disabled={imageBusy||busy} aria-label={'إزالة الصورة '+(index+1)} onClick={()=>void removeImage(url)}>إزالة</button></div></div>)}</div><div className="toggle-row"><label><input type="checkbox" checked={product.available} onChange={e=>set('available',e.target.checked)}/> متاح</label><label><input type="checkbox" checked={product.featured} onChange={e=>set('featured',e.target.checked)}/> مميز</label><label><input type="checkbox" checked={product.hidden} onChange={e=>set('hidden',e.target.checked)}/> مخفي</label><label><input type="checkbox" checked={product.track_stock} onChange={e=>set('track_stock',e.target.checked)}/> تتبع مخزون المنتج</label>{product.track_stock&&<label>الكمية<input className="stock-input" type="number" min="0" value={product.stock_qty??0} onChange={e=>set('stock_qty',Number(e.target.value))}/></label>}</div><h3>الأوزان / الأحجام / الخيارات</h3><datalist id="selling-units-list">{data!.units.filter(u=>u.active).map(u=><option key={u.id} value={u.name_ar}/>)}</datalist><div className="option-list">{[...product.options].sort((a,b)=>a.display_order-b.display_order).map(o=><div className="option-row final-option-row" key={o.id}><input list="selling-units-list" placeholder="مثال: نصف كيلو" value={o.name_ar} onChange={e=>setOpt(o.id,'name_ar',e.target.value)}/><input type="number" min="0" placeholder="السعر" value={o.price} onChange={e=>setOpt(o.id,'price',Number(e.target.value))}/><input type="number" min="0" placeholder="السعر القديم" value={o.old_price??''} onChange={e=>setOpt(o.id,'old_price',e.target.value===''?null:Number(e.target.value))}/><input type="number" min="0" title="الترتيب" value={o.display_order} onChange={e=>setOpt(o.id,'display_order',Number(e.target.value))}/><label><input type="checkbox" checked={o.available} onChange={e=>setOpt(o.id,'available',e.target.checked)}/> متاح</label><label><input type="checkbox" checked={o.track_stock} onChange={e=>setOpt(o.id,'track_stock',e.target.checked)}/> مخزون</label>{o.track_stock&&<input type="number" min="0" title="الكمية" value={o.stock_qty??0} onChange={e=>setOpt(o.id,'stock_qty',Number(e.target.value))}/>}<button className="danger" onClick={()=>set('options',product.options.filter(x=>x.id!==o.id))}>حذف</button></div>)}</div><button className="btn secondary" onClick={()=>set('options',[...product.options,{id:uid(),product_id:product.id,name_ar:'',price:0,old_price:null,available:true,track_stock:false,stock_qty:null,display_order:product.options.length+1}])}>+ إضافة خيار</button><div className="modal-actions"><button className="btn secondary" disabled={imageBusy||busy} onClick={()=>void cancel()}>إلغاء</button><button className="btn" disabled={busy||imageBusy} onClick={()=>{staged.current.clear();onSave()}}>{busy?'جاري الحفظ...':'حفظ المنتج'}</button></div></div></div>;
   }
 
 
