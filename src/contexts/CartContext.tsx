@@ -1,7 +1,8 @@
+import { storeStorageKey } from '../lib/storeLinks';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { CartItem, Product, ProductOption } from '../types';
 
-const KEY = 'fakahany-cart-v1';
+
 
 interface CartContextValue {
   items: CartItem[];
@@ -16,6 +17,7 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 export function CartProvider({ children }: { children: ReactNode }) {
+  const KEY=storeStorageKey('fakahany-cart-v1');
   const [items, setItems] = useState<CartItem[]>(() => {
     try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
   });

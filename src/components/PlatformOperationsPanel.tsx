@@ -39,7 +39,7 @@ export default function PlatformOperationsPanel(){
     setBusy(true);setMsg('');
     try{
       await startPlatformSupport(ticket.store_id);
-      const url='/admin?store='+encodeURIComponent(ticket.store_slug)+'&support=1';
+      const url='/s/'+encodeURIComponent(ticket.store_slug)+'/admin?support=1';
       if(tab)tab.location.href=url;else location.assign(url);
     }catch(e:any){
       if(tab)tab.close();
@@ -73,7 +73,7 @@ export default function PlatformOperationsPanel(){
       {!notifications.length&&<div className="empty-state">لا توجد تنبيهات تحتاج تدخل حاليًا.</div>}
       {notifications.map(n=><article key={n.id} className={'platform-notification '+n.severity}>
         <div><b>{n.title}</b><span>{n.message}</span></div>
-        <div>{n.store_slug&&<a href={'/?store='+encodeURIComponent(n.store_slug)} target="_blank" rel="noreferrer">{n.store_name||n.store_slug}</a>}<small>{when(n.refreshed_at)}</small></div>
+        <div>{n.store_slug&&<a href={'/s/'+encodeURIComponent(n.store_slug)} target="_blank" rel="noreferrer">{n.store_name||n.store_slug}</a>}<small>{when(n.refreshed_at)}</small></div>
       </article>)}
     </div>}
 

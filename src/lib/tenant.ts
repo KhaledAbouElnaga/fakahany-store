@@ -1,3 +1,4 @@
+import { requestedStoreSlug, scopedStoreHref } from './storeLinks';
 import { supabase, supabaseConfigured } from './supabase';
 import type { TenantInfo } from '../types';
 
@@ -7,18 +8,7 @@ let pending:Promise<TenantInfo>|null=null;
 let pendingKey='';
 
 function requestedSlug(){
-  if(typeof window==='undefined')return '';
-  const params=new URLSearchParams(window.location.search);
-  const explicit=(params.get('store')||'').trim().toLowerCase();
-  if(explicit){
-    sessionStorage.setItem('fakahany-preview-store',explicit);
-    return explicit;
-  }
-  const host=window.location.hostname.toLowerCase();
-  if(host==='localhost'||host==='127.0.0.1'||host.endsWith('.pages.dev')){
-    return (sessionStorage.getItem('fakahany-preview-store')||'').trim().toLowerCase();
-  }
-  return '';
+  return typeof window==='undefined'?'':requestedStoreSlug(window.location);
 }
 
 function tenantRequestKey(){
@@ -46,6 +36,7 @@ export async function resolveTenant(force=false):Promise<TenantInfo>{
     if(!data||typeof data!=='object'||!('id' in data))throw new Error('لم يتم العثور على المتجر المطلوب.');
 
     const tenant=data as TenantInfo;
+    if(slug && tenant.slug.toLowerCase()!==slug)throw new Error('لم يتم العثور على المتجر المطلوب.');
     if(tenant.status==='suspended')throw new Error('هذا المتجر موقوف مؤقتًا.');
     currentTenant=tenant;
     currentTenantKey=key;
@@ -78,10 +69,5 @@ export function clearResolvedTenant(options?:{forgetPreview?:boolean}){
 }
 
 export function tenantHref(path:string){
-  if(typeof window==='undefined')return path;
-  const host=window.location.hostname.toLowerCase();
-  const slug=(new URLSearchParams(window.location.search).get('store')||sessionStorage.getItem('fakahany-preview-store')||currentTenant?.slug||'').trim().toLowerCase();
-  if(!slug||(!(host==='localhost'||host==='127.0.0.1'||host.endsWith('.pages.dev'))))return path;
-  const separator=path.includes('?')?'&':'?';
-  return path+separator+'store='+encodeURIComponent(slug);
+  return typeof window==='undefined'?path:scopedStoreHref(path,window.location);
 }

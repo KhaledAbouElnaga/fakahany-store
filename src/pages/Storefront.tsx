@@ -1,3 +1,4 @@
+import { storeStorageKey } from '../lib/storeLinks';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
@@ -23,7 +24,7 @@ export default function Storefront() {
   const [offersOnly,setOffersOnly]=useState(false);
   const [featuredOnly,setFeaturedOnly]=useState(false);
   const [favoritesOnly,setFavoritesOnly]=useState(false);
-  const [favorites,setFavorites]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('fakahany-favorites')||'[]')}catch{return []}});
+  const [favorites,setFavorites]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem(storeStorageKey('fakahany-favorites'))||'[]')}catch{return []}});
   const [sort,setSort]=useState<'display'|'priceAsc'|'priceDesc'|'name'>('display');
   const [quickProduct,setQuickProduct]=useState<Product|null>(null);
   const [qrOpen,setQrOpen]=useState(false);
@@ -31,8 +32,8 @@ export default function Storefront() {
   const [lastOrder,setLastOrder]=useState<Order|null>(null);
 
   useEffect(()=>{ if(data) updatePageMeta(data.settings); },[data]);
-  useEffect(()=>{ void recordVisit(); try{const x=JSON.parse(localStorage.getItem('fakahany-last-order')||'null');setLastOrder(x)}catch{} },[]);
-  useEffect(()=>{localStorage.setItem('fakahany-favorites',JSON.stringify(favorites))},[favorites]);
+  useEffect(()=>{ void recordVisit(); try{const x=JSON.parse(localStorage.getItem(storeStorageKey('fakahany-last-order'))||'null');setLastOrder(x)}catch{} },[]);
+  useEffect(()=>{localStorage.setItem(storeStorageKey('fakahany-favorites'),JSON.stringify(favorites))},[favorites]);
 
   if (loading) return <Loading/>;
   if (error || !data) return <div className="center-state error-state"><p>{error || 'تعذر تحميل المتجر'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;

@@ -39,8 +39,8 @@ function planLimits(plan:PlatformPlan){
 }
 function ownerInviteMessage(origin:string,slug:string,email:string,code:string){
   return [
-    'دعوة لإدارة المتجر — Fakahany SaaS',
-    'رابط تفعيل حساب المالك: '+origin+'/admin?store='+encodeURIComponent(slug)+'&join=1',
+    'دعوة لإدارة المتجر — Matgark — متجرك',
+    'رابط تفعيل حساب المالك: '+origin+'/s/'+encodeURIComponent(slug)+'/admin?join=1',
     'البريد المخصص للدعوة: '+email,
     'كود الدعوة: '+code,
     'افتح الرابط، واضغط «لدي كود دعوة» إذا لم تظهر استمارة الدعوة، ثم أنشئ الحساب أو اربط حسابك الحالي.',
@@ -80,7 +80,7 @@ export default function PlatformAdminPage(){
 
   useEffect(()=>{
     clearResolvedTenant({forgetPreview:true});
-    updateNeutralPageMeta('Fakahany SaaS — إدارة المنصة','إدارة جميع المتاجر من منصة واحدة.');
+    updateNeutralPageMeta('Matgark — متجرك — إدارة المنصة','إدارة جميع المتاجر من منصة واحدة.');
     void endPlatformSupport().catch(()=>{}).finally(()=>{
       if(!platformAccessUnlocked()){
         setAuthorized(false);
@@ -219,7 +219,7 @@ export default function PlatformAdminPage(){
 
   return <div className="platform-shell">
     <header className="platform-topbar">
-      <div><strong>Fakahany SaaS</strong><span>إدارة المنصة والمتاجر</span></div>
+      <div><strong>Matgark — متجرك</strong><span>إدارة المنصة والمتاجر</span></div>
       <div className="platform-top-actions"><button className="btn secondary" onClick={()=>setShowPlatformSettings(v=>!v)}>إعدادات المنصة</button><button className="btn secondary" onClick={()=>void signOutPlatform().then(()=>setAuthorized(false))}>تسجيل الخروج</button></div>
     </header>
 
@@ -247,7 +247,7 @@ export default function PlatformAdminPage(){
           
           <label>مدة جلسة الدعم (دقيقة)<input type="number" min="5" max="240" value={settings.support_session_minutes} onChange={e=>setSettings(v=>({...v,support_session_minutes:Number(e.target.value)}))}/></label>
         </div>
-        <div className="platform-domain-note">{settings.base_domain?<><b>نظام الـSubdomains جاهز:</b><span dir="ltr">store-name.{settings.base_domain}</span></>:<><b>حاليًا:</b><span>كل متجر يستخدم رابط <code>?store=slug</code>. عند ربط دومين واحد للمنصة، تتحول الروابط تلقائيًا إلى Subdomains.</span></>}</div>
+        <div className="platform-domain-note">{settings.base_domain?<><b>نظام الـSubdomains جاهز:</b><span dir="ltr">store-name.{settings.base_domain}</span></>:<><b>حاليًا:</b><span>كل متجر يستخدم رابط <code>/s/slug</code>. عند ربط دومين واحد للمنصة، تتحول الروابط تلقائيًا إلى Subdomains.</span></>}</div>
         <button className="btn" disabled={busy} onClick={()=>void saveSettings()}>حفظ إعدادات المنصة</button>
       </section>}
 

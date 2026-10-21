@@ -1,3 +1,4 @@
+import { storeStorageKey } from '../lib/storeLinks';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
@@ -50,7 +51,7 @@ export default function CheckoutPage(){
     if(website.trim())return setError('تعذر إتمام الطلب. حاول مرة أخرى.');
     try{
       const now=Date.now();
-      const recent=(JSON.parse(localStorage.getItem('fakahany-order-times')||'[]') as number[]).filter(x=>now-x<5*60*1000);
+      const recent=(JSON.parse(localStorage.getItem(storeStorageKey('fakahany-order-times'))||'[]') as number[]).filter(x=>now-x<5*60*1000);
       if(recent.length>=3)return setError('تم إرسال عدة طلبات خلال وقت قصير. انتظر بضع دقائق ثم حاول مرة أخرى.');
     }catch{}
     if(!isStoreOpenNow(data.settings))return setError('المحل مغلق حاليًا حسب إعدادات ومواعيد العمل.');
@@ -81,13 +82,13 @@ export default function CheckoutPage(){
       if(!deliveryEnabled){message=message.split('\n').filter(line=>!line.includes('رسوم التوصيل')&&!line.startsWith('المنطقة:')).join('\n');}
       if(!(data.settings.feature_flags.scheduled_orders&&data.settings.scheduled_orders_enabled)){message=message.split('\n').filter(line=>!line.startsWith('موعد الطلب:')).join('\n');}
       if(data.settings.feature_flags.tracking&&order.tracking_token){message+=`\n\nتتبع الطلب: ${getPublicPageUrl(data.settings,`/track/${order.tracking_token}`)}`;}
-      localStorage.setItem('fakahany-last-order',JSON.stringify(order));
+      localStorage.setItem(storeStorageKey('fakahany-last-order'),JSON.stringify(order));
       try{
         const now=Date.now();
-        const recent=(JSON.parse(localStorage.getItem('fakahany-order-times')||'[]') as number[]).filter(x=>now-x<10*60*1000);
-        localStorage.setItem('fakahany-order-times',JSON.stringify([...recent,now].slice(-8)));
+        const recent=(JSON.parse(localStorage.getItem(storeStorageKey('fakahany-order-times'))||'[]') as number[]).filter(x=>now-x<10*60*1000);
+        localStorage.setItem(storeStorageKey('fakahany-order-times'),JSON.stringify([...recent,now].slice(-8)));
       }catch{}
-      localStorage.setItem('fakahany-last-success',JSON.stringify({order,message}));
+      localStorage.setItem(storeStorageKey('fakahany-last-success'),JSON.stringify({order,message}));
       clear(); await refresh(); nav(tenantHref('/order-success'),{replace:true});
       if(!isShowroom){
         if(mobile) window.setTimeout(()=>openWhatsApp(wa,message),120);

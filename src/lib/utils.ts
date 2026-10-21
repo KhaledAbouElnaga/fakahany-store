@@ -1,3 +1,4 @@
+import { scopedStoreHref, pathStoreSlug } from './storeLinks';
 import type { Order, Product, ShopSettings } from '../types';
 
 export const money = (value: number) => `${Number(value || 0).toLocaleString('ar-EG')} جنيه`;
@@ -70,19 +71,14 @@ export function getPublicBaseUrl(settings?: Pick<ShopSettings,'public_site_url'>
   return /^https?:\/\//i.test(configured)?configured:'https://'+configured;
 }
 
-function previewTenantHref(path:string){
-  if(typeof window==='undefined')return path;
-  const normalized=path.startsWith('/')?path:'/'+path;
-  const host=window.location.hostname.toLowerCase();
-  if(!(host==='localhost'||host==='127.0.0.1'||host.endsWith('.pages.dev')))return normalized;
-  const slug=(new URLSearchParams(window.location.search).get('store')||sessionStorage.getItem('fakahany-preview-store')||'').trim().toLowerCase();
-  if(!slug)return normalized;
-  return normalized+(normalized.includes('?')?'&':'?')+'store='+encodeURIComponent(slug);
-}
+function previewTenantHref(path:string){return scopedStoreHref(path,window.location);}
 
 export function getPublicPageUrl(settings:Pick<ShopSettings,'public_site_url'>|undefined,path='/'){
   const configured=(settings?.public_site_url||'').trim().replace(/\/$/,'');
-  const normalized=path.startsWith('/')?path:'/'+path;
+  const slug=pathStoreSlug(window.location.pathname);
+  const prefix=slug?'/s/'+encodeURIComponent(slug):'';
+  const unscoped=prefix&&(path===prefix||path.startsWith(prefix+'/'))?path.slice(prefix.length)||'/':path;
+  const normalized=unscoped.startsWith('/')?unscoped:'/'+unscoped;
   if(configured){
     const base=/^https?:\/\//i.test(configured)?configured:'https://'+configured;
     return base+normalized;
@@ -198,7 +194,7 @@ export function orderTemplateValues(order: Order, settings: ShopSettings) {
   };
 }
 
-export function updateNeutralPageMeta(title='Fakahany SaaS',description='منصة لإدارة وتشغيل المتاجر الإلكترونية') {
+export function updateNeutralPageMeta(title='Matgark — متجرك',description='منصة لإدارة وتشغيل المتاجر الإلكترونية') {
   document.title=title;
   const setMeta=(selector:string,attr:'name'|'property',key:string,content:string)=>{
     let el=document.head.querySelector<HTMLMetaElement>(selector);
@@ -206,8 +202,8 @@ export function updateNeutralPageMeta(title='Fakahany SaaS',description='منص�
     el.content=content;
   };
   setMeta('meta[name="description"]','name','description',description);
-  setMeta('meta[name="application-name"]','name','application-name','Fakahany SaaS');
-  setMeta('meta[name="apple-mobile-web-app-title"]','name','apple-mobile-web-app-title','Fakahany SaaS');
+  setMeta('meta[name="application-name"]','name','application-name','Matgark — متجرك');
+  setMeta('meta[name="apple-mobile-web-app-title"]','name','apple-mobile-web-app-title','Matgark — متجرك');
   setMeta('meta[property="og:title"]','property','og:title',title);
   setMeta('meta[property="og:description"]','property','og:description',description);
   setMeta('meta[property="og:type"]','property','og:type','website');

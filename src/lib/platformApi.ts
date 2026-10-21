@@ -218,11 +218,11 @@ export async function deletePlatformStore(storeId:string,confirmSlug:string,conf
 
 export function platformStoreUrl(origin:string,store:Pick<PlatformStore,'slug'>,settings:PlatformSettings){
   const base=settings.base_domain.trim().replace(/^https?:\/\//i,'').replace(/\/$/,'');
-  return base?`https://${store.slug}.${base}`:`${origin}/?store=${encodeURIComponent(store.slug)}`;
+  return base&&!base.endsWith('.pages.dev')?`https://${store.slug}.${base}`:`${base?'https://'+base:origin}/s/${encodeURIComponent(store.slug)}`;
 }
 
 export function platformAdminUrl(origin:string,store:Pick<PlatformStore,'slug'>){
-  return `${origin}/admin?store=${encodeURIComponent(store.slug)}`;
+  return `${origin}/s/${encodeURIComponent(store.slug)}/admin`;
 }
 
 

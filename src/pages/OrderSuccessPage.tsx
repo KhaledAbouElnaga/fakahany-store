@@ -1,3 +1,4 @@
+import { storeStorageKey } from '../lib/storeLinks';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Loading from '../components/Loading';
@@ -12,7 +13,7 @@ export default function OrderSuccessPage(){
   const {data,loading,tenant}=useStore();
   if(loading||!data)return <Loading/>;
   let success:StoredSuccess|null=null;
-  try{success=JSON.parse(localStorage.getItem('fakahany-last-success')||'null')}catch{}
+  try{success=JSON.parse(localStorage.getItem(storeStorageKey('fakahany-last-success'))||'null')}catch{}
   if(!success)return <><Header settings={data.settings}/><main className="container narrow"><div className="empty-state"><p>لا توجد بيانات طلب حديثة.</p><Link className="btn secondary" to={tenantHref('/')}>العودة للمتجر</Link></div></main></>;
   const {order,message}=success;
   const wa=normalizeWhatsAppNumber(data.settings.whatsapp_number);

@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { StoreProvider } from './contexts/StoreContext';
 import { CartProvider } from './contexts/CartContext';
 import Storefront from './pages/Storefront';
@@ -16,7 +16,9 @@ import PlatformAdminPage from './pages/PlatformAdminPage';
 import SignupPage from './pages/SignupPage';
 
 function StoreScopedRoutes(){
-  return <StoreProvider><CartProvider><Routes>
+  const location=useLocation();
+  const scope=location.pathname.match(/^\/s\/[^/]+/)?.[0] || new URLSearchParams(location.search).get('store') || 'legacy-root';
+  return <StoreProvider key={scope}><CartProvider><Routes>
     <Route path="/" element={<PublicStoreGate><Storefront/></PublicStoreGate>}/>
     <Route path="/cart" element={<PublicStoreGate><CartPage/></PublicStoreGate>}/>
     <Route path="/checkout" element={<PublicStoreGate><CheckoutPage/></PublicStoreGate>}/>
@@ -34,6 +36,7 @@ export default function App(){
     <Routes>
       <Route path="/platform" element={<PlatformAdminPage/>}/>
       <Route path="/signup" element={<SignupPage/>}/>
+      <Route path="/s/:slug/*" element={<StoreScopedRoutes/>}/>
       <Route path="/*" element={<StoreScopedRoutes/>}/>
     </Routes>
   </BrowserRouter></AppErrorBoundary>;

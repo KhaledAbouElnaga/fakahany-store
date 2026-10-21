@@ -1,6 +1,7 @@
+import { storeStorageKey } from './storeLinks';
 import { supabase, supabaseConfigured } from './supabase';
 import type { StaffProfile, StaffRole } from '../types';
-import { requireTenantId } from './tenant';
+import { requireTenantId, tenantHref } from './tenant';
 
 const DEMO_KEY = 'fakahany-demo-admin';
 
@@ -44,12 +45,12 @@ export async function signInAdmin(email: string, password: string) {
 
   let ok=await isAdmin();
   if(!ok){
-    const raw=localStorage.getItem('fakahany-pending-staff-invite');
+    const raw=localStorage.getItem(storeStorageKey('fakahany-pending-staff-invite'));
     if(raw){
       try{
         const pending=JSON.parse(raw);
         const storeId=await requireTenantId(); const claim=await supabase.rpc('claim_staff_invite',{store_id_input:storeId,code_input:pending.code,display_name_input:pending.name||''});
-        if(!claim.error){localStorage.removeItem('fakahany-pending-staff-invite');ok=await isAdmin();}
+        if(!claim.error){localStorage.removeItem(storeStorageKey('fakahany-pending-staff-invite'));ok=await isAdmin();}
       }catch{}
     }
   }
@@ -95,7 +96,7 @@ export async function verifyMfaLogin(code:string){
 
 export async function startMfaEnrollment():Promise<{factorId:string;qrCode:string;secret:string}>{
   if(!supabaseConfigured||!supabase)throw new Error('التحقق الثنائي يحتاج Supabase.');
-  const {data,error}=await supabase.auth.mfa.enroll({factorType:'totp',friendlyName:'Fakahany Owner'});
+  const {data,error}=await supabase.auth.mfa.enroll({factorType:'totp',friendlyName:'Matgark Owner'});
   if(error)throw error;
   return {factorId:data.id,qrCode:data.totp.qr_code,secret:data.totp.secret};
 }
@@ -123,7 +124,7 @@ export async function createFirstAdmin(email: string, password: string) {
   if (!supabaseConfigured || !supabase) { sessionStorage.setItem(DEMO_KEY, '1'); return; }
   const exists = await adminExists();
   if (exists) throw new Error('تم إنشاء المدير الأول بالفعل.');
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({ email, password, options:{emailRedirectTo:location.origin+tenantHref('/admin')} });
   if (error) throw error;
   if (!data.session) throw new Error('تم إنشاء الحساب. افتح رسالة التأكيد في بريدك ثم ارجع وسجل الدخول، وبعدها اضغط خيار تفعيل المدير الأول.');
   const { error: claimError } = await supabase.rpc('claim_first_admin');
@@ -179,12 +180,12 @@ export function hasStaffPermission(profile:StaffProfile|null,permission:string){
 export async function joinStaffWithInvite(email:string,password:string,code:string,displayName:string){
   if(!supabaseConfigured||!supabase){sessionStorage.setItem(DEMO_KEY,'1');return;}
   if(!code.trim())throw new Error('اكتب كود الدعوة.');
-  localStorage.setItem('fakahany-pending-staff-invite',JSON.stringify({code:code.trim(),name:displayName.trim()}));
+  localStorage.setItem(storeStorageKey('fakahany-pending-staff-invite'),JSON.stringify({code:code.trim(),name:displayName.trim()}));
 
   let session=(await supabase.auth.signInWithPassword({email,password})).data.session;
   if(!session){
     validateStrongPassword(password);
-    const signed=await supabase.auth.signUp({email,password});
+    const signed=await supabase.auth.signUp({email,password,options:{emailRedirectTo:location.origin+tenantHref('/admin')}});
     if(signed.error)throw signed.error;
     session=signed.data.session;
   }
@@ -195,7 +196,7 @@ export async function joinStaffWithInvite(email:string,password:string,code:stri
   const {error}=await supabase.rpc('claim_staff_invite',{store_id_input:storeId,code_input:code.trim(),display_name_input:displayName.trim()});
   if(error)throw error;
   try{await supabase.rpc('record_staff_login');}catch{}
-  localStorage.removeItem('fakahany-pending-staff-invite');
+  localStorage.removeItem(storeStorageKey('fakahany-pending-staff-invite'));
 }
 
 export async function loadStaffProfiles():Promise<StaffProfile[]>{
