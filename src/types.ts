@@ -31,6 +31,7 @@ export interface Product {
   name_ar: string;
   description_ar: string;
   image_url: string;
+  image_urls?: string[] | null;
   category_id: ID | null;
   featured: boolean;
   available: boolean;

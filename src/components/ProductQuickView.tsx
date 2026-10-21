@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Product, ProductOption } from '../types';
 import { money, isOutOfStock, isLowStock } from '../lib/utils';
 import { useCart } from '../contexts/CartContext';
+import ProductGallery from './ProductGallery';
 
 function usable(o: ProductOption){return o.available&&(!o.track_stock||Number(o.stock_qty??0)>0)}
 
@@ -27,7 +28,7 @@ export default function ProductQuickView({product,threshold,onClose}:{product:Pr
     <div className="modal-card product-quick-card" onClick={e=>e.stopPropagation()}>
       <div className="modal-head"><h2>{product.name_ar}</h2><button onClick={onClose}>✕</button></div>
       <div className="quick-view-grid">
-        <div className="quick-view-image">{product.image_url?<img src={product.image_url} alt={product.name_ar}/>:<div className="image-fallback">صورة المنتج</div>}</div>
+        <ProductGallery key={product.id} product={product}/>
         <div className="quick-view-info">
           {product.description_ar&&<p>{product.description_ar}</p>}
           {out?<span className="stock-pill out">نفد مؤقتًا</span>:low?<span className="stock-pill low">متبقي كمية قليلة</span>:null}

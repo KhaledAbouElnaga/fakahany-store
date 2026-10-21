@@ -29,6 +29,7 @@ create table if not exists public.products (
   name_ar text not null,
   description_ar text not null default '',
   image_url text not null default '',
+  image_urls text[] default '{}',
   category_id uuid references public.categories(id) on delete set null,
   featured boolean not null default false,
   available boolean not null default true,
