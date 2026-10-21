@@ -1,3 +1,4 @@
+import type { PlatformStore, PlatformSettings } from '../types';
 // Explicit paths take precedence over legacy query links. Never remember a
 // tenant in sessionStorage: opening the legacy root must keep its own meaning.
 export function pathStoreSlug(pathname:string){
@@ -28,3 +29,19 @@ export function storeStorageKey(key:string){
   // Retain existing root browser data; explicit stores get separate buckets.
   return slug?key+':store:'+encodeURIComponent(slug):key;
 }
+
+export function isPlatformHost(host:string){
+ return host==='matgark.pages.dev'||host.endsWith('.matgark.pages.dev');
+}
+
+export function platformStoreUrl(origin:string,store:Pick<PlatformStore,'slug'> & {custom_domain?:string|null},settings:PlatformSettings){
+  if(store.custom_domain)return 'https://'+store.custom_domain.replace(/^https?:\/\//i,'').replace(/\/$/,'');
+  const base=settings.base_domain.trim().replace(/^https?:\/\//i,'').replace(/\/$/,'');
+  return base&&!base.endsWith('.pages.dev')?`https://${store.slug}.${base}`:`${base?'https://'+base:origin}/s/${encodeURIComponent(store.slug)}`;
+}
+
+export function platformAdminUrl(origin:string,store:Pick<PlatformStore,'slug'>){
+  return `${origin}/s/${encodeURIComponent(store.slug)}/admin`;
+}
+
+

@@ -10,13 +10,28 @@ export async function onRequest(context) {
   const userAgent = context.request.headers.get('user-agent') || '';
   if (!SOCIAL_CRAWLER.test(userAgent)) return response;
 
+  const requestUrl = new URL(context.request.url);
+  const platformHost=requestUrl.hostname==='matgark.pages.dev'||requestUrl.hostname.endsWith('.matgark.pages.dev');
+  const neutral=requestUrl.pathname==='/platform'||requestUrl.pathname==='/signup'||(platformHost&&requestUrl.pathname==='/'&&!requestUrl.searchParams.get('store'));
+  if(neutral)return new HTMLRewriter()
+    .on('meta[property="og:url"]',{element(el){el.setAttribute('content',requestUrl.origin+requestUrl.pathname)}})
+    .transform(response);
+  const pathSlug=requestUrl.pathname.match(/^\/s\/([^/]+)(?:\/|$)/)?.[1];
+  const requestedSlug=(pathSlug?decodeURIComponent(pathSlug):requestUrl.searchParams.get('store')||'').trim().toLowerCase();
   const baseUrl = context.env.VITE_SUPABASE_URL;
   const anonKey = context.env.VITE_SUPABASE_ANON_KEY;
   if (!baseUrl || !anonKey) return response;
 
   try {
+    const resolved=await fetch(baseUrl+'/rest/v1/rpc/resolve_store_context',{
+      method:'POST',headers:{apikey:anonKey,Authorization:'Bearer '+anonKey,'Content-Type':'application/json'},
+      body:JSON.stringify({host_input:requestUrl.host,slug_input:requestedSlug})
+    });
+    if(!resolved.ok)return response;
+    const store=await resolved.json();
+    if(!store?.id||(requestedSlug&&store.slug!==requestedSlug))return response;
     const settingsResponse = await fetch(
-      `${baseUrl}/rest/v1/shop_settings?id=eq.main&select=store_name,site_name,site_description,hero_subtitle,share_image_url,banner_url,logo_url,phone,address,public_site_url`,
+      `${baseUrl}/rest/v1/shop_settings?store_id=eq.${encodeURIComponent(store.id)}&select=store_name,site_name,site_description,hero_subtitle,share_image_url,banner_url,logo_url,phone,address,public_site_url`,
       {
         headers: {
           apikey: anonKey,
@@ -35,10 +50,11 @@ export async function onRequest(context) {
     const title = settings.site_name || settings.store_name || 'المتجر';
     const description = settings.site_description || settings.hero_subtitle || settings.store_name || '';
     const image = settings.share_image_url || settings.banner_url || settings.logo_url || '';
-    const requestUrl = new URL(context.request.url);
     const configuredBase = (settings.public_site_url || '').trim().replace(/\/$/,'');
     const canonicalBase = configuredBase || requestUrl.origin;
-    const canonicalUrl = `${canonicalBase}${requestUrl.pathname}`;
+    const unscopedPath=pathSlug?requestUrl.pathname.replace(/^\/s\/[^/]+/,'')||'/':requestUrl.pathname;
+    const canonicalUrl = configuredBase?canonicalBase+unscopedPath:requestUrl.origin+requestUrl.pathname+requestUrl.search;
+    const escapeAttr=value=>value.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;');
     const schema = JSON.stringify({
       '@context':'https://schema.org',
       '@type':'GroceryStore',
@@ -52,7 +68,7 @@ export async function onRequest(context) {
     }).replaceAll('<','\\u003c');
 
     const rewriter = new HTMLRewriter()
-      .on('head', { element(el) { el.append(`<link rel="canonical" href="${canonicalUrl}"><script type="application/ld+json">${schema}</script>`,{html:true}); } })
+      .on('head', { element(el) { el.append(`<link rel="canonical" href="${escapeAttr(canonicalUrl)}"><script type="application/ld+json">${schema}</script>`,{html:true}); } })
       .on('title', { element(el) { el.setInnerContent(title); } })
       .on('meta[name="description"]', { element(el) { el.setAttribute('content', description); } })
       .on('meta[property="og:title"]', { element(el) { el.setAttribute('content', title); } })

@@ -14,6 +14,9 @@ import PublicStoreGate from './components/PublicStoreGate';
 import PwaUpdateToast from './components/PwaUpdateToast';
 import PlatformAdminPage from './pages/PlatformAdminPage';
 import SignupPage from './pages/SignupPage';
+import PlatformHome from './pages/PlatformHome';
+
+import { isPlatformHost } from './lib/storeLinks';
 
 function StoreScopedRoutes(){
   const location=useLocation();
@@ -34,6 +37,7 @@ export default function App(){
     <NetworkStatus/>
     <PwaUpdateToast/>
     <Routes>
+      {isPlatformHost(window.location.hostname)&&!new URLSearchParams(window.location.search).get('store')&&<Route path="/" element={<PlatformHome/>}/>}
       <Route path="/platform" element={<PlatformAdminPage/>}/>
       <Route path="/signup" element={<SignupPage/>}/>
       <Route path="/s/:slug/*" element={<StoreScopedRoutes/>}/>

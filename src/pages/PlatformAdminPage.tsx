@@ -145,7 +145,7 @@ export default function PlatformAdminPage(){
       // Reuse this tab so Auth storage and the intended tenant remain in sync.
       const session=await startPlatformSupport(store.id);
       setOk(`تم فتح جلسة دعم لـ «${store.name}» حتى ${when(session.expires_at)}.`);
-      window.location.assign(platformAdminUrl(origin,store)+'&support=1');
+      window.location.assign(platformAdminUrl(origin,store)+'?support=1');
     }catch(e:any){
       const message=String(e?.message||'تعذر بدء جلسة الدعم.');
       setError(message);
@@ -247,7 +247,7 @@ export default function PlatformAdminPage(){
           
           <label>مدة جلسة الدعم (دقيقة)<input type="number" min="5" max="240" value={settings.support_session_minutes} onChange={e=>setSettings(v=>({...v,support_session_minutes:Number(e.target.value)}))}/></label>
         </div>
-        <div className="platform-domain-note">{settings.base_domain?<><b>نظام الـSubdomains جاهز:</b><span dir="ltr">store-name.{settings.base_domain}</span></>:<><b>حاليًا:</b><span>كل متجر يستخدم رابط <code>/s/slug</code>. عند ربط دومين واحد للمنصة، تتحول الروابط تلقائيًا إلى Subdomains.</span></>}</div>
+        <div className="platform-domain-note">{settings.base_domain&&!settings.base_domain.endsWith('.pages.dev')?<><b>روابط المتاجر:</b><span dir="ltr">store-name.{settings.base_domain}</span></>:<><b>حاليًا:</b><span>كل متجر يستخدم رابط <code>/s/slug</code>. ويمكن ربط دومين خاص بعد إعداده والتحقق منه.</span></>}</div>
         <button className="btn" disabled={busy} onClick={()=>void saveSettings()}>حفظ إعدادات المنصة</button>
       </section>}
 
@@ -258,7 +258,7 @@ export default function PlatformAdminPage(){
         <button className="btn" type="button" onClick={()=>void navigator.clipboard.writeText(ownerInviteMessage(origin,created.slug,created.owner_email,created.invite_code)).then(()=>setOk('تم نسخ رسالة الدعوة كاملة، وأصبحت جاهزة للإرسال.')).catch(()=>setError('تعذر نسخ الرسالة؛ انسخها يدويًا من المربع.'))}>نسخ رسالة الدعوة كاملة</button>
         <div className="platform-created-actions">
           <a className="btn secondary" href={platformStoreUrl(origin,{slug:created.slug} as PlatformStore,settings)} target="_blank" rel="noreferrer">معاينة المتجر</a>
-          <a className="btn" href={platformAdminUrl(origin,{slug:created.slug} as PlatformStore)+'&join=1'} target="_blank" rel="noreferrer">رابط انضمام المالك</a>
+          <a className="btn" href={platformAdminUrl(origin,{slug:created.slug} as PlatformStore)+'?join=1'} target="_blank" rel="noreferrer">رابط انضمام المالك</a>
         </div>
       </div>}
 
