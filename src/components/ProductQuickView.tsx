@@ -31,7 +31,7 @@ export default function ProductQuickView({product,threshold,onClose}:{product:Pr
   };
   return <div className="modal-backdrop product-quick-backdrop" onClick={onClose}>
     <div className="modal-card product-quick-card" onClick={e=>e.stopPropagation()}>
-      <div className="modal-head"><h2>{product.name_ar}</h2><button onClick={onClose}>✕</button></div>
+      <div className="modal-head"><h2>{product.name_ar}</h2><button data-edge-back-dismiss onClick={onClose}>✕</button></div>
       <div className="quick-view-grid">
         <ProductGallery key={product.id} product={product}/>
         <div className="quick-view-info">
