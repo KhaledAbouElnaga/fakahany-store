@@ -36,6 +36,8 @@ Cloudflare access is authenticated. Both `matgark` and `fakahany-store` already 
 
 Only Matgark receives the new manual deployment. Code is kept on a separate branch/PR so merging cannot unexpectedly deploy the shared production source to Fakahany. The new tenant uses the internal `business` catalog tier to accommodate 540 records (basic caps at 100 and pro at 500), with trial status. No purchase, payment, external subscription or billing modification was executed. This does not promise indefinite free hosting or bypass provider quotas.
 
+Production deployment `5d20d9df-c1d4-4d94-8780-147b7b280a87` serves commit `93e6d5c`. Matgark's production branch was then changed, with read-back verification, to `codex/ibrahim-import-20261023` in both project and Git source settings. This prevents an unrelated update to shared `main` from reverting this rollout. Fakahany remains on `main`, canonical deployment `82989945-4320-44a3-8f30-b815062b764d`, commit `8982581b85c52dbc87955d2acb0a6e7909408272`; both values were unchanged across the operation. Future Matgark code updates should target its configured branch until the deployment arrangement is deliberately consolidated.
+
 ## Verification and remaining work
 
 - Type check and production build passed; existing middleware tests passed (3).
@@ -45,3 +47,4 @@ Only Matgark receives the new manual deployment. Code is kept on a separate bran
 - A two-account owner/staff authorization exercise and email confirmation round-trip are still untested. Owner assignment awaits the user's intended email. Do not guess an owner or send invitations.
 - 537 draft source groups still require visual product identification/splitting before publication. No prices or inventory were inferred from ambiguous stickers or product images.
 - Existing Supabase advisories include callable SECURITY DEFINER functions and disabled leaked-password protection. This limited change did not rewrite unrelated authorization functions; it is not a comprehensive security certification.
+- The original dependency lockfile also reports one high-severity audit advisory; it was preserved rather than applying an unrelated dependency upgrade during this rollout.
