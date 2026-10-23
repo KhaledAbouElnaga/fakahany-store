@@ -39,6 +39,7 @@ export default function Storefront() {
   if (error || !data) return <div className="center-state error-state"><p>{error || 'تعذر تحميل المتجر'}</p><button className="btn" onClick={()=>void refresh()}>إعادة المحاولة</button></div>;
   const { settings } = data;
   const visible = data.products.filter(p => !p.hidden);
+  const inquiryCatalog=visible.length>0&&visible.every(p=>p.options.length===0);
   const priceOf=(p:typeof visible[number])=>Math.min(...p.options.filter(o=>o.available).map(o=>Number(o.price)),Number.MAX_SAFE_INTEGER);
   const filtered = visible.filter(p => {
     const matchesSearch = !search.trim() || smartArabicMatch(`${p.name_ar} ${p.description_ar}`,search);
@@ -81,7 +82,7 @@ export default function Storefront() {
 
   return <>
     <Header settings={settings} showCart={false}/>
-    <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{storeStatusText(settings)}{!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
+    <div className={`store-status-strip ${storeOpen?'open':'closed'}`}><span className="status-dot"/>{inquiryCatalog?'كتالوج للاستفسار · تأكيد السعر والتوفر قبل الطلب':storeStatusText(settings)}{!inquiryCatalog&&!settings.delivery_enabled&&<span> · الطلبات للاستلام من المحل</span>}</div>
     <a className="skip-link" href="#store-main">تخطي إلى المحتوى</a>
     <main className="container storefront" id="store-main" tabIndex={-1}>
       <StoreBanner src={settings.banner_url} alt={`صورة غلاف متجر ${settings.store_name}`} display={settings.banner_display}/>
@@ -135,10 +136,10 @@ export default function Storefront() {
       <InstallPwaButton/>
     </div></footer>
 
-    <Link to={tenantHref('/cart')} className="floating-cart-circle" aria-label={`السلة: ${count} منتج، الإجمالي ${subtotal.toLocaleString('ar-EG')} جنيه`} title="السلة">
+    {!inquiryCatalog&&<Link to={tenantHref('/cart')} className="floating-cart-circle" aria-label={`السلة: ${count} منتج، الإجمالي ${subtotal.toLocaleString('ar-EG')} جنيه`} title="السلة">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.2 10.1a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.5L20.5 8H7.1M10 20a1 1 0 1 0 0-2 1 1 0 0 0 0 2Zm7 0a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>
       <b>{count}</b>
-    </Link>
+    </Link>}
     <div className="floating-contact-stack">
       {settings.phone&&<a className="floating-round-action phone" href={`tel:${settings.phone}`} aria-label="اتصال بالمتجر" title="اتصال">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24c1.1.36 2.3.55 3.6.55a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1C10.6 21 3 13.4 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.3.2 2.5.56 3.6a1 1 0 0 1-.25 1Z"/></svg>

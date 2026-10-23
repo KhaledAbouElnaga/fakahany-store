@@ -14,3 +14,7 @@ patch/
 playwright-report/
 test-results/
 .visual-baseline/
+.wrangler/
+supabase/.temp/
+wrangler.toml
+.env.*.local
