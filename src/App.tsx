@@ -15,6 +15,7 @@ import PwaUpdateToast from './components/PwaUpdateToast';
 import PlatformAdminPage from './pages/PlatformAdminPage';
 import SignupPage from './pages/SignupPage';
 import PlatformHome from './pages/PlatformHome';
+import EdgeSwipeBack from './components/EdgeSwipeBack';
 
 import { isPlatformHost } from './lib/storeLinks';
 
@@ -34,6 +35,7 @@ function StoreScopedRoutes(){
 
 export default function App(){
   return <AppErrorBoundary><BrowserRouter>
+    <EdgeSwipeBack/>
     <NetworkStatus/>
     <PwaUpdateToast/>
     <Routes>
