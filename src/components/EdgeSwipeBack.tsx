@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { scopedStoreHref } from '../lib/storeLinks';
+import { confirmUnsavedNavigation } from '../lib/unsaved';
 
 /** Let native system gestures win; provide edge-back where touch events reach us. */
 export default function EdgeSwipeBack(){
@@ -15,7 +16,7 @@ export default function EdgeSwipeBack(){
       if(event.touches.length!==1)return;
       const target=event.target instanceof Element?event.target:null;
       // Carousels, form controls and horizontal scrollers keep their own gestures.
-      if(target?.closest('input,textarea,select,[contenteditable="true"],.product-gallery,[data-no-edge-back]'))return;
+      if(target?.closest('input,textarea,select,[contenteditable="true"],.product-gallery,.category-chips,.table-wrap,[data-no-edge-back]'))return;
       const modal=document.querySelector('.modal-backdrop');
       const dismiss=modal?.querySelector<HTMLButtonElement>('[data-edge-back-dismiss]')||null;
       if(modal&&!dismiss)return; // Never dismiss an unsaved editor implicitly.
@@ -45,6 +46,7 @@ export default function EdgeSwipeBack(){
       const inward=gesture.side==='left'?dx:-dx;
       if(inward<80||inward<Math.abs(dy)*2||Date.now()-gesture.time>900)return;
       if(gesture.dismiss){gesture.dismiss.click();return;}
+      if(!confirmUnsavedNavigation())return;
       if(Number(window.history.state?.idx)>0)navigate(-1);
       else navigate(home,{replace:true}); // A directly opened inner page still has a way home.
     };
