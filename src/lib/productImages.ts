@@ -1,6 +1,6 @@
 import type { Product } from '../types';
 
-export const MAX_PRODUCT_IMAGES=10;
+export const MAX_PRODUCT_IMAGES=60;
 
 /** Keep legacy image_url as the cover for older clients and backups. */
 export function productImages(product:Pick<Product,'image_url'|'image_urls'>):string[]{

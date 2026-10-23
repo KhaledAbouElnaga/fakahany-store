@@ -71,5 +71,6 @@ test('legacy cover remains compatible and the gallery limit does not silently dr
  const product=stableDemoSnapshot().products[0];
  expect(productImages({...product,image_url:'old.jpg',image_urls:null})).toEqual(['old.jpg']);
  expect(productImages({...product,image_url:'old.jpg',image_urls:['old.jpg','second.jpg']})).toEqual(['old.jpg','second.jpg']);
- expect(()=>withProductImages(product,Array.from({length:11},(_,i)=>`${i}.jpg`))).toThrow();
+ expect(withProductImages(product,Array.from({length:54},(_,i)=>`${i}.jpg`)).image_urls).toHaveLength(54);
+ expect(()=>withProductImages(product,Array.from({length:61},(_,i)=>`${i}.jpg`))).toThrow();
 });

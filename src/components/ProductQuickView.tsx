@@ -3,11 +3,16 @@ import type { Product, ProductOption } from '../types';
 import { money, isOutOfStock, isLowStock } from '../lib/utils';
 import { useCart } from '../contexts/CartContext';
 import ProductGallery from './ProductGallery';
+import { useStore } from '../contexts/StoreContext';
+import { needsPriceInquiry, priceInquiryHref } from '../lib/productInquiry';
 
 function usable(o: ProductOption){return o.available&&(!o.track_stock||Number(o.stock_qty??0)>0)}
 
 export default function ProductQuickView({product,threshold,onClose}:{product:Product,threshold:number,onClose:()=>void}){
   const {add,items}=useCart();
+  const {data}=useStore();
+  const inquiry=needsPriceInquiry(product);
+  const inquiryHref=priceInquiryHref(data?.settings.whatsapp_number||data?.settings.phone||'',product);
   const opts=useMemo(()=>[...product.options].sort((a,b)=>a.display_order-b.display_order).filter(usable),[product.options]);
   const [optionId,setOptionId]=useState(opts[0]?.id||'');
   const [qty,setQty]=useState(1);
@@ -26,16 +31,15 @@ export default function ProductQuickView({product,threshold,onClose}:{product:Pr
   };
   return <div className="modal-backdrop product-quick-backdrop" onClick={onClose}>
     <div className="modal-card product-quick-card" onClick={e=>e.stopPropagation()}>
-      <div className="modal-head"><h2>{product.name_ar}</h2><button onClick={onClose}>✕</button></div>
+      <div className="modal-head"><h2>{product.name_ar}</h2><button data-edge-back-dismiss onClick={onClose}>✕</button></div>
       <div className="quick-view-grid">
         <ProductGallery key={product.id} product={product}/>
         <div className="quick-view-info">
           {product.description_ar&&<p>{product.description_ar}</p>}
-          {out?<span className="stock-pill out">نفد مؤقتًا</span>:low?<span className="stock-pill low">متبقي كمية قليلة</span>:null}
+          {!inquiry && (out?<span className="stock-pill out">نفد مؤقتًا</span>:low?<span className="stock-pill low">متبقي كمية قليلة</span>:null)}
           {opts.length>1&&<label>اختر الحجم أو الوزن<select value={option?.id||''} onChange={e=>setOptionId(e.target.value)}>{opts.map(o=><option key={o.id} value={o.id}>{o.name_ar}</option>)}</select></label>}
           {option&&<div className="quick-price"><strong>{money(option.price)}</strong>{hasSale&&<><del>{money(option.old_price!)}</del><span>خصم {discount}٪</span></>}</div>}
-          <label>الكمية<div className="qty quick-qty"><button onClick={()=>setQty(Math.max(1,qty-1))}>−</button><b>{qty}</b><button onClick={()=>setQty(qty+1)}>+</button></div></label>
-          <button className="btn" disabled={out} onClick={addNow}>{out?'غير متوفر حاليًا':'أضف للسلة'}</button>
+          {inquiry?<><strong>السعر عند الاستفسار</strong><p>يرجى التواصل لتأكيد السعر والتوفر قبل الطلب.</p>{inquiryHref&&<a className="btn" href={inquiryHref} target="_blank" rel="noreferrer">استفسر عن السعر والتوفر</a>}</>:<><label>الكمية<div className="qty quick-qty"><button onClick={()=>setQty(Math.max(1,qty-1))}>−</button><b>{qty}</b><button onClick={()=>setQty(qty+1)}>+</button></div></label><button className="btn" disabled={out} onClick={addNow}>{out?'غير متوفر حاليًا':'أضف للسلة'}</button></>}
         </div>
       </div>
     </div>
